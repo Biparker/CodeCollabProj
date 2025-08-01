@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- <link rel="icon" href="%PUBLIC_URL%/favicon.ico" /> -->
+    <link rel="icon" type="image/png" href="%PUBLIC_URL%/CC-Logo-ColorBg.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="Web site created using React" />
+    <title>React App</title>
+    <script>
+      console.log('HTML loaded successfully');
+      window.addEventListener('load', function() {
+        console.log('Page fully loaded');
+        if (document.getElementById('root')) {
+          console.log('Root element found');
+        } else {
+          console.log('Root element NOT found');
+        }
+      });
+    </script>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root">
+      <p>Loading React app...</p>
+    </div>
+  </body>
+</html> 

@@ -1,0 +1,225 @@
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../utils/api';
+
+// Async thunks
+export const fetchProjects = createAsyncThunk(
+  'projects/fetchProjects',
+  async (_, { rejectWithValue }) => {
+    try {
+      const response = await api.get('/projects');
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const fetchProjectById = createAsyncThunk(
+  'projects/fetchProjectById',
+  async (projectId, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/projects/${projectId}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to fetch project' });
+    }
+  }
+);
+
+export const createProject = createAsyncThunk(
+  'projects/createProject',
+  async (projectData, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/projects', projectData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to create project' });
+    }
+  }
+);
+
+export const updateProject = createAsyncThunk(
+  'projects/updateProject',
+  async ({ projectId, projectData }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/projects/${projectId}`, projectData);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to update project' });
+    }
+  }
+);
+
+export const deleteProject = createAsyncThunk(
+  'projects/deleteProject',
+  async (projectId, { rejectWithValue }) => {
+    try {
+      await api.delete(`/projects/${projectId}`);
+      return projectId;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to delete project' });
+    }
+  }
+);
+
+export const joinProject = createAsyncThunk(
+  'projects/joinProject',
+  async (projectId, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/join`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to join project' });
+    }
+  }
+);
+
+export const leaveProject = createAsyncThunk(
+  'projects/leaveProject',
+  async (projectId, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/leave`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to leave project' });
+    }
+  }
+);
+
+const initialState = {
+  projects: [],
+  currentProject: null,
+  loading: false,
+  error: null,
+};
+
+const projectsSlice = createSlice({
+  name: 'projects',
+  initialState,
+  reducers: {
+    clearError: (state) => {
+      state.error = null;
+    },
+    clearCurrentProject: (state) => {
+      state.currentProject = null;
+    },
+  },
+  extraReducers: (builder) => {
+    builder
+      // Fetch Projects
+      .addCase(fetchProjects.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProjects.fulfilled, (state, action) => {
+        state.loading = false;
+        state.projects = action.payload;
+      })
+      .addCase(fetchProjects.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch projects';
+      })
+      // Fetch Project by ID
+      .addCase(fetchProjectById.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchProjectById.fulfilled, (state, action) => {
+        state.loading = false;
+        state.currentProject = action.payload;
+      })
+      .addCase(fetchProjectById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to fetch project';
+      })
+      // Create Project
+      .addCase(createProject.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(createProject.fulfilled, (state, action) => {
+        state.loading = false;
+        state.projects.push(action.payload);
+      })
+      .addCase(createProject.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to create project';
+      })
+      // Update Project
+      .addCase(updateProject.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(updateProject.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.projects.findIndex(p => p._id === action.payload._id);
+        if (index !== -1) {
+          state.projects[index] = action.payload;
+        }
+        if (state.currentProject && state.currentProject._id === action.payload._id) {
+          state.currentProject = action.payload;
+        }
+      })
+      .addCase(updateProject.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to update project';
+      })
+      // Delete Project
+      .addCase(deleteProject.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(deleteProject.fulfilled, (state, action) => {
+        state.loading = false;
+        state.projects = state.projects.filter(p => p._id !== action.payload);
+        if (state.currentProject && state.currentProject._id === action.payload) {
+          state.currentProject = null;
+        }
+      })
+      .addCase(deleteProject.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to delete project';
+      })
+      // Join Project
+      .addCase(joinProject.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(joinProject.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.projects.findIndex(p => p._id === action.payload._id);
+        if (index !== -1) {
+          state.projects[index] = action.payload;
+        }
+        if (state.currentProject && state.currentProject._id === action.payload._id) {
+          state.currentProject = action.payload;
+        }
+      })
+      .addCase(joinProject.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to join project';
+      })
+      // Leave Project
+      .addCase(leaveProject.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(leaveProject.fulfilled, (state, action) => {
+        state.loading = false;
+        const index = state.projects.findIndex(p => p._id === action.payload._id);
+        if (index !== -1) {
+          state.projects[index] = action.payload;
+        }
+        if (state.currentProject && state.currentProject._id === action.payload._id) {
+          state.currentProject = action.payload;
+        }
+      })
+      .addCase(leaveProject.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to leave project';
+      });
+  },
+});
+
+export const { clearError, clearCurrentProject } = projectsSlice.actions;
+export default projectsSlice.reducer;

@@ -1,0 +1,473 @@
+import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  Container,
+  Typography,
+  TextField,
+  Button,
+  Box,
+  Paper,
+  Alert,
+  Grid,
+  Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
+  Switch,
+  FormControlLabel,
+  Divider,
+  Avatar,
+} from '@mui/material';
+import { Add, Delete, Save, Edit } from '@mui/icons-material';
+import { updateProfile, getMyProfile } from '../store/slices/userSlice';
+
+const Profile = () => {
+  const dispatch = useDispatch();
+  const { user, loading, error } = useSelector((state) => state.auth);
+  const { profile, updateLoading, updateError } = useSelector((state) => state.user);
+
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    bio: '',
+    skills: [],
+    experience: 'beginner',
+    location: '',
+    timezone: '',
+    availability: 'flexible',
+    portfolioLinks: [],
+    socialLinks: {
+      github: '',
+      linkedin: '',
+      twitter: '',
+      website: ''
+    },
+    isProfilePublic: true
+  });
+
+  const [newSkill, setNewSkill] = useState('');
+  const [newPortfolioLink, setNewPortfolioLink] = useState({ name: '', url: '' });
+  const [validationError, setValidationError] = useState('');
+
+  useEffect(() => {
+    if (user) {
+      dispatch(getMyProfile());
+    }
+  }, [dispatch, user]);
+
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        firstName: profile.firstName || '',
+        lastName: profile.lastName || '',
+        bio: profile.bio || '',
+        skills: profile.skills || [],
+        experience: profile.experience || 'beginner',
+        location: profile.location || '',
+        timezone: profile.timezone || '',
+        availability: profile.availability || 'flexible',
+        portfolioLinks: profile.portfolioLinks || [],
+        socialLinks: {
+          github: profile.socialLinks?.github || '',
+          linkedin: profile.socialLinks?.linkedin || '',
+          twitter: profile.socialLinks?.twitter || '',
+          website: profile.socialLinks?.website || ''
+        },
+        isProfilePublic: profile.isProfilePublic !== undefined ? profile.isProfilePublic : true
+      });
+    }
+  }, [profile]);
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    if (name.includes('.')) {
+      const [parent, child] = name.split('.');
+      setFormData(prev => ({
+        ...prev,
+        [parent]: {
+          ...prev[parent],
+          [child]: value
+        }
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+    setValidationError('');
+  };
+
+  const handleAddSkill = () => {
+    if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        skills: [...prev.skills, newSkill.trim()]
+      }));
+      setNewSkill('');
+    }
+  };
+
+  const handleRemoveSkill = (skillToRemove) => {
+    setFormData(prev => ({
+      ...prev,
+      skills: prev.skills.filter(skill => skill !== skillToRemove)
+    }));
+  };
+
+  const handleAddPortfolioLink = () => {
+    if (newPortfolioLink.name.trim() && newPortfolioLink.url.trim()) {
+      setFormData(prev => ({
+        ...prev,
+        portfolioLinks: [...prev.portfolioLinks, { ...newPortfolioLink }]
+      }));
+      setNewPortfolioLink({ name: '', url: '' });
+    }
+  };
+
+  const handleRemovePortfolioLink = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      portfolioLinks: prev.portfolioLinks.filter((_, i) => i !== index)
+    }));
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    if (!formData.firstName.trim()) {
+      setValidationError('First name is required');
+      return;
+    }
+
+    if (!formData.lastName.trim()) {
+      setValidationError('Last name is required');
+      return;
+    }
+
+    try {
+      await dispatch(updateProfile(formData)).unwrap();
+      setValidationError('');
+    } catch (error) {
+      if (error.errors && Array.isArray(error.errors)) {
+        const errorMessages = error.errors.map(err => err.msg).join(', ');
+        setValidationError(`Validation errors: ${errorMessages}`);
+      } else if (error.message) {
+        setValidationError(error.message);
+      } else {
+        setValidationError('Failed to update profile. Please try again.');
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <Container maxWidth="md">
+        <Box sx={{ mt: 4, textAlign: 'center' }}>
+          <Typography>Loading profile...</Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="md">
+      <Box sx={{ mt: 4, mb: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom align="center">
+            Profile Settings
+          </Typography>
+          <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
+            Manage your profile information and visibility
+          </Typography>
+          
+          {(error || updateError || validationError) && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error || updateError || validationError}
+            </Alert>
+          )}
+          
+          <Box component="form" onSubmit={handleSubmit}>
+            <Grid container spacing={3}>
+              {/* Basic Information */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Basic Information
+                </Typography>
+              </Grid>
+              
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  label="First Name"
+                  name="firstName"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  required
+                  fullWidth
+                  label="Last Name"
+                  name="lastName"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                />
+              </Grid>
+
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Bio"
+                  name="bio"
+                  multiline
+                  rows={4}
+                  value={formData.bio}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  helperText="Tell others about yourself and your interests"
+                />
+              </Grid>
+
+              {/* Skills */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Skills
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <TextField
+                    size="small"
+                    placeholder="Add a skill (e.g., React, Python)"
+                    value={newSkill}
+                    onChange={(e) => setNewSkill(e.target.value)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                    disabled={updateLoading}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleAddSkill}
+                    disabled={!newSkill.trim() || updateLoading}
+                    startIcon={<Add />}
+                  >
+                    Add
+                  </Button>
+                </Box>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                  {formData.skills.map((skill) => (
+                    <Chip
+                      key={skill}
+                      label={skill}
+                      onDelete={() => handleRemoveSkill(skill)}
+                      deleteIcon={<Delete />}
+                    />
+                  ))}
+                </Box>
+              </Grid>
+
+              {/* Experience and Availability */}
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Experience Level</InputLabel>
+                  <Select
+                    name="experience"
+                    value={formData.experience}
+                    onChange={handleChange}
+                    disabled={updateLoading}
+                  >
+                    <MenuItem value="beginner">Beginner</MenuItem>
+                    <MenuItem value="intermediate">Intermediate</MenuItem>
+                    <MenuItem value="advanced">Advanced</MenuItem>
+                    <MenuItem value="expert">Expert</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth>
+                  <InputLabel>Availability</InputLabel>
+                  <Select
+                    name="availability"
+                    value={formData.availability}
+                    onChange={handleChange}
+                    disabled={updateLoading}
+                  >
+                    <MenuItem value="full-time">Full-time</MenuItem>
+                    <MenuItem value="part-time">Part-time</MenuItem>
+                    <MenuItem value="weekends">Weekends</MenuItem>
+                    <MenuItem value="evenings">Evenings</MenuItem>
+                    <MenuItem value="flexible">Flexible</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+
+              {/* Location and Timezone */}
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  placeholder="City, Country"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Timezone"
+                  name="timezone"
+                  value={formData.timezone}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  placeholder="UTC-5, EST, etc."
+                />
+              </Grid>
+
+              {/* Social Links */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Social Links
+                </Typography>
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="GitHub"
+                  name="socialLinks.github"
+                  value={formData.socialLinks.github}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  placeholder="https://github.com/username"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="LinkedIn"
+                  name="socialLinks.linkedin"
+                  value={formData.socialLinks.linkedin}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  placeholder="https://linkedin.com/in/username"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Twitter"
+                  name="socialLinks.twitter"
+                  value={formData.socialLinks.twitter}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  placeholder="https://twitter.com/username"
+                />
+              </Grid>
+
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Website"
+                  name="socialLinks.website"
+                  value={formData.socialLinks.website}
+                  onChange={handleChange}
+                  disabled={updateLoading}
+                  placeholder="https://yourwebsite.com"
+                />
+              </Grid>
+
+              {/* Portfolio Links */}
+              <Grid item xs={12}>
+                <Typography variant="h6" gutterBottom>
+                  Portfolio Links
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <TextField
+                    size="small"
+                    placeholder="Project name"
+                    value={newPortfolioLink.name}
+                    onChange={(e) => setNewPortfolioLink(prev => ({ ...prev, name: e.target.value }))}
+                    disabled={updateLoading}
+                  />
+                  <TextField
+                    size="small"
+                    placeholder="Project URL"
+                    value={newPortfolioLink.url}
+                    onChange={(e) => setNewPortfolioLink(prev => ({ ...prev, url: e.target.value }))}
+                    disabled={updateLoading}
+                  />
+                  <Button
+                    variant="outlined"
+                    onClick={handleAddPortfolioLink}
+                    disabled={!newPortfolioLink.name.trim() || !newPortfolioLink.url.trim() || updateLoading}
+                    startIcon={<Add />}
+                  >
+                    Add
+                  </Button>
+                </Box>
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                  {formData.portfolioLinks.map((link, index) => (
+                    <Box key={index} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Typography variant="body2" sx={{ flex: 1 }}>
+                        {link.name}: {link.url}
+                      </Typography>
+                      <Button
+                        size="small"
+                        onClick={() => handleRemovePortfolioLink(index)}
+                        startIcon={<Delete />}
+                      >
+                        Remove
+                      </Button>
+                    </Box>
+                  ))}
+                </Box>
+              </Grid>
+
+              {/* Profile Visibility */}
+              <Grid item xs={12}>
+                <Divider sx={{ my: 2 }} />
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={formData.isProfilePublic}
+                      onChange={(e) => setFormData(prev => ({ ...prev, isProfilePublic: e.target.checked }))}
+                      disabled={updateLoading}
+                    />
+                  }
+                  label="Make my profile public (visible to other members)"
+                />
+              </Grid>
+
+              {/* Submit Button */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', justifyContent: 'center' }}>
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    size="large"
+                    disabled={updateLoading}
+                    startIcon={<Save />}
+                  >
+                    {updateLoading ? 'Saving...' : 'Save Profile'}
+                  </Button>
+                </Box>
+              </Grid>
+            </Grid>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
+  );
+};
+
+export default Profile; 
