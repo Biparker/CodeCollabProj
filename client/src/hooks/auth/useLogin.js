@@ -3,7 +3,7 @@ import { authService } from '../../services/authService';
 import { queryKeys } from '../../config/queryClient';
 
 /**
- * Login mutation hook
+ * Enhanced login mutation hook with dual-token support
  * Handles user login and updates auth state
  */
 export const useLogin = () => {
@@ -18,12 +18,22 @@ export const useLogin = () => {
       // Invalidate and refetch any auth-related queries
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.all });
       
-      console.log('✅ Login successful:', data);
+      console.log('✅ Login successful:', {
+        user: data.user?.username,
+        hasAccessToken: !!data.accessToken,
+        hasRefreshToken: !!data.refreshToken,
+        expiresIn: data.expiresIn
+      });
     },
     onError: (error) => {
-      console.error('❌ Login failed:', error);
+      console.error('❌ Login failed:', {
+        status: error?.response?.status,
+        message: error?.response?.data?.message || error.message,
+        needsVerification: error?.response?.data?.needsVerification
+      });
       
       // Clear any existing auth data on login failure
+      authService.clearTokens();
       queryClient.removeQueries({ queryKey: queryKeys.auth.all });
     },
   });

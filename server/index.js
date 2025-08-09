@@ -3,36 +3,137 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const mongoSanitize = require('express-mongo-sanitize');
+const envValidator = require('./utils/envValidator');
+const logger = require('./utils/logger');
+const scheduledTasks = require('./utils/scheduledTasks');
+const { 
+  trackFailedAuth, 
+  trackSuspiciousActivity, 
+  trackFileUploads, 
+  trackAccessViolations 
+} = require('./middleware/securityMonitoring');
 
 // Load environment variables
 dotenv.config();
 
+// Validate environment variables before starting server
+try {
+  envValidator.validateEnvironment();
+  logger.info('Server starting with secure configuration', envValidator.getSanitizedEnvInfo());
+} catch (error) {
+  console.error('❌ Server startup failed:', error.message);
+  process.exit(1);
+}
+
 // Create Express app
 const app = express();
 
-// Middleware
-app.use(cors());
+// Security middleware - applied first
+app.use(helmet({
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'"],
+      fontSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      mediaSrc: ["'self'"],
+      frameSrc: ["'none'"],
+    },
+  },
+}));
+
+// CORS configuration - restrictive
+const corsOptions = {
+  origin: process.env.NODE_ENV === 'production' 
+    ? [process.env.FRONTEND_URL]
+    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  credentials: true,
+  optionsSuccessStatus: 200,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+};
+app.use(cors(corsOptions));
+
+// MongoDB injection prevention
+app.use(mongoSanitize());
+
+// Security monitoring middleware
+app.use(trackSuspiciousActivity);
+app.use(trackFailedAuth);
+app.use(trackAccessViolations);
+
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Serve static files from uploads directory
-app.use('/uploads', express.static('uploads'));
-
-// Add caching headers for static assets
+// Serve static files from uploads directory with security
 app.use('/uploads', (req, res, next) => {
+  // Security headers for uploads
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
   next();
-});
+}, trackFileUploads, express.static('uploads'));
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
+// Rate limiting - general
+const generalLimiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 50, // stricter limit
+  message: {
+    error: 'Too many requests from this IP, please try again later.',
+    retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+  },
   standardHeaders: true,
   legacyHeaders: false,
+  handler: (req, res) => {
+    logger.rateLimitHit({
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+      limit: 'general'
+    });
+    res.status(429).json({
+      error: 'Too many requests from this IP, please try again later.',
+      retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+    });
+  }
 });
-app.use(limiter);
+app.use(generalLimiter);
+
+// Auth-specific rate limiting
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5, // only 5 auth attempts per 15 minutes
+  skipSuccessfulRequests: true,
+  message: {
+    error: 'Too many authentication attempts from this IP, please try again later.',
+    retryAfter: 900 // 15 minutes in seconds
+  },
+  handler: (req, res) => {
+    logger.rateLimitHit({
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+      limit: 'auth',
+      severity: 'high'
+    });
+    res.status(429).json({
+      error: 'Too many authentication attempts from this IP, please try again later.',
+      retryAfter: 900
+    });
+  }
+});
+
+// Apply auth rate limiting to auth routes
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/refresh-token', authLimiter);
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollab';
@@ -83,25 +184,14 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('❌ Server error:', err.stack);
-  
-  // Don't leak error details in production
-  const errorMessage = process.env.NODE_ENV === 'production' 
-    ? 'Something went wrong!' 
-    : err.message;
-    
-  res.status(500).json({
-    message: errorMessage,
-    error: process.env.NODE_ENV === 'development' ? err.message : {}
-  });
-});
+// Import error handling middleware
+const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
 // 404 handler
-app.use('*', (req, res) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+app.use('*', notFoundHandler);
+
+// Error handling middleware (must be last)
+app.use(errorHandler);
 
 // Start server
 const PORT = process.env.PORT || 5001;
@@ -109,27 +199,57 @@ const server = app.listen(PORT, () => {
   console.log(`🚀 Server is running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 Health check: http://localhost:${PORT}/health`);
+  console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting, MongoDB Sanitization`);
+  
+  // Start scheduled security tasks
+  scheduledTasks.start();
+  
+  logger.info('Server started successfully', {
+    port: PORT,
+    environment: process.env.NODE_ENV,
+    securityFeatures: ['helmet', 'cors', 'rate-limiting', 'mongo-sanitize', 'session-management']
+  });
 });
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully');
+const gracefulShutdown = (signal) => {
+  console.log(`🛑 ${signal} received, shutting down gracefully`);
+  
+  // Stop scheduled tasks
+  scheduledTasks.stop();
+  
   server.close(() => {
     console.log('✅ Server closed');
     mongoose.connection.close(false, () => {
       console.log('✅ MongoDB connection closed');
+      logger.info('Server shutdown completed', { signal });
       process.exit(0);
     });
   });
+  
+  // Force exit after 10 seconds
+  setTimeout(() => {
+    console.error('❌ Forced shutdown after timeout');
+    process.exit(1);
+  }, 10000);
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logger.error('Uncaught Exception', {
+    error: error.message,
+    stack: error.stack
+  });
+  gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-process.on('SIGINT', () => {
-  console.log('🛑 SIGINT received, shutting down gracefully');
-  server.close(() => {
-    console.log('✅ Server closed');
-    mongoose.connection.close(false, () => {
-      console.log('✅ MongoDB connection closed');
-      process.exit(0);
-    });
+process.on('unhandledRejection', (reason, promise) => {
+  logger.error('Unhandled Rejection', {
+    reason: reason?.message || reason,
+    promise: promise.toString()
   });
+  gracefulShutdown('UNHANDLED_REJECTION');
 }); 

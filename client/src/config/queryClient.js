@@ -55,6 +55,8 @@ export const queryKeys = {
     all: ['auth'],
     currentUser: () => [...queryKeys.auth.all, 'currentUser'],
     passwordResetToken: (token) => [...queryKeys.auth.all, 'passwordResetToken', token],
+    sessions: () => [...queryKeys.auth.all, 'sessions'],
+    tokenRefresh: () => [...queryKeys.auth.all, 'tokenRefresh'],
   },
   // Projects keys
   projects: {
