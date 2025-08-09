@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Paper,
@@ -12,12 +11,14 @@ import {
   Alert,
   AlertTitle,
 } from '@mui/material';
-import { register, clearRegistrationSuccess } from '../../store/slices/authSlice';
+import { useAuth, useRegister } from '../../hooks/auth';
 
 const Register = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { isAuthenticated, loading, error, registrationSuccess } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useAuth();
+  
+  // TanStack Query mutation
+  const registerMutation = useRegister();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -27,6 +28,7 @@ const Register = () => {
   });
 
   const [formErrors, setFormErrors] = useState({});
+  const [registrationSuccess, setRegistrationSuccess] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -37,9 +39,9 @@ const Register = () => {
   // Clear registration success message when component unmounts
   useEffect(() => {
     return () => {
-      dispatch(clearRegistrationSuccess());
+      setRegistrationSuccess(false);
     };
-  }, [dispatch]);
+  }, []);
 
   const validateForm = () => {
     const errors = {};
@@ -82,7 +84,15 @@ const Register = () => {
     e.preventDefault();
     if (validateForm()) {
       const { confirmPassword, ...registerData } = formData;
-      dispatch(register(registerData));
+      registerMutation.mutate(registerData, {
+        onSuccess: (data) => {
+          setRegistrationSuccess(true);
+          // If auto-login in development mode, navigate to dashboard
+          if (data.token && data.user) {
+            navigate('/dashboard');
+          }
+        },
+      });
     }
   };
 
@@ -127,9 +137,9 @@ const Register = () => {
             Register
           </Typography>
 
-          {error && (
+          {registerMutation.error && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+              {registerMutation.error?.response?.data?.message || registerMutation.error.message || 'Registration failed'}
             </Alert>
           )}
 
@@ -191,10 +201,10 @@ const Register = () => {
               variant="contained"
               color="primary"
               size="large"
-              disabled={loading}
+              disabled={registerMutation.isPending}
               sx={{ mt: 3 }}
             >
-              {loading ? 'Registering...' : 'Register'}
+              {registerMutation.isPending ? 'Registering...' : 'Register'}
             </Button>
           </form>
 

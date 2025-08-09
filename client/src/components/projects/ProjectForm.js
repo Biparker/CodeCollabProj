@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Paper,
@@ -16,15 +15,30 @@ import {
   Autocomplete,
   IconButton,
   Grid,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
-import { fetchProjectById, createProject, updateProject } from '../../store/slices/projectsSlice';
+import { useAuth } from '../../hooks/auth';
+import { useProject, useCreateProject, useUpdateProject } from '../../hooks/projects';
 
 const ProjectForm = () => {
   const navigate = useNavigate();
   const { projectId } = useParams();
-  const dispatch = useDispatch();
-  const { currentProject, loading } = useSelector((state) => state.projects);
+  
+  // Auth state
+  const { user, isAuthenticated } = useAuth();
+  
+  // Project data for editing
+  const { 
+    data: currentProject, 
+    isLoading: loading, 
+    error: projectError 
+  } = useProject(projectId, { enabled: !!projectId });
+  
+  // Mutations
+  const createProjectMutation = useCreateProject();
+  const updateProjectMutation = useUpdateProject();
 
   const [formData, setFormData] = useState({
     title: '',
@@ -39,6 +53,37 @@ const ProjectForm = () => {
   });
 
   const [formErrors, setFormErrors] = useState({});
+
+  // Helper function for handling submission errors
+  const handleSubmissionError = (error) => {
+    console.error('❌ Error saving project:', error);
+    console.error('❌ Error details:', {
+      message: error.message,
+      status: error.status,
+      data: error.data
+    });
+    
+    // Better error handling with more specific messages
+    let errorMessage = 'Error saving project. Please try again.';
+    
+    if (error?.response?.data?.message) {
+      errorMessage = `Error saving project: ${error.response.data.message}`;
+    } else if (error?.message) {
+      errorMessage = `Error saving project: ${error.message}`;
+    } else if (error?.response?.status === 401) {
+      errorMessage = 'Authentication error. Please log in again.';
+    } else if (error?.response?.status === 403) {
+      errorMessage = 'You are not authorized to edit this project.';
+    } else if (error?.response?.status === 404) {
+      errorMessage = 'Project not found.';
+    } else if (error?.response?.status === 422) {
+      errorMessage = 'Invalid data. Please check your input.';
+    } else if (error?.response?.status >= 500) {
+      errorMessage = 'Server error. Please try again later.';
+    }
+    
+    alert(errorMessage);
+  };
 
   const commonSkills = [
     'JavaScript',
@@ -55,12 +100,7 @@ const ProjectForm = () => {
     'Docker',
   ];
 
-  useEffect(() => {
-    if (projectId) {
-      console.log('🔍 Fetching project for editing:', projectId);
-      dispatch(fetchProjectById(projectId));
-    }
-  }, [projectId, dispatch]);
+  // TanStack Query will automatically fetch the project when projectId exists
 
   useEffect(() => {
     if (currentProject && projectId) {
@@ -167,10 +207,6 @@ const ProjectForm = () => {
     console.log('📋 Form data:', formData);
     console.log('🔍 Project ID:', projectId);
     
-    // Check authentication
-    const token = localStorage.getItem('token');
-    console.log('🔐 Authentication token exists:', !!token);
-    
     if (validateForm()) {
       console.log('✅ Form validation passed');
       const filteredResources = formData.resources.filter(
@@ -194,44 +230,36 @@ const ProjectForm = () => {
         resources: typeof projectData.resources
       });
 
-      try {
-        if (projectId) {
-          console.log('🔄 Updating project:', projectId, projectData);
-          const result = await dispatch(updateProject({ projectId, projectData })).unwrap();
-          console.log('✅ Project updated successfully:', result);
-        } else {
-          console.log('➕ Creating new project:', projectData);
-          const result = await dispatch(createProject(projectData)).unwrap();
-          console.log('✅ Project created successfully:', result);
-        }
-        console.log('🚀 Navigating to projects page');
-        navigate('/projects');
-      } catch (error) {
-        console.error('❌ Error saving project:', error);
-        console.error('❌ Error details:', {
-          message: error.message,
-          status: error.status,
-          data: error.data
-        });
-        
-        // Better error handling with more specific messages
-        let errorMessage = 'Error saving project. Please try again.';
-        
-        if (error.message) {
-          errorMessage = `Error saving project: ${error.message}`;
-        } else if (error.status === 401) {
-          errorMessage = 'Authentication error. Please log in again.';
-        } else if (error.status === 403) {
-          errorMessage = 'You are not authorized to edit this project.';
-        } else if (error.status === 404) {
-          errorMessage = 'Project not found.';
-        } else if (error.status === 422) {
-          errorMessage = 'Invalid data. Please check your input.';
-        } else if (error.status >= 500) {
-          errorMessage = 'Server error. Please try again later.';
-        }
-        
-        alert(errorMessage);
+      if (projectId) {
+        console.log('🔄 Updating project:', projectId, projectData);
+        updateProjectMutation.mutate(
+          { projectId, projectData },
+          {
+            onSuccess: (result) => {
+              console.log('✅ Project updated successfully:', result);
+              console.log('🚀 Navigating to projects page');
+              navigate('/projects');
+            },
+            onError: (error) => {
+              handleSubmissionError(error);
+            },
+          }
+        );
+      } else {
+        console.log('➕ Creating new project:', projectData);
+        createProjectMutation.mutate(
+          projectData,
+          {
+            onSuccess: (result) => {
+              console.log('✅ Project created successfully:', result);
+              console.log('🚀 Navigating to projects page');
+              navigate('/projects');
+            },
+            onError: (error) => {
+              handleSubmissionError(error);
+            },
+          }
+        );
       }
     } else {
       console.log('❌ Form validation failed:', formErrors);
@@ -239,12 +267,70 @@ const ProjectForm = () => {
     }
   };
 
+  // Check authentication
+  if (!isAuthenticated) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Authentication Required
+          </Typography>
+          You must be logged in to create or edit projects.
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/login')}>
+          Go to Login
+        </Button>
+      </Container>
+    );
+  }
+
+  // Loading state for editing
+  if (projectId && loading) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading project data...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  // Error state for editing
+  if (projectId && projectError) {
+    return (
+      <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Error Loading Project
+          </Typography>
+          {projectError?.response?.data?.message || projectError?.message || 'Failed to load project data'}
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/projects')}>
+          Back to Projects
+        </Button>
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
       <Paper sx={{ p: 4 }}>
         <Typography variant="h4" component="h1" gutterBottom>
           {projectId ? 'Edit Project' : 'Create Project'}
         </Typography>
+
+        {(createProjectMutation.error || updateProjectMutation.error) && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {createProjectMutation.error?.response?.data?.message || 
+             updateProjectMutation.error?.response?.data?.message ||
+             createProjectMutation.error?.message || 
+             updateProjectMutation.error?.message ||
+             'Error saving project. Please try again.'}
+          </Alert>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Grid container spacing={3}>
@@ -451,9 +537,9 @@ const ProjectForm = () => {
                   type="submit"
                   variant="contained"
                   color="primary"
-                  disabled={loading}
+                  disabled={createProjectMutation.isPending || updateProjectMutation.isPending}
                 >
-                  {loading
+                  {(createProjectMutation.isPending || updateProjectMutation.isPending)
                     ? 'Saving...'
                     : projectId
                     ? 'Update Project'

@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState } from 'react';
 import {
   Container,
   Typography,
@@ -23,14 +22,16 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  CircularProgress,
 } from '@mui/material';
 import { Search, Message, Visibility, FilterList } from '@mui/icons-material';
-import { searchUsers, sendMessage } from '../store/slices/userSlice';
+import { useAuth } from '../hooks/auth';
+import { useUserSearch, useSendMessage } from '../hooks/users';
 
 const MemberSearch = () => {
-  const dispatch = useDispatch();
-  const { searchResults, searchLoading, searchError } = useSelector((state) => state.user);
-  const { user } = useSelector((state) => state.auth);
+  // Auth and messaging
+  const { user } = useAuth();
+  const sendMessageMutation = useSendMessage();
 
   const [searchParams, setSearchParams] = useState({
     query: '',
@@ -48,30 +49,41 @@ const MemberSearch = () => {
     content: ''
   });
 
+  // Use the search hook conditionally based on whether we have a query
+  const hasSearchQuery = Boolean(searchParams.query || searchParams.skills || searchParams.experience || searchParams.availability || searchParams.location);
+  
+  const { 
+    data: searchResults = [], 
+    isLoading: searchLoading, 
+    error: searchError,
+    refetch: performSearch 
+  } = useUserSearch(searchParams, { 
+    enabled: hasSearchQuery // Only search when we have parameters
+  });
+
   const handleSearch = (e) => {
     e.preventDefault();
-    const params = {};
-    Object.keys(searchParams).forEach(key => {
-      if (searchParams[key]) {
-        params[key] = searchParams[key];
-      }
-    });
-    dispatch(searchUsers(params));
+    // The search will automatically trigger due to the TanStack Query dependency
+    // Force a refetch to ensure latest data
+    performSearch();
   };
 
   const handleSendMessage = async () => {
-    try {
-      await dispatch(sendMessage({
-        recipientId: selectedUser._id,
-        subject: messageData.subject,
-        content: messageData.content
-      })).unwrap();
-      setMessageDialog(false);
-      setMessageData({ subject: '', content: '' });
-      setSelectedUser(null);
-    } catch (error) {
-      console.error('Failed to send message:', error);
-    }
+    sendMessageMutation.mutate({
+      recipientId: selectedUser._id,
+      subject: messageData.subject,
+      content: messageData.content
+    }, {
+      onSuccess: (data) => {
+        console.log('✅ Message sent successfully:', data);
+        setMessageDialog(false);
+        setMessageData({ subject: '', content: '' });
+        setSelectedUser(null);
+      },
+      onError: (error) => {
+        console.error('❌ Failed to send message:', error);
+      },
+    });
   };
 
   const handleViewProfile = (user) => {
@@ -217,7 +229,7 @@ const MemberSearch = () => {
         {/* Error Display */}
         {searchError && (
           <Alert severity="error" sx={{ mb: 3 }}>
-            {searchError}
+            {searchError?.response?.data?.message || searchError?.message || 'Search failed'}
           </Alert>
         )}
 
@@ -301,7 +313,7 @@ const MemberSearch = () => {
                     >
                       View Profile
                     </Button>
-                    {member._id !== user?.id && (
+                    {member._id !== user?._id && (
                       <Button
                         size="small"
                         startIcon={<Message />}
@@ -317,7 +329,7 @@ const MemberSearch = () => {
           </Grid>
         )}
 
-        {searchResults.length === 0 && !searchLoading && (
+        {searchResults.length === 0 && !searchLoading && hasSearchQuery && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="h6" color="text.secondary">
               No members found matching your criteria
@@ -359,9 +371,9 @@ const MemberSearch = () => {
           <Button 
             onClick={handleSendMessage}
             variant="contained"
-            disabled={!messageData.subject.trim() || !messageData.content.trim()}
+            disabled={!messageData.subject.trim() || !messageData.content.trim() || sendMessageMutation.isPending}
           >
-            Send Message
+            {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
           </Button>
         </DialogActions>
       </Dialog>

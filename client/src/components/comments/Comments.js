@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState } from 'react';
 import {
   Box,
   Typography,
@@ -13,56 +12,89 @@ import {
   IconButton,
   Paper,
   Divider,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Send as SendIcon,
 } from '@mui/icons-material';
-import {
-  fetchComments,
-  addComment,
-  updateComment,
-  deleteComment,
-} from '../../store/slices/commentsSlice';
+import { useAuth } from '../../hooks/auth';
+import { useComments, useCreateComment, useUpdateComment, useDeleteComment } from '../../hooks/comments';
 
 const Comments = ({ projectId }) => {
-  const dispatch = useDispatch();
-  const { comments, loading } = useSelector((state) => state.comments);
-  const { user } = useSelector((state) => state.auth);
+  // Auth and data fetching
+  const { user } = useAuth();
+  const { 
+    data: comments = [], 
+    isLoading: loading, 
+    error,
+    refetch: refetchComments 
+  } = useComments(projectId);
+
+  // Mutations
+  const createCommentMutation = useCreateComment();
+  const updateCommentMutation = useUpdateComment();
+  const deleteCommentMutation = useDeleteComment();
+
+  // Local state
   const [newComment, setNewComment] = useState('');
   const [editingComment, setEditingComment] = useState(null);
   const [editContent, setEditContent] = useState('');
 
-  useEffect(() => {
-    dispatch(fetchComments(projectId));
-  }, [dispatch, projectId]);
-
-  const handleAddComment = async (e) => {
+  const handleAddComment = (e) => {
     e.preventDefault();
     if (newComment.trim()) {
-      await dispatch(addComment({ projectId, content: newComment }));
-      setNewComment('');
+      createCommentMutation.mutate({ 
+        projectId, 
+        content: newComment 
+      }, {
+        onSuccess: (data) => {
+          console.log('✅ Comment added successfully:', data);
+          setNewComment('');
+        },
+        onError: (error) => {
+          console.error('❌ Failed to add comment:', error);
+        },
+      });
     }
   };
 
-  const handleUpdateComment = async (commentId) => {
+  const handleUpdateComment = (commentId) => {
     if (editContent.trim()) {
-      await dispatch(
-        updateComment({
+      updateCommentMutation.mutate({
+        commentId,
+        commentData: {
           projectId,
-          commentId,
           content: editContent,
-        })
-      );
-      setEditingComment(null);
-      setEditContent('');
+        }
+      }, {
+        onSuccess: (data) => {
+          console.log('✅ Comment updated successfully:', data);
+          setEditingComment(null);
+          setEditContent('');
+        },
+        onError: (error) => {
+          console.error('❌ Failed to update comment:', error);
+        },
+      });
     }
   };
 
-  const handleDeleteComment = async (commentId) => {
+  const handleDeleteComment = (commentId) => {
     if (window.confirm('Are you sure you want to delete this comment?')) {
-      await dispatch(deleteComment({ projectId, commentId }));
+      deleteCommentMutation.mutate({ 
+        projectId, 
+        commentId 
+      }, {
+        onSuccess: (data) => {
+          console.log('✅ Comment deleted successfully:', data);
+        },
+        onError: (error) => {
+          console.error('❌ Failed to delete comment:', error);
+        },
+      });
     }
   };
 
@@ -75,6 +107,38 @@ const Comments = ({ projectId }) => {
     setEditingComment(null);
     setEditContent('');
   };
+
+  if (loading) {
+    return (
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Comments
+        </Typography>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box sx={{ mt: 4 }}>
+        <Typography variant="h6" gutterBottom>
+          Comments
+        </Typography>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Error Loading Comments
+          </Typography>
+          {error?.response?.data?.message || error?.message || 'Failed to load comments'}
+        </Alert>
+        <Button variant="contained" onClick={refetchComments}>
+          Try Again
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -98,9 +162,9 @@ const Comments = ({ projectId }) => {
             type="submit"
             variant="contained"
             endIcon={<SendIcon />}
-            disabled={!newComment.trim() || loading}
+            disabled={!newComment.trim() || createCommentMutation.isPending}
           >
-            Post Comment
+            {createCommentMutation.isPending ? 'Posting...' : 'Post Comment'}
           </Button>
         </form>
       </Paper>
@@ -140,13 +204,14 @@ const Comments = ({ projectId }) => {
                     <IconButton
                       size="small"
                       onClick={() => startEditing(comment)}
-                      disabled={editingComment === comment._id}
+                      disabled={editingComment === comment._id || updateCommentMutation.isPending}
                     >
                       <EditIcon />
                     </IconButton>
                     <IconButton
                       size="small"
                       onClick={() => handleDeleteComment(comment._id)}
+                      disabled={deleteCommentMutation.isPending}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -169,9 +234,9 @@ const Comments = ({ projectId }) => {
                       variant="contained"
                       size="small"
                       onClick={() => handleUpdateComment(comment._id)}
-                      disabled={!editContent.trim() || loading}
+                      disabled={!editContent.trim() || updateCommentMutation.isPending}
                     >
-                      Save
+                      {updateCommentMutation.isPending ? 'Saving...' : 'Save'}
                     </Button>
                     <Button
                       variant="outlined"

@@ -1,14 +1,54 @@
-node_modules
-npm-debug.log
-build
-.dockerignore
-**/.git
-**/.DS_Store
+# Node modules
 **/node_modules
-**/npm-debug.log
-**/build
-# **/.env
-**/.env.local
-**/.env.development.local
-**/.env.test.local
-**/.env.production.local 
+npm-debug.log*
+
+# Git
+.git
+.gitignore
+
+# Documentation
+*.md
+docs/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Docker files
+Dockerfile*
+docker-compose*
+
+# IDE
+.vscode
+.idea
+
+# OS
+.DS_Store
+Thumbs.db

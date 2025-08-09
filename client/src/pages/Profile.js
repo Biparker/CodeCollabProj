@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Typography,
@@ -18,14 +17,21 @@ import {
   FormControlLabel,
   Divider,
   Avatar,
+  CircularProgress,
 } from '@mui/material';
 import { Add, Delete, Save, Edit } from '@mui/icons-material';
-import { updateProfile, getMyProfile } from '../store/slices/userSlice';
+import { useAuth } from '../hooks/auth';
+import { useMyProfile, useUpdateProfile } from '../hooks/users';
 
 const Profile = () => {
-  const dispatch = useDispatch();
-  const { user, loading, error } = useSelector((state) => state.auth);
-  const { profile, updateLoading, updateError } = useSelector((state) => state.user);
+  // Auth and profile data
+  const { user, isAuthenticated } = useAuth();
+  const { 
+    data: profile, 
+    isLoading: profileLoading, 
+    error: profileError 
+  } = useMyProfile();
+  const updateProfileMutation = useUpdateProfile();
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -50,11 +56,7 @@ const Profile = () => {
   const [newPortfolioLink, setNewPortfolioLink] = useState({ name: '', url: '' });
   const [validationError, setValidationError] = useState('');
 
-  useEffect(() => {
-    if (user) {
-      dispatch(getMyProfile());
-    }
-  }, [dispatch, user]);
+  // TanStack Query will automatically fetch profile data
 
   useEffect(() => {
     if (profile) {
@@ -146,26 +148,54 @@ const Profile = () => {
       return;
     }
 
-    try {
-      await dispatch(updateProfile(formData)).unwrap();
-      setValidationError('');
-    } catch (error) {
-      if (error.errors && Array.isArray(error.errors)) {
-        const errorMessages = error.errors.map(err => err.msg).join(', ');
-        setValidationError(`Validation errors: ${errorMessages}`);
-      } else if (error.message) {
-        setValidationError(error.message);
-      } else {
-        setValidationError('Failed to update profile. Please try again.');
-      }
-    }
+    updateProfileMutation.mutate(formData, {
+      onSuccess: (data) => {
+        console.log('✅ Profile updated successfully:', data);
+        setValidationError('');
+      },
+      onError: (error) => {
+        console.error('❌ Profile update failed:', error);
+        if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
+          const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
+          setValidationError(`Validation errors: ${errorMessages}`);
+        } else if (error?.response?.data?.message) {
+          setValidationError(error.response.data.message);
+        } else if (error?.message) {
+          setValidationError(error.message);
+        } else {
+          setValidationError('Failed to update profile. Please try again.');
+        }
+      },
+    });
   };
 
-  if (loading) {
+  // Authentication check
+  if (!isAuthenticated) {
     return (
       <Container maxWidth="md">
-        <Box sx={{ mt: 4, textAlign: 'center' }}>
-          <Typography>Loading profile...</Typography>
+        <Box sx={{ mt: 4 }}>
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Authentication Required
+            </Typography>
+            You must be logged in to view your profile.
+          </Alert>
+          <Button variant="contained" href="/login">
+            Go to Login
+          </Button>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (profileLoading) {
+    return (
+      <Container maxWidth="md">
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading profile...
+          </Typography>
         </Box>
       </Container>
     );
@@ -182,9 +212,14 @@ const Profile = () => {
             Manage your profile information and visibility
           </Typography>
           
-          {(error || updateError || validationError) && (
+          {(profileError || updateProfileMutation.error || validationError) && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {error || updateError || validationError}
+              {profileError?.response?.data?.message || 
+               profileError?.message || 
+               updateProfileMutation.error?.response?.data?.message || 
+               updateProfileMutation.error?.message || 
+               validationError || 
+               'An error occurred'}
             </Alert>
           )}
           
@@ -205,7 +240,7 @@ const Profile = () => {
                   name="firstName"
                   value={formData.firstName}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                 />
               </Grid>
 
@@ -217,7 +252,7 @@ const Profile = () => {
                   name="lastName"
                   value={formData.lastName}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                 />
               </Grid>
 
@@ -230,7 +265,7 @@ const Profile = () => {
                   rows={4}
                   value={formData.bio}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   helperText="Tell others about yourself and your interests"
                 />
               </Grid>
@@ -247,12 +282,12 @@ const Profile = () => {
                     value={newSkill}
                     onChange={(e) => setNewSkill(e.target.value)}
                     onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
-                    disabled={updateLoading}
+                    disabled={updateProfileMutation.isPending}
                   />
                   <Button
                     variant="outlined"
                     onClick={handleAddSkill}
-                    disabled={!newSkill.trim() || updateLoading}
+                    disabled={!newSkill.trim() || updateProfileMutation.isPending}
                     startIcon={<Add />}
                   >
                     Add
@@ -278,7 +313,7 @@ const Profile = () => {
                     name="experience"
                     value={formData.experience}
                     onChange={handleChange}
-                    disabled={updateLoading}
+                    disabled={updateProfileMutation.isPending}
                   >
                     <MenuItem value="beginner">Beginner</MenuItem>
                     <MenuItem value="intermediate">Intermediate</MenuItem>
@@ -295,7 +330,7 @@ const Profile = () => {
                     name="availability"
                     value={formData.availability}
                     onChange={handleChange}
-                    disabled={updateLoading}
+                    disabled={updateProfileMutation.isPending}
                   >
                     <MenuItem value="full-time">Full-time</MenuItem>
                     <MenuItem value="part-time">Part-time</MenuItem>
@@ -314,7 +349,7 @@ const Profile = () => {
                   name="location"
                   value={formData.location}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   placeholder="City, Country"
                 />
               </Grid>
@@ -326,7 +361,7 @@ const Profile = () => {
                   name="timezone"
                   value={formData.timezone}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   placeholder="UTC-5, EST, etc."
                 />
               </Grid>
@@ -345,7 +380,7 @@ const Profile = () => {
                   name="socialLinks.github"
                   value={formData.socialLinks.github}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   placeholder="https://github.com/username"
                 />
               </Grid>
@@ -357,7 +392,7 @@ const Profile = () => {
                   name="socialLinks.linkedin"
                   value={formData.socialLinks.linkedin}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   placeholder="https://linkedin.com/in/username"
                 />
               </Grid>
@@ -369,7 +404,7 @@ const Profile = () => {
                   name="socialLinks.twitter"
                   value={formData.socialLinks.twitter}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   placeholder="https://twitter.com/username"
                 />
               </Grid>
@@ -381,7 +416,7 @@ const Profile = () => {
                   name="socialLinks.website"
                   value={formData.socialLinks.website}
                   onChange={handleChange}
-                  disabled={updateLoading}
+                  disabled={updateProfileMutation.isPending}
                   placeholder="https://yourwebsite.com"
                 />
               </Grid>
@@ -397,19 +432,19 @@ const Profile = () => {
                     placeholder="Project name"
                     value={newPortfolioLink.name}
                     onChange={(e) => setNewPortfolioLink(prev => ({ ...prev, name: e.target.value }))}
-                    disabled={updateLoading}
+                    disabled={updateProfileMutation.isPending}
                   />
                   <TextField
                     size="small"
                     placeholder="Project URL"
                     value={newPortfolioLink.url}
                     onChange={(e) => setNewPortfolioLink(prev => ({ ...prev, url: e.target.value }))}
-                    disabled={updateLoading}
+                    disabled={updateProfileMutation.isPending}
                   />
                   <Button
                     variant="outlined"
                     onClick={handleAddPortfolioLink}
-                    disabled={!newPortfolioLink.name.trim() || !newPortfolioLink.url.trim() || updateLoading}
+                    disabled={!newPortfolioLink.name.trim() || !newPortfolioLink.url.trim() || updateProfileMutation.isPending}
                     startIcon={<Add />}
                   >
                     Add
@@ -441,7 +476,7 @@ const Profile = () => {
                     <Switch
                       checked={formData.isProfilePublic}
                       onChange={(e) => setFormData(prev => ({ ...prev, isProfilePublic: e.target.checked }))}
-                      disabled={updateLoading}
+                      disabled={updateProfileMutation.isPending}
                     />
                   }
                   label="Make my profile public (visible to other members)"
@@ -455,10 +490,10 @@ const Profile = () => {
                     type="submit"
                     variant="contained"
                     size="large"
-                    disabled={updateLoading}
+                    disabled={updateProfileMutation.isPending}
                     startIcon={<Save />}
                   >
-                    {updateLoading ? 'Saving...' : 'Save Profile'}
+                    {updateProfileMutation.isPending ? 'Saving...' : 'Save Profile'}
                   </Button>
                 </Box>
               </Grid>

@@ -1,53 +1,82 @@
-import React, { useEffect, useState } from 'react';
-import { Container, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert } from '@mui/material';
-import api from '../utils/api'; // Use your configured API instance
+import React, { useMemo } from 'react';
+import { Container, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, Button, Box } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { useUsers } from '../hooks/users';
+import { useProjects } from '../hooks/projects';
 
 const Members = () => {
-  const [users, setUsers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  // Fetch users and projects using TanStack Query
+  const { 
+    data: users = [], 
+    isLoading: usersLoading, 
+    error: usersError,
+    refetch: refetchUsers 
+  } = useUsers();
+  
+  const { 
+    data: projects = [], 
+    isLoading: projectsLoading, 
+    error: projectsError,
+    refetch: refetchProjects 
+  } = useProjects();
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        // Fetch all users - using configured api instance
-        const usersRes = await api.get('/users');
-        // Fetch all projects - using configured api instance  
-        const projectsRes = await api.get('/projects');
-        setUsers(usersRes.data);
-        setProjects(projectsRes.data);
-        setLoading(false);
-      } catch (err) {
-        console.error('Error fetching users or projects:', err);
-        setError('Failed to fetch users or projects');
-        setLoading(false);
-      }
+  const loading = usersLoading || projectsLoading;
+  const error = usersError || projectsError;
+
+  // Memoized helper: get projects for a user
+  const getUserProjects = useMemo(() => {
+    return (userId) => {
+      return projects.filter(p => {
+        // Handle both populated and unpopulated owner fields
+        const ownerId = typeof p.owner === 'object' && p.owner !== null ? p.owner._id : p.owner;
+        return (
+          ownerId && ownerId.toString() === userId.toString()
+        ) || (
+          p.collaborators && p.collaborators.some(c =>
+            (typeof c.userId === 'object' && c.userId !== null
+              ? c.userId._id
+              : c.userId
+            )?.toString() === userId.toString()
+          )
+        );
+      });
     };
-    fetchData();
-  }, []);
+  }, [projects]);
 
-  // Helper: get projects for a user
-  const getUserProjects = (userId) => {
-    return projects.filter(p => {
-      // Handle both populated and unpopulated owner fields
-      const ownerId = typeof p.owner === 'object' && p.owner !== null ? p.owner._id : p.owner;
-      return (
-        ownerId && ownerId.toString() === userId.toString()
-      ) || (
-        p.collaborators && p.collaborators.some(c =>
-          (typeof c.userId === 'object' && c.userId !== null
-            ? c.userId._id
-            : c.userId
-          )?.toString() === userId.toString()
-        )
-      );
-    });
-  };
+  if (loading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading members...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
 
-  if (loading) return <Container sx={{ mt: 4 }}><CircularProgress /></Container>;
-  if (error) return <Container sx={{ mt: 4 }}><Alert severity="error">{error}</Alert></Container>;
+  if (error) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Error Loading Members
+          </Typography>
+          {error?.response?.data?.message || error?.message || 'Failed to load members data'}
+        </Alert>
+        <Button 
+          variant="contained" 
+          onClick={() => {
+            refetchUsers();
+            refetchProjects();
+          }}
+        >
+          Try Again
+        </Button>
+      </Container>
+    );
+  }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>

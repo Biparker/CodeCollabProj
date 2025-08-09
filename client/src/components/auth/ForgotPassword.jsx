@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import { 
   Container,
   Paper,
@@ -12,22 +11,15 @@ import {
   Alert,
   AlertTitle,
 } from '@mui/material';
-import { requestPasswordReset, clearPasswordResetState } from '../../store/slices/authSlice';
+import { useRequestPasswordReset } from '../../hooks/auth';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { loading, error, passwordResetRequested, passwordResetToken, passwordResetUrl } = useSelector((state) => state.auth);
+  const requestPasswordResetMutation = useRequestPasswordReset();
 
   const [email, setEmail] = useState('');
   const [emailError, setEmailError] = useState('');
-
-  useEffect(() => {
-    // Clear password reset state when component unmounts
-    return () => {
-      dispatch(clearPasswordResetState());
-    };
-  }, [dispatch]);
+  const [passwordResetData, setPasswordResetData] = useState(null);
 
   const validateEmail = () => {
     if (!email) {
@@ -44,7 +36,15 @@ const ForgotPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateEmail()) {
-      dispatch(requestPasswordReset(email));
+      requestPasswordResetMutation.mutate(email, {
+        onSuccess: (data) => {
+          console.log('✅ Password reset requested successfully:', data);
+          setPasswordResetData(data);
+        },
+        onError: (error) => {
+          console.error('❌ Password reset request failed:', error);
+        },
+      });
     }
   };
 
@@ -55,7 +55,7 @@ const ForgotPassword = () => {
     }
   };
 
-  if (passwordResetRequested) {
+  if (passwordResetData) {
     return (
       <Container maxWidth="sm">
         <Box sx={{ mt: 8, mb: 4 }}>
@@ -68,11 +68,11 @@ const ForgotPassword = () => {
                   You can copy the link below or click it to reset your password.
                   <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
                     <Typography variant="body2" sx={{ wordBreak: 'break-all', mb: 1 }}>
-                      {passwordResetUrl}
+                      {passwordResetData.resetUrl}
                     </Typography>
                     <Button
                       component={RouterLink}
-                      to={`/reset-password?token=${passwordResetToken}`}
+                      to={`/reset-password?token=${passwordResetData.resetToken}`}
                       variant="contained"
                       size="small"
                       sx={{ mt: 1 }}
@@ -101,7 +101,7 @@ const ForgotPassword = () => {
               </Button>
               <Button
                 onClick={() => {
-                  dispatch(clearPasswordResetState());
+                  setPasswordResetData(null);
                   setEmail('');
                 }}
                 variant="outlined"
@@ -128,9 +128,11 @@ const ForgotPassword = () => {
             Enter your email address and we'll send you a link to reset your password.
           </Typography>
 
-          {error && (
+          {requestPasswordResetMutation.error && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
+              {requestPasswordResetMutation.error?.response?.data?.message || 
+               requestPasswordResetMutation.error?.message || 
+               'Failed to send password reset email'}
             </Alert>
           )}
 
@@ -148,7 +150,7 @@ const ForgotPassword = () => {
               onChange={handleEmailChange}
               error={!!emailError}
               helperText={emailError}
-              disabled={loading}
+              disabled={requestPasswordResetMutation.isPending}
             />
 
             <Button
@@ -156,9 +158,9 @@ const ForgotPassword = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
+              disabled={requestPasswordResetMutation.isPending}
             >
-              {loading ? 'Sending...' : 'Send Reset Link'}
+              {requestPasswordResetMutation.isPending ? 'Sending...' : 'Send Reset Link'}
             </Button>
 
             <Box sx={{ textAlign: 'center' }}>

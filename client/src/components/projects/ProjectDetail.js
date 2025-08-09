@@ -1,6 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import {
   Container,
   Paper,
@@ -35,49 +34,59 @@ import {
   Person as PersonIcon,
   Code as CodeIcon,
 } from '@mui/icons-material';
-import { fetchProjectById } from '../../store/slices/projectsSlice';
-import { fetchComments, createComment } from '../../store/slices/commentsSlice';
-import { requestCollaboration, handleCollaborationRequest } from '../../store/slices/projectsSlice';
+import { useAuth } from '../../hooks/auth';
+import { useProject, useRequestCollaboration, useHandleCollaborationRequest } from '../../hooks/projects';
+import { useComments, useCreateComment } from '../../hooks/comments';
 
 const ProjectDetail = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-  const { currentProject, loading, error } = useSelector((state) => state.projects);
-  const { comments, loading: commentsLoading, error: commentsError } = useSelector((state) => state.comments);
+  
+  // Auth state
+  const { user, isAuthenticated } = useAuth();
+  
+  // Project data
+  const { 
+    data: currentProject, 
+    isLoading: loading, 
+    error, 
+    refetch: refetchProject 
+  } = useProject(projectId);
+  
+  // Comments data
+  const { 
+    data: comments = [], 
+    isLoading: commentsLoading, 
+    error: commentsError,
+    refetch: refetchComments 
+  } = useComments(projectId);
+  
+  // Mutations
+  const createCommentMutation = useCreateComment();
+  const requestCollaborationMutation = useRequestCollaboration();
+  const handleCollaborationMutation = useHandleCollaborationRequest();
 
+  // Local state
   const [comment, setComment] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [commentSuccess, setCommentSuccess] = useState(false);
-  const [collaborationStatus, setCollaborationStatus] = useState(null);
-  const [showCollaborationDialog, setShowCollaborationDialog] = useState(false);
 
-  // Fetch project data and comments
-  useEffect(() => {
-    if (projectId) {
-      console.log('🔍 Fetching project and comments for:', projectId);
-      dispatch(fetchProjectById(projectId));
-      dispatch(fetchComments(projectId));
-    }
-  }, [dispatch, projectId]);
-
-  // Check collaboration status when project loads
-  useEffect(() => {
-    if (currentProject && user) {
-      console.log('🔍 Checking collaboration status:', {
-        projectId: currentProject._id,
-        userId: user._id,
-        collaborators: currentProject.collaborators
-      });
-      
-      const userCollaboration = currentProject.collaborators?.find(
-        collab => collab.userId === user._id || collab.userId._id === user._id
-      );
-      
-      console.log('🤝 User collaboration found:', userCollaboration);
-      setCollaborationStatus(userCollaboration?.status || null);
-    }
+  // Compute collaboration status
+  const collaborationStatus = useMemo(() => {
+    if (!currentProject || !user) return null;
+    
+    console.log('🔍 Checking collaboration status:', {
+      projectId: currentProject._id,
+      userId: user._id,
+      collaborators: currentProject.collaborators
+    });
+    
+    const userCollaboration = currentProject.collaborators?.find(
+      collab => collab.userId === user._id || collab.userId._id === user._id
+    );
+    
+    console.log('🤝 User collaboration found:', userCollaboration);
+    return userCollaboration?.status || null;
   }, [currentProject, user]);
 
   const handleEdit = () => {
@@ -115,59 +124,69 @@ const ProjectDetail = () => {
       return;
     }
 
-    try {
-      console.log('🤝 Requesting collaboration for project:', projectId);
-      const result = await dispatch(requestCollaboration(projectId)).unwrap();
-      console.log('✅ Collaboration request sent:', result);
-      
-      // Refresh project data to show updated collaboration status
-      dispatch(fetchProjectById(projectId));
-      
-      alert('Collaboration request sent successfully!');
-    } catch (error) {
-      console.error('❌ Error requesting collaboration:', error);
-      alert(error.message || 'Failed to request collaboration');
-    }
+    requestCollaborationMutation.mutate(projectId, {
+      onSuccess: (result) => {
+        console.log('✅ Collaboration request sent:', result);
+        alert('Collaboration request sent successfully!');
+        // TanStack Query will automatically refetch the project data
+        refetchProject();
+      },
+      onError: (error) => {
+        console.error('❌ Error requesting collaboration:', error);
+        alert(error?.response?.data?.message || error?.message || 'Failed to request collaboration');
+      },
+    });
   };
 
   const handleCollaborationResponse = async (userId, status) => {
-    try {
-      console.log('🤝 Handling collaboration request:', { userId, status });
-      const result = await dispatch(handleCollaborationRequest({ 
-        projectId, 
-        userId, 
-        status 
-      })).unwrap();
-      console.log('✅ Collaboration request handled:', result);
-      
-      // Refresh project data
-      dispatch(fetchProjectById(projectId));
-      
-      alert(`Collaboration request ${status} successfully!`);
-    } catch (error) {
-      console.error('❌ Error handling collaboration request:', error);
-      alert(error.message || 'Failed to handle collaboration request');
-    }
+    handleCollaborationMutation.mutate(
+      { projectId, userId, status },
+      {
+        onSuccess: (result) => {
+          console.log('✅ Collaboration request handled:', result);
+          alert(`Collaboration request ${status} successfully!`);
+          // TanStack Query will automatically refetch the project data
+          refetchProject();
+        },
+        onError: (error) => {
+          console.error('❌ Error handling collaboration request:', error);
+          alert(error?.response?.data?.message || error?.message || 'Failed to handle collaboration request');
+        },
+      }
+    );
   };
 
   const handleCommentSubmit = (e) => {
     e.preventDefault();
     if (comment.trim()) {
-      dispatch(createComment({ projectId, commentData: { content: comment } }))
-        .then((result) => {
-          if (result.meta.requestStatus === 'fulfilled') {
+      createCommentMutation.mutate(
+        { projectId, content: comment },
+        {
+          onSuccess: (result) => {
+            console.log('✅ Comment created successfully:', result);
             setComment('');
             setCommentSuccess(true);
             setTimeout(() => setCommentSuccess(false), 3000);
-          }
-        });
+            // TanStack Query will automatically refetch comments
+            refetchComments();
+          },
+          onError: (error) => {
+            console.error('❌ Error creating comment:', error);
+          },
+        }
+      );
     }
   };
 
   if (loading) {
     return (
-      <Container>
-        <Typography>Loading project details...</Typography>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading project details...
+          </Typography>
+        </Box>
       </Container>
     );
   }
@@ -175,22 +194,36 @@ const ProjectDetail = () => {
   if (error) {
     // Ensure we never render an object as a React child
     const errorMessage = typeof error === 'object' 
-      ? error.message || error.error || JSON.stringify(error)
+      ? error?.response?.data?.message || error?.message || JSON.stringify(error)
       : String(error);
     
     return (
-      <Container>
-        <Typography color="error">
-          Error: {errorMessage}
-        </Typography>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Error Loading Project
+          </Typography>
+          {errorMessage}
+        </Alert>
+        <Button variant="contained" onClick={() => refetchProject()}>
+          Try Again
+        </Button>
       </Container>
     );
   }
 
   if (!currentProject) {
     return (
-      <Container>
-        <Typography>Project not found</Typography>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Project Not Found
+          </Typography>
+          The project you're looking for doesn't exist or has been removed.
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/projects')}>
+          Back to Projects
+        </Button>
       </Container>
     );
   }
@@ -198,8 +231,16 @@ const ProjectDetail = () => {
   // Additional safety check to ensure currentProject is valid
   if (typeof currentProject !== 'object' || currentProject === null) {
     return (
-      <Container>
-        <Typography color="error">Invalid project data</Typography>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Invalid Project Data
+          </Typography>
+          The project data is corrupted or invalid.
+        </Alert>
+        <Button variant="contained" onClick={() => refetchProject()}>
+          Reload Project
+        </Button>
       </Container>
     );
   }
@@ -289,8 +330,9 @@ const ProjectDetail = () => {
                       variant="contained"
                       color="primary"
                       onClick={handleCollaborate}
+                      disabled={requestCollaborationMutation.isPending}
                     >
-                      Request Collaboration
+                      {requestCollaborationMutation.isPending ? 'Sending...' : 'Request Collaboration'}
                     </Button>
                   )}
                 </Box>
@@ -441,8 +483,9 @@ const ProjectDetail = () => {
                             collaborator.userId._id || collaborator.userId, 
                             'accepted'
                           )}
+                          disabled={handleCollaborationMutation.isPending}
                         >
-                          Accept
+                          {handleCollaborationMutation.isPending ? 'Processing...' : 'Accept'}
                         </Button>
                         <Button
                           size="small"
@@ -452,8 +495,9 @@ const ProjectDetail = () => {
                             collaborator.userId._id || collaborator.userId, 
                             'rejected'
                           )}
+                          disabled={handleCollaborationMutation.isPending}
                         >
-                          Reject
+                          {handleCollaborationMutation.isPending ? 'Processing...' : 'Reject'}
                         </Button>
                       </Box>
                     </ListItem>
@@ -516,9 +560,9 @@ const ProjectDetail = () => {
                       type="submit"
                       variant="contained"
                       endIcon={<SendIcon />}
-                      disabled={!comment.trim() || commentsLoading}
+                      disabled={!comment.trim() || createCommentMutation.isPending}
                     >
-                      {commentsLoading ? <CircularProgress size={20} /> : 'Post Comment'}
+                      {createCommentMutation.isPending ? <CircularProgress size={20} /> : 'Post Comment'}
                     </Button>
                   </Box>
                 )}
@@ -529,9 +573,13 @@ const ProjectDetail = () => {
                   </Alert>
                 )}
 
-                {commentsError && (
+                {(commentsError || createCommentMutation.error) && (
                   <Alert severity="error" sx={{ mb: 2 }}>
-                    {commentsError}
+                    {commentsError?.response?.data?.message || 
+                     commentsError?.message || 
+                     createCommentMutation.error?.response?.data?.message ||
+                     createCommentMutation.error?.message ||
+                     'Error loading or posting comments'}
                   </Alert>
                 )}
 

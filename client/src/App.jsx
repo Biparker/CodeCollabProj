@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Container, Typography, Button, Box } from '@mui/material';
+import queryClient from './config/queryClient';
 import Layout from './components/layout/Layout';
 import PrivateRoute from './components/routing/PrivateRoute';
 import Home from './pages/Home';
@@ -12,15 +14,14 @@ import Register from './components/auth/Register';
 import ForgotPassword from './components/auth/ForgotPassword';
 import ResetPassword from './components/auth/ResetPassword';
 import ProjectList from './pages/ProjectList';
-import ProjectCreate from './pages/ProjectCreate';
+// ProjectForm handles both creation and editing
 import ProjectForm from './components/projects/ProjectForm';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
-import MemberSearch from './pages/MemberSearch';
+// MemberSearch available but not currently routed
 import Members from './pages/Members';
 import ProjectDetail from './pages/ProjectDetail';
 import EmailVerification from './pages/EmailVerification';
-import { getCurrentUser } from './store/slices/authSlice';
 
 function About() {
   return (
@@ -34,8 +35,6 @@ function About() {
 }
 
 function App() {
-  const dispatch = useDispatch();
-
   // Memoize theme to prevent unnecessary re-renders
   const theme = useMemo(() => createTheme({
     palette: {
@@ -59,85 +58,93 @@ function App() {
     },
   }), []);
 
+  // TanStack Query will automatically handle authentication checks
+  // when components mount and use the useAuth hook
   useEffect(() => {
     const token = localStorage.getItem('token');
     console.log('🔐 App startup - Token exists:', !!token);
+    console.log('🔐 QueryClient initialized:', !!queryClient);
     
     if (token) {
-      console.log('🔄 Dispatching getCurrentUser');
-      dispatch(getCurrentUser());
+      console.log('✅ Token found - TanStack Query will handle auth state');
     } else {
       console.log('❌ No token found - user not authenticated');
     }
-  }, [dispatch]);
+  }, []);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/verify-email/:token" element={<EmailVerification />} />
-            <Route path="/verify-email" element={<EmailVerification />} />
-            <Route path="/projects" element={<ProjectList />} />
-            <Route
-              path="/projects/create"
-              element={
-                <PrivateRoute>
-                  <ProjectCreate />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <Dashboard />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <Profile />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/members"
-              element={
-                <PrivateRoute>
-                  <Members />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/projects/:projectId"
-              element={
-                <PrivateRoute>
-                  <ProjectDetail />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/projects/:projectId/edit"
-              element={
-                <PrivateRoute>
-                  <ProjectForm />
-                </PrivateRoute>
-              }
-            />
-            <Route path="/about" element={<About />} />
-          </Routes>
-        </Layout>
-      </Router>
-    </ThemeProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Router>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/register" element={<Register />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              <Route path="/verify-email/:token" element={<EmailVerification />} />
+              <Route path="/verify-email" element={<EmailVerification />} />
+              <Route path="/projects" element={<ProjectList />} />
+              <Route
+                path="/projects/create"
+                element={
+                  <PrivateRoute>
+                    <ProjectForm />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/dashboard"
+                element={
+                  <PrivateRoute>
+                    <Dashboard />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <Profile />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/members"
+                element={
+                  <PrivateRoute>
+                    <Members />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/projects/:projectId"
+                element={
+                  <PrivateRoute>
+                    <ProjectDetail />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/projects/:projectId/edit"
+                element={
+                  <PrivateRoute>
+                    <ProjectForm />
+                  </PrivateRoute>
+                }
+              />
+              <Route path="/about" element={<About />} />
+            </Routes>
+          </Layout>
+        </Router>
+      </ThemeProvider>
+      {/* React Query DevTools - only shown in development */}
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
+    </QueryClientProvider>
   );
 }
 

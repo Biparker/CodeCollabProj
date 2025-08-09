@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React from 'react';
 import {
   Container,
   Grid,
@@ -13,19 +12,18 @@ import {
   ListItemSecondaryAction,
   Chip,
   Divider,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { getCurrentUser } from '../../store/slices/authSlice';
+import { useAuth } from '../../hooks/auth';
+import { useHandleCollaborationRequest } from '../../hooks/projects';
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-
-  useEffect(() => {
-    dispatch(getCurrentUser());
-  }, [dispatch]);
+  const { user, isLoading: authLoading } = useAuth();
+  const handleCollaborationMutation = useHandleCollaborationRequest();
 
   const handleCreateProject = () => {
     navigate('/projects/create');
@@ -36,14 +34,46 @@ const Dashboard = () => {
   };
 
   const handleCollaborationRequest = (projectId, userId, status) => {
-    // TODO: Implement collaboration request handling
-    console.log('Handle collaboration request:', { projectId, userId, status });
+    handleCollaborationMutation.mutate(
+      { projectId, userId, status },
+      {
+        onSuccess: (result) => {
+          console.log('✅ Collaboration request handled:', result);
+          // The user data should automatically refresh through TanStack Query
+        },
+        onError: (error) => {
+          console.error('❌ Error handling collaboration request:', error);
+          alert(error?.response?.data?.message || error?.message || 'Failed to handle collaboration request');
+        },
+      }
+    );
   };
+
+  if (authLoading) {
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+          <CircularProgress />
+          <Typography variant="h6" sx={{ ml: 2 }}>
+            Loading dashboard...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
 
   if (!user) {
     return (
-      <Container>
-        <Typography>Loading...</Typography>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+        <Alert severity="warning" sx={{ mb: 3 }}>
+          <Typography variant="h6" gutterBottom>
+            Authentication Required
+          </Typography>
+          You must be logged in to view your dashboard.
+        </Alert>
+        <Button variant="contained" onClick={() => navigate('/login')}>
+          Go to Login
+        </Button>
       </Container>
     );
   }
@@ -120,6 +150,7 @@ const Dashboard = () => {
                               size="small"
                               variant="contained"
                               color="success"
+                              disabled={handleCollaborationMutation.isPending}
                               onClick={() =>
                                 handleCollaborationRequest(
                                   request.project._id,
@@ -128,12 +159,13 @@ const Dashboard = () => {
                                 )
                               }
                             >
-                              Accept
+                              {handleCollaborationMutation.isPending ? 'Processing...' : 'Accept'}
                             </Button>
                             <Button
                               size="small"
                               variant="contained"
                               color="error"
+                              disabled={handleCollaborationMutation.isPending}
                               onClick={() =>
                                 handleCollaborationRequest(
                                   request.project._id,
@@ -142,7 +174,7 @@ const Dashboard = () => {
                                 )
                               }
                             >
-                              Reject
+                              {handleCollaborationMutation.isPending ? 'Processing...' : 'Reject'}
                             </Button>
                           </Box>
                         </ListItemSecondaryAction>

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import { 
   Container,
   Paper,
@@ -12,12 +11,15 @@ import {
   Alert,
   AlertTitle,
 } from '@mui/material';
-import { login, resendVerificationEmail, clearNeedsVerification } from '../../store/slices/authSlice';
+import { useAuth, useLogin, useResendVerificationEmail } from '../../hooks/auth';
 
 const Login = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { isAuthenticated, loading, error, needsVerification } = useSelector((state) => state.auth);
+  const { isAuthenticated } = useAuth();
+  
+  // TanStack Query mutations
+  const loginMutation = useLogin();
+  const resendVerificationMutation = useResendVerificationEmail();
 
   const [formData, setFormData] = useState({
     email: '',
@@ -28,6 +30,7 @@ const Login = () => {
   const [showResendForm, setShowResendForm] = useState(false);
   const [resendEmail, setResendEmail] = useState('');
   const [resendSuccess, setResendSuccess] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -38,9 +41,9 @@ const Login = () => {
   // Clear needs verification when component unmounts
   useEffect(() => {
     return () => {
-      dispatch(clearNeedsVerification());
+      setNeedsVerification(false);
     };
-  }, [dispatch]);
+  }, []);
 
   const validateForm = () => {
     const errors = {};
@@ -66,18 +69,29 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      dispatch(login(formData));
+      loginMutation.mutate(formData, {
+        onSuccess: () => {
+          navigate('/dashboard');
+        },
+        onError: (error) => {
+          // Check if the error is due to unverified email
+          if (error?.response?.data?.needsVerification) {
+            setNeedsVerification(true);
+          }
+        },
+      });
     }
   };
 
   const handleResendVerification = async (e) => {
     e.preventDefault();
     if (resendEmail) {
-      const result = await dispatch(resendVerificationEmail(resendEmail));
-      if (!result.error) {
-        setResendSuccess(true);
-        setShowResendForm(false);
-      }
+      resendVerificationMutation.mutate(resendEmail, {
+        onSuccess: () => {
+          setResendSuccess(true);
+          setShowResendForm(false);
+        },
+      });
     }
   };
 
@@ -102,7 +116,7 @@ const Login = () => {
                   Send Verification Email
                 </Button>
                 <Button
-                  onClick={() => dispatch(clearNeedsVerification())}
+                  onClick={() => setNeedsVerification(false)}
                   variant="text"
                   color="primary"
                 >
@@ -164,9 +178,9 @@ const Login = () => {
             Login
           </Typography>
 
-          {error && (
+          {loginMutation.error && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
+              {loginMutation.error?.response?.data?.message || loginMutation.error.message || 'Login failed'}
             </Alert>
           )}
 
@@ -203,10 +217,10 @@ const Login = () => {
               variant="contained"
               color="primary"
               size="large"
-              disabled={loading}
+              disabled={loginMutation.isPending}
               sx={{ mt: 3 }}
             >
-              {loading ? 'Logging in...' : 'Login'}
+              {loginMutation.isPending ? 'Logging in...' : 'Login'}
             </Button>
           </form>
 

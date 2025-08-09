@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState, useMemo } from 'react';
 import {
   Container,
   Grid,
@@ -16,56 +15,76 @@ import {
   Select,
   MenuItem,
   InputAdornment,
+  CircularProgress,
+  Alert,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { fetchProjects } from '../../store/slices/projectsSlice';
+import { useProjects, useProjectSearch } from '../../hooks/projects';
 
 const ProjectList = () => {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
-  const { projects, loading } = useSelector((state) => state.projects);
-
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [skillFilter, setSkillFilter] = useState('');
 
-  // Fetch projects on component mount
-  useEffect(() => {
-    dispatch(fetchProjects());
-  }, [dispatch]);
+  // Build filters object for API call
+  const filters = useMemo(() => {
+    const filterObj = {};
+    if (statusFilter !== 'all') filterObj.status = statusFilter;
+    if (skillFilter) filterObj.requiredSkills = skillFilter;
+    return filterObj;
+  }, [statusFilter, skillFilter]);
+
+  // TanStack Query hooks
+  const { 
+    data: projects = [], 
+    isLoading, 
+    error,
+    refetch 
+  } = useProjects(filters);
+  
+  const { 
+    data: searchResults = [], 
+    isLoading: isSearching 
+  } = useProjectSearch(searchQuery, {
+    enabled: searchQuery.length > 2, // Only search if query is 3+ characters
+  });
 
   const handleSearch = (e) => {
     setSearchQuery(e.target.value);
-    // TODO: Implement search functionality
   };
 
   const handleStatusFilter = (e) => {
     setStatusFilter(e.target.value);
-    // TODO: Implement status filtering
   };
 
   const handleSkillFilter = (e) => {
     setSkillFilter(e.target.value);
-    // TODO: Implement skill filtering
   };
 
-  const handleViewProject = (projectId) => {
-    navigate(`/projects/${projectId}`);
-  };
+  // Determine which projects to display
+  const displayProjects = searchQuery.length > 2 ? searchResults : projects;
 
-  const filteredProjects = projects?.filter((project) => {
-    const matchesSearch = project.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || project.status === statusFilter;
-    const matchesSkill = !skillFilter || project.requiredSkills.includes(skillFilter);
-    return matchesSearch && matchesStatus && matchesSkill;
-  });
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <Container>
-        <Typography>Loading projects...</Typography>
+      <Container sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+        <CircularProgress />
+      </Container>
+    );
+  }
+
+  if (error) {
+    return (
+      <Container sx={{ mt: 4 }}>
+        <Alert severity="error" action={
+          <Button color="inherit" size="small" onClick={() => refetch()}>
+            Retry
+          </Button>
+        }>
+          Failed to load projects: {error.message}
+        </Alert>
       </Container>
     );
   }
@@ -84,10 +103,11 @@ const ProjectList = () => {
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
-                    <SearchIcon />
+                    {isSearching ? <CircularProgress size={20} /> : <SearchIcon />}
                   </InputAdornment>
                 ),
               }}
+              helperText={searchQuery.length > 0 && searchQuery.length <= 2 ? "Type at least 3 characters to search" : ""}
             />
           </Grid>
           <Grid item xs={12} md={3}>
@@ -127,8 +147,8 @@ const ProjectList = () => {
 
       {/* Projects Grid */}
       <Grid container spacing={3}>
-        {filteredProjects?.length > 0 ? (
-          filteredProjects.map((project) => (
+        {displayProjects?.length > 0 ? (
+          displayProjects.map((project) => (
             <Grid item key={project._id} xs={12} sm={6} md={4}>
               <Card>
                 <CardContent>
@@ -187,7 +207,9 @@ const ProjectList = () => {
           ))
         ) : (
           <Grid item xs={12}>
-            <Typography align="center">No projects found</Typography>
+            <Typography align="center">
+              {searchQuery.length > 2 ? 'No projects found matching your search' : 'No projects found'}
+            </Typography>
           </Grid>
         )}
       </Grid>

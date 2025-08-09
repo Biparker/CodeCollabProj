@@ -1,5 +1,4 @@
-import React, { useEffect } from 'react';
-import { useSelector, useDispatch } from 'react-redux';
+import React, { useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -16,25 +15,29 @@ import {
   Alert,
 } from '@mui/material';
 import { Add, Code, People, CalendarToday } from '@mui/icons-material';
-import { fetchProjects } from '../store/slices/projectsSlice';
+import { useAuth } from '../hooks/auth';
+import { useProjects } from '../hooks/projects';
 
 const Dashboard = () => {
-  const dispatch = useDispatch();
-  const { user } = useSelector((state) => state.auth);
-  const { projects, loading, error } = useSelector((state) => state.projects);
-
-  useEffect(() => {
-    dispatch(fetchProjects());
-  }, [dispatch]);
+  // Auth and project data
+  const { user, isAuthenticated } = useAuth();
+  const { 
+    data: projects = [], 
+    isLoading: loading, 
+    error,
+    refetch 
+  } = useProjects();
 
   // Filter projects for the current user (owned or collaborated)
-  const userProjects = projects.filter(project => {
-    const isOwner = project.owner?._id === user?._id;
-    const isCollaborator = project.collaborators?.some(collab => 
-      collab._id === user?._id || collab.userId === user?._id
-    );
-    return isOwner || isCollaborator;
-  });
+  const userProjects = useMemo(() => {
+    return projects.filter(project => {
+      const isOwner = project.owner?._id === user?._id;
+      const isCollaborator = project.collaborators?.some(collab => 
+        collab._id === user?._id || collab.userId === user?._id || collab.userId?._id === user?._id
+      );
+      return isOwner || isCollaborator;
+    });
+  }, [projects, user]);
 
   if (loading) {
     return (
@@ -50,7 +53,15 @@ const Dashboard = () => {
     return (
       <Container maxWidth="lg">
         <Box sx={{ mt: 4 }}>
-          <Alert severity="error">{error}</Alert>
+          <Alert severity="error" sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Error Loading Dashboard
+            </Typography>
+            {error?.response?.data?.message || error?.message || 'Failed to load dashboard data'}
+          </Alert>
+          <Button variant="contained" onClick={() => refetch()}>
+            Try Again
+          </Button>
         </Box>
       </Container>
     );

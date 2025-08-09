@@ -1,6 +1,5 @@
 import React from 'react';
-import { Link as RouterLink } from 'react-router-dom';
-import { useSelector, useDispatch } from 'react-redux';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -13,11 +12,14 @@ import {
   Avatar,
 } from '@mui/material';
 import { AccountCircle, Menu as MenuIcon } from '@mui/icons-material';
-import { logout } from '../../store/slices/authSlice';
+import { useAuth, useLogout } from '../../hooks/auth';
+
 const Header = () => {
-  const dispatch = useDispatch();
-  const { isAuthenticated, user } = useSelector((state) => state.auth);
-  console.log('Header isAuthenticated:', isAuthenticated, 'user:', user);
+  const navigate = useNavigate();
+  const { isAuthenticated, user } = useAuth();
+  const logoutMutation = useLogout();
+  
+  console.log('Header isAuthenticated (TanStack Query):', isAuthenticated, 'user:', user);
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   const handleMenu = (event) => {
@@ -29,8 +31,12 @@ const Header = () => {
   };
 
   const handleLogout = () => {
-    dispatch(logout());
-    handleClose();
+    logoutMutation.mutate(undefined, {
+      onSuccess: () => {
+        navigate('/login');
+        handleClose();
+      },
+    });
   };
 
   return (
@@ -125,7 +131,9 @@ const Header = () => {
             </>
           ) : (
             <>
-           
+              <Button color="inherit" component={RouterLink} to="/projects">
+                Projects
+              </Button>
               <Button color="inherit" component={RouterLink} to="/login">
                 Login
               </Button>
