@@ -40,6 +40,42 @@ export const resendVerificationEmail = createAsyncThunk(
   }
 );
 
+export const requestPasswordReset = createAsyncThunk(
+  'auth/requestPasswordReset',
+  async (email, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/request-password-reset', { email });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const verifyPasswordResetToken = createAsyncThunk(
+  'auth/verifyPasswordResetToken',
+  async (token, { rejectWithValue }) => {
+    try {
+      const response = await api.get(`/auth/verify-password-reset/${token}`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, password }, { rejectWithValue }) => {
+    try {
+      const response = await api.post('/auth/reset-password', { token, password });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
+
 export const getCurrentUser = createAsyncThunk(
   'auth/getCurrentUser',
   async (_, { rejectWithValue }) => {
@@ -60,6 +96,11 @@ const initialState = {
   error: null,
   needsVerification: false,
   registrationSuccess: false,
+  passwordResetRequested: false,
+  passwordResetSuccess: false,
+  passwordResetTokenValid: false,
+  passwordResetToken: null,
+  passwordResetUrl: null,
 };
 
 const authSlice = createSlice({
@@ -75,6 +116,9 @@ const authSlice = createSlice({
       state.error = null;
       state.needsVerification = false;
       state.registrationSuccess = false;
+      state.passwordResetRequested = false;
+      state.passwordResetSuccess = false;
+      state.passwordResetTokenValid = false;
     },
     clearError: (state) => {
       state.error = null;
@@ -84,6 +128,13 @@ const authSlice = createSlice({
     },
     clearNeedsVerification: (state) => {
       state.needsVerification = false;
+    },
+    clearPasswordResetState: (state) => {
+      state.passwordResetRequested = false;
+      state.passwordResetSuccess = false;
+      state.passwordResetTokenValid = false;
+      state.passwordResetToken = null;
+      state.passwordResetUrl = null;
     },
   },
   extraReducers: (builder) => {
@@ -137,6 +188,54 @@ const authSlice = createSlice({
         state.loading = false;
         state.error = action.payload?.message || 'Failed to send verification email';
       })
+      // Request Password Reset
+      .addCase(requestPasswordReset.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(requestPasswordReset.fulfilled, (state, action) => {
+        state.loading = false;
+        state.passwordResetRequested = true;
+        state.error = null;
+        // Store development mode data
+        if (action.payload.resetToken) {
+          state.passwordResetToken = action.payload.resetToken;
+          state.passwordResetUrl = action.payload.resetUrl;
+        }
+      })
+      .addCase(requestPasswordReset.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to request password reset';
+      })
+      // Verify Password Reset Token
+      .addCase(verifyPasswordResetToken.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(verifyPasswordResetToken.fulfilled, (state, action) => {
+        state.loading = false;
+        state.passwordResetTokenValid = true;
+        state.error = null;
+      })
+      .addCase(verifyPasswordResetToken.rejected, (state, action) => {
+        state.loading = false;
+        state.passwordResetTokenValid = false;
+        state.error = action.payload?.message || 'Invalid or expired reset token';
+      })
+      // Reset Password
+      .addCase(resetPassword.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(resetPassword.fulfilled, (state, action) => {
+        state.loading = false;
+        state.passwordResetSuccess = true;
+        state.error = null;
+      })
+      .addCase(resetPassword.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to reset password';
+      })
       // Get Current User
       .addCase(getCurrentUser.pending, (state) => {
         state.loading = true;
@@ -150,9 +249,17 @@ const authSlice = createSlice({
         state.loading = false;
         state.isAuthenticated = false;
         state.user = null;
+        // Clear the token from localStorage when getCurrentUser fails
+        localStorage.removeItem('token');
       });
   },
 });
 
-export const { logout, clearError, clearRegistrationSuccess, clearNeedsVerification } = authSlice.actions;
+export const { 
+  logout, 
+  clearError, 
+  clearRegistrationSuccess, 
+  clearNeedsVerification,
+  clearPasswordResetState
+} = authSlice.actions;
 export default authSlice.reducer; 

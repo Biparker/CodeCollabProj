@@ -45,7 +45,33 @@ export const updateProject = createAsyncThunk(
       const response = await api.put(`/projects/${projectId}`, projectData);
       return response.data;
     } catch (error) {
-      return rejectWithValue(error.response?.data || { message: 'Failed to update project' });
+      console.error('❌ Update project error:', error);
+      console.error('❌ Error response:', error.response);
+      console.error('❌ Error message:', error.message);
+      
+      // Better error handling
+      if (error.response) {
+        // Server responded with error status
+        return rejectWithValue({
+          message: error.response.data?.message || 'Failed to update project',
+          status: error.response.status,
+          data: error.response.data
+        });
+      } else if (error.request) {
+        // Request was made but no response received
+        return rejectWithValue({
+          message: 'Network error - no response from server',
+          status: 0,
+          data: null
+        });
+      } else {
+        // Something else happened
+        return rejectWithValue({
+          message: error.message || 'Failed to update project',
+          status: 0,
+          data: null
+        });
+      }
     }
   }
 );
@@ -82,6 +108,30 @@ export const leaveProject = createAsyncThunk(
       return response.data;
     } catch (error) {
       return rejectWithValue(error.response?.data || { message: 'Failed to leave project' });
+    }
+  }
+);
+
+export const requestCollaboration = createAsyncThunk(
+  'projects/requestCollaboration',
+  async (projectId, { rejectWithValue }) => {
+    try {
+      const response = await api.post(`/projects/${projectId}/collaborate`);
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to request collaboration' });
+    }
+  }
+);
+
+export const handleCollaborationRequest = createAsyncThunk(
+  'projects/handleCollaborationRequest',
+  async ({ projectId, userId, status }, { rejectWithValue }) => {
+    try {
+      const response = await api.put(`/projects/${projectId}/collaborate/${userId}`, { status });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response?.data || { message: 'Failed to handle collaboration request' });
     }
   }
 );
@@ -217,6 +267,32 @@ const projectsSlice = createSlice({
       .addCase(leaveProject.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload?.message || 'Failed to leave project';
+      })
+      // Request Collaboration
+      .addCase(requestCollaboration.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(requestCollaboration.fulfilled, (state, action) => {
+        state.loading = false;
+        // No direct state update for collaboration requests, they are handled by backend
+      })
+      .addCase(requestCollaboration.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to request collaboration';
+      })
+      // Handle Collaboration Request
+      .addCase(handleCollaborationRequest.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(handleCollaborationRequest.fulfilled, (state, action) => {
+        state.loading = false;
+        // No direct state update for collaboration requests, they are handled by backend
+      })
+      .addCase(handleCollaborationRequest.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload?.message || 'Failed to handle collaboration request';
       });
   },
 });

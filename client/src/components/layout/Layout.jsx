@@ -1,11 +1,12 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
-const Layout = ({ children }) => {
-      return (
+
+const Layout = memo(({ children }) => {
+  return (
     <Box
-     sx={{
+      sx={{
         display: 'flex',
         flexDirection: 'column',
         minHeight: '100vh',
@@ -26,6 +27,8 @@ const Layout = ({ children }) => {
       <Footer />
     </Box>
   );
-};
+});
+
+Layout.displayName = 'Layout';
 
 export default Layout; 

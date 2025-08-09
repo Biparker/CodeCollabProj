@@ -27,7 +27,7 @@ const createComment = async (req, res) => {
     });
 
     await comment.save();
-    await comment.populate('userId', 'name email');
+    await comment.populate('userId', 'username email');
 
     res.status(201).json(comment);
   } catch (error) {
@@ -47,7 +47,7 @@ const getProjectComments = async (req, res) => {
     }
 
     const comments = await Comment.find({ projectId })
-      .populate('userId', 'name email')
+      .populate('userId', 'username email')
       .sort({ createdAt: -1 });
 
     res.json(comments);
@@ -80,7 +80,7 @@ const updateComment = async (req, res) => {
 
     comment.content = content;
     await comment.save();
-    await comment.populate('userId', 'name email');
+    await comment.populate('userId', 'username email');
 
     res.json(comment);
   } catch (error) {

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
-const { sendVerificationEmail } = require('../services/emailService');
+const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 // Generate JWT token
 const generateToken = (userId) => {
@@ -37,12 +37,32 @@ const register = async (req, res) => {
       username
     });
 
-    // Generate email verification token
-    const verificationToken = user.generateEmailVerificationToken();
-    console.log(`🔐 Generated verification token for ${email}: ${verificationToken}`);
-
     await user.save();
     console.log(`👤 User saved to database: ${user._id}`);
+
+    // In development, skip email verification
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🛠️  Development mode: Auto-verifying user');
+      
+      // Generate token immediately since user is auto-verified
+      const token = generateToken(user._id);
+      
+      return res.status(201).json({
+        message: 'Account created successfully. You are automatically logged in.',
+        token,
+        user: {
+          id: user._id,
+          email: user.email,
+          username: user.username,
+          isEmailVerified: user.isEmailVerified
+        }
+      });
+    }
+
+    // Production: Send verification email
+    const verificationToken = user.generateEmailVerificationToken();
+    console.log(`🔐 Generated verification token for ${email}: ${verificationToken}`);
+    await user.save();
 
     // Send verification email
     console.log(`📧 Attempting to send verification email to: ${email}`);
@@ -97,8 +117,8 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if email is verified
-    if (!user.isEmailVerified) {
+    // Check if email is verified (only in production)
+    if (process.env.NODE_ENV !== 'development' && !user.isEmailVerified) {
       return res.status(401).json({ 
         message: 'Please verify your email address before logging in. Check your inbox for a verification email.',
         needsVerification: true
@@ -208,6 +228,121 @@ const resendVerificationEmail = async (req, res) => {
   }
 };
 
+// Request password reset
+const requestPasswordReset = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { email } = req.body;
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      // Don't reveal if user exists or not for security
+      return res.json({ 
+        message: 'If an account with that email exists, a password reset link has been sent.' 
+      });
+    }
+
+    // Generate password reset token
+    const resetToken = user.generatePasswordResetToken();
+    await user.save();
+
+    // In development mode, return the token directly for testing
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`🔐 Development mode: Password reset token for ${email}: ${resetToken}`);
+      console.log(`🔗 Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
+      
+      return res.json({ 
+        message: 'Password reset link generated successfully (development mode)',
+        resetToken: resetToken, // Only in development
+        resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
+      });
+    }
+
+    // Production: Send password reset email
+    const emailSent = await sendPasswordResetEmail(email, resetToken, user.username);
+
+    if (!emailSent) {
+      return res.status(500).json({ 
+        message: 'Failed to send password reset email. Please try again later.' 
+      });
+    }
+
+    res.json({ 
+      message: 'If an account with that email exists, a password reset link has been sent.' 
+    });
+  } catch (error) {
+    console.error('Error requesting password reset:', error);
+    res.status(500).json({ message: 'Error requesting password reset', error: error.message });
+  }
+};
+
+// Verify password reset token
+const verifyPasswordResetToken = async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Invalid or expired password reset token' 
+      });
+    }
+
+    res.json({ 
+      message: 'Password reset token is valid',
+      email: user.email 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error verifying password reset token', error: error.message });
+  }
+};
+
+// Reset password
+const resetPassword = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { token, password } = req.body;
+
+    const user = await User.findOne({
+      passwordResetToken: token,
+      passwordResetExpires: { $gt: Date.now() }
+    });
+
+    if (!user) {
+      return res.status(400).json({ 
+        message: 'Invalid or expired password reset token' 
+      });
+    }
+
+    // Update password
+    user.password = password;
+    user.markModified('password'); // Explicitly mark password as modified
+    user.clearPasswordResetToken();
+    await user.save();
+    
+    console.log('🔐 Password reset successful for user:', user.email);
+    console.log('🔐 Password has been hashed and saved');
+
+    res.json({ 
+      message: 'Password has been reset successfully. You can now log in with your new password.' 
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error resetting password', error: error.message });
+  }
+};
+
 // Get current user
 const getCurrentUser = async (req, res) => {
   try {
@@ -223,5 +358,8 @@ module.exports = {
   login,
   verifyEmail,
   resendVerificationEmail,
-  getCurrentUser
+  getCurrentUser,
+  requestPasswordReset,
+  verifyPasswordResetToken,
+  resetPassword
 }; 

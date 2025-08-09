@@ -65,6 +65,7 @@ const getAllProjects = async (req, res) => {
     const projects = await Project.find()
       .populate('owner', '_id username')
       .sort({ createdAt: -1 });
+    
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching projects', error: error.message });
@@ -91,22 +92,39 @@ const getProjectById = async (req, res) => {
 // Update project
 const updateProject = async (req, res) => {
   try {
+    console.log('🔄 Update project request received:', {
+      projectId: req.params.id,
+      body: req.body,
+      user: req.user._id,
+      headers: req.headers
+    });
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('❌ Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, status, requiredSkills, tags, resources } = req.body;
+    const { title, description, status, requiredSkills, tags, resources, technologies, githubUrl, liveUrl } = req.body;
     const projectId = req.params.id;
     const userId = req.user._id;
 
+    console.log('📋 Extracted data:', {
+      title, description, status, requiredSkills, tags, resources, technologies, githubUrl, liveUrl
+    });
+
     const project = await Project.findById(projectId);
     if (!project) {
+      console.log('❌ Project not found:', projectId);
       return res.status(404).json({ message: 'Project not found' });
     }
 
     // Check if user is the owner
     if (project.owner.toString() !== userId.toString()) {
+      console.log('❌ User not authorized to update project:', {
+        projectOwner: project.owner.toString(),
+        userId: userId.toString()
+      });
       return res.status(403).json({ message: 'Not authorized to update this project' });
     }
 
@@ -114,9 +132,24 @@ const updateProject = async (req, res) => {
     if (title) updateFields.title = title;
     if (description) updateFields.description = description;
     if (status) updateFields.status = status;
-    if (requiredSkills) updateFields.requiredSkills = requiredSkills;
-    if (tags) updateFields.tags = tags;
-    if (resources) updateFields.resources = resources;
+    if (githubUrl !== undefined) updateFields.githubUrl = githubUrl;
+    if (liveUrl !== undefined) updateFields.liveUrl = liveUrl;
+    
+    // Handle arrays properly
+    if (requiredSkills !== undefined) {
+      updateFields.requiredSkills = Array.isArray(requiredSkills) ? requiredSkills : [];
+    }
+    if (tags !== undefined) {
+      updateFields.tags = Array.isArray(tags) ? tags : [];
+    }
+    if (technologies !== undefined) {
+      updateFields.technologies = Array.isArray(technologies) ? technologies : [];
+    }
+    if (resources !== undefined) {
+      updateFields.resources = Array.isArray(resources) ? resources : [];
+    }
+
+    console.log('📝 Updating project with fields:', updateFields);
 
     const updatedProject = await Project.findByIdAndUpdate(
       projectId,
@@ -124,8 +157,10 @@ const updateProject = async (req, res) => {
       { new: true }
     ).populate('owner', 'name email');
 
+    console.log('✅ Project updated successfully:', updatedProject._id);
     res.json(updatedProject);
   } catch (error) {
+    console.error('❌ Error updating project:', error);
     res.status(500).json({ message: 'Error updating project', error: error.message });
   }
 };
@@ -195,15 +230,22 @@ const handleCollaborationRequest = async (req, res) => {
       return res.status(403).json({ message: 'Not authorized to handle collaboration requests' });
     }
 
-    const collaborator = project.collaborators.find(
+    const collaboratorIndex = project.collaborators.findIndex(
       collab => collab.userId.toString() === userId
     );
 
-    if (!collaborator) {
+    if (collaboratorIndex === -1) {
       return res.status(404).json({ message: 'Collaboration request not found' });
     }
 
-    collaborator.status = status;
+    if (status === 'rejected') {
+      // Remove the collaborator from the array
+      project.collaborators.splice(collaboratorIndex, 1);
+    } else {
+      // Update the status
+      project.collaborators[collaboratorIndex].status = status;
+    }
+
     await project.save();
 
     res.json({ message: `Collaboration request ${status} successfully` });

@@ -18,6 +18,7 @@ import {
   Grid,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { fetchProjectById, createProject, updateProject } from '../../store/slices/projectsSlice';
 
 const ProjectForm = () => {
   const navigate = useNavigate();
@@ -28,8 +29,11 @@ const ProjectForm = () => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    technologies: [],
     requiredSkills: [],
     tags: [],
+    githubUrl: '',
+    liveUrl: '',
     resources: [{ name: '', url: '' }],
     status: 'ideation',
   });
@@ -53,22 +57,30 @@ const ProjectForm = () => {
 
   useEffect(() => {
     if (projectId) {
-      // TODO: Implement project fetching for editing
-      // dispatch(fetchProjectById(projectId));
-      if (currentProject) {
-        setFormData({
-          title: currentProject.title,
-          description: currentProject.description,
-          requiredSkills: currentProject.requiredSkills,
-          tags: currentProject.tags || [],
-          resources: currentProject.resources?.length
-            ? currentProject.resources
-            : [{ name: '', url: '' }],
-          status: currentProject.status,
-        });
-      }
+      console.log('🔍 Fetching project for editing:', projectId);
+      dispatch(fetchProjectById(projectId));
     }
-  }, [projectId, currentProject, dispatch]);
+  }, [projectId, dispatch]);
+
+  useEffect(() => {
+    if (currentProject && projectId) {
+      console.log('📝 Setting form data for editing:', currentProject);
+      console.log('📋 Current requiredSkills:', currentProject.requiredSkills);
+      setFormData({
+        title: currentProject.title || '',
+        description: currentProject.description || '',
+        technologies: currentProject.technologies || [],
+        requiredSkills: currentProject.requiredSkills || [],
+        tags: currentProject.tags || [],
+        githubUrl: currentProject.githubUrl || '',
+        liveUrl: currentProject.liveUrl || '',
+        resources: currentProject.resources?.length
+          ? currentProject.resources
+          : [{ name: '', url: '' }],
+        status: currentProject.status || 'ideation',
+      });
+    }
+  }, [currentProject, projectId]);
 
   const validateForm = () => {
     const errors = {};
@@ -84,9 +96,7 @@ const ProjectForm = () => {
       errors.description = 'Description must be at least 10 characters';
     }
 
-    if (!formData.requiredSkills.length) {
-      errors.requiredSkills = 'At least one skill is required';
-    }
+    // Removed required skills validation since it's not mandatory
 
     formData.resources.forEach((resource, index) => {
       if (resource.name && !resource.url) {
@@ -110,6 +120,7 @@ const ProjectForm = () => {
   };
 
   const handleSkillsChange = (event, newValue) => {
+    console.log('🔧 Skills changed:', newValue);
     setFormData({
       ...formData,
       requiredSkills: newValue,
@@ -152,24 +163,79 @@ const ProjectForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    console.log('📝 Form submission started');
+    console.log('📋 Form data:', formData);
+    console.log('🔍 Project ID:', projectId);
+    
+    // Check authentication
+    const token = localStorage.getItem('token');
+    console.log('🔐 Authentication token exists:', !!token);
+    
     if (validateForm()) {
+      console.log('✅ Form validation passed');
       const filteredResources = formData.resources.filter(
         (resource) => resource.name && resource.url
       );
 
+      // Ensure arrays are properly formatted
       const projectData = {
         ...formData,
         resources: filteredResources,
+        requiredSkills: Array.isArray(formData.requiredSkills) ? formData.requiredSkills : [],
+        technologies: Array.isArray(formData.technologies) ? formData.technologies : [],
+        tags: Array.isArray(formData.tags) ? formData.tags : [],
       };
 
-      if (projectId) {
-        // TODO: Implement project update
-        // dispatch(updateProject({ projectId, projectData }));
-      } else {
-        // TODO: Implement project creation
-        // dispatch(createProject(projectData));
+      console.log('📤 Sending project data:', projectData);
+      console.log('🔍 Data types:', {
+        requiredSkills: typeof projectData.requiredSkills,
+        technologies: typeof projectData.technologies,
+        tags: typeof projectData.tags,
+        resources: typeof projectData.resources
+      });
+
+      try {
+        if (projectId) {
+          console.log('🔄 Updating project:', projectId, projectData);
+          const result = await dispatch(updateProject({ projectId, projectData })).unwrap();
+          console.log('✅ Project updated successfully:', result);
+        } else {
+          console.log('➕ Creating new project:', projectData);
+          const result = await dispatch(createProject(projectData)).unwrap();
+          console.log('✅ Project created successfully:', result);
+        }
+        console.log('🚀 Navigating to projects page');
+        navigate('/projects');
+      } catch (error) {
+        console.error('❌ Error saving project:', error);
+        console.error('❌ Error details:', {
+          message: error.message,
+          status: error.status,
+          data: error.data
+        });
+        
+        // Better error handling with more specific messages
+        let errorMessage = 'Error saving project. Please try again.';
+        
+        if (error.message) {
+          errorMessage = `Error saving project: ${error.message}`;
+        } else if (error.status === 401) {
+          errorMessage = 'Authentication error. Please log in again.';
+        } else if (error.status === 403) {
+          errorMessage = 'You are not authorized to edit this project.';
+        } else if (error.status === 404) {
+          errorMessage = 'Project not found.';
+        } else if (error.status === 422) {
+          errorMessage = 'Invalid data. Please check your input.';
+        } else if (error.status >= 500) {
+          errorMessage = 'Server error. Please try again later.';
+        }
+        
+        alert(errorMessage);
       }
-      navigate('/projects');
+    } else {
+      console.log('❌ Form validation failed:', formErrors);
+      alert('Please fix the form errors before submitting.');
     }
   };
 
@@ -210,19 +276,74 @@ const ProjectForm = () => {
               />
             </Grid>
 
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="GitHub URL (optional)"
+                name="githubUrl"
+                value={formData.githubUrl}
+                onChange={handleChange}
+                placeholder="https://github.com/username/project"
+              />
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Live URL (optional)"
+                name="liveUrl"
+                value={formData.liveUrl}
+                onChange={handleChange}
+                placeholder="https://your-project.com"
+              />
+            </Grid>
+
             <Grid item xs={12}>
               <Autocomplete
                 multiple
+                freeSolo
                 options={commonSkills}
-                value={formData.requiredSkills}
-                onChange={handleSkillsChange}
+                value={formData.technologies}
+                onChange={(event, newValue) => {
+                  setFormData({
+                    ...formData,
+                    technologies: newValue,
+                  });
+                }}
+                isOptionEqualToValue={(option, value) => option === value}
                 renderInput={(params) => (
                   <TextField
                     {...params}
-                    label="Required Skills"
+                    label="Technologies Used"
+                    placeholder="Select or type technologies"
+                  />
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <Chip
+                      label={option}
+                      {...getTagProps({ index })}
+                      key={option}
+                    />
+                  ))
+                }
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <Autocomplete
+                multiple
+                freeSolo
+                options={commonSkills}
+                value={formData.requiredSkills}
+                onChange={handleSkillsChange}
+                isOptionEqualToValue={(option, value) => option === value}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Required Skills (optional)"
                     error={!!formErrors.requiredSkills}
                     helperText={formErrors.requiredSkills}
-                    required
                   />
                 )}
                 renderTags={(value, getTagProps) =>

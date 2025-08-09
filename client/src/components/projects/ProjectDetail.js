@@ -22,6 +22,8 @@ import {
   DialogContent,
   DialogActions,
   Link,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -34,6 +36,8 @@ import {
   Code as CodeIcon,
 } from '@mui/icons-material';
 import { fetchProjectById } from '../../store/slices/projectsSlice';
+import { fetchComments, createComment } from '../../store/slices/commentsSlice';
+import { requestCollaboration, handleCollaborationRequest } from '../../store/slices/projectsSlice';
 
 const ProjectDetail = () => {
   const { projectId } = useParams();
@@ -41,18 +45,45 @@ const ProjectDetail = () => {
   const dispatch = useDispatch();
   const { user } = useSelector((state) => state.auth);
   const { currentProject, loading, error } = useSelector((state) => state.projects);
+  const { comments, loading: commentsLoading, error: commentsError } = useSelector((state) => state.comments);
 
   const [comment, setComment] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [commentSuccess, setCommentSuccess] = useState(false);
+  const [collaborationStatus, setCollaborationStatus] = useState(null);
+  const [showCollaborationDialog, setShowCollaborationDialog] = useState(false);
 
-  // Fetch project data
+  // Fetch project data and comments
   useEffect(() => {
     if (projectId) {
+      console.log('🔍 Fetching project and comments for:', projectId);
       dispatch(fetchProjectById(projectId));
+      dispatch(fetchComments(projectId));
     }
   }, [dispatch, projectId]);
 
+  // Check collaboration status when project loads
+  useEffect(() => {
+    if (currentProject && user) {
+      console.log('🔍 Checking collaboration status:', {
+        projectId: currentProject._id,
+        userId: user._id,
+        collaborators: currentProject.collaborators
+      });
+      
+      const userCollaboration = currentProject.collaborators?.find(
+        collab => collab.userId === user._id || collab.userId._id === user._id
+      );
+      
+      console.log('🤝 User collaboration found:', userCollaboration);
+      setCollaborationStatus(userCollaboration?.status || null);
+    }
+  }, [currentProject, user]);
+
   const handleEdit = () => {
+    console.log('🔧 Edit button clicked for project:', projectId);
+    console.log('👤 Current user:', user);
+    console.log('👑 Is owner:', isOwner);
     navigate(`/projects/${projectId}/edit`);
   };
 
@@ -67,17 +98,69 @@ const ProjectDetail = () => {
     navigate('/projects');
   };
 
-  const handleCollaborate = () => {
-    // TODO: Implement collaboration request
-    // dispatch(requestCollaboration(projectId));
+  const handleCollaborate = async () => {
+    if (!user) {
+      alert('Please log in to request collaboration');
+      return;
+    }
+
+    // Check if user is already a collaborator
+    const isAlreadyCollaborator = currentProject.collaborators?.some(
+      collab => (collab.userId === user._id || collab.userId._id === user._id) && 
+                (collab.status === 'accepted' || collab.status === 'pending')
+    );
+
+    if (isAlreadyCollaborator) {
+      alert('You have already requested collaboration or are already a collaborator');
+      return;
+    }
+
+    try {
+      console.log('🤝 Requesting collaboration for project:', projectId);
+      const result = await dispatch(requestCollaboration(projectId)).unwrap();
+      console.log('✅ Collaboration request sent:', result);
+      
+      // Refresh project data to show updated collaboration status
+      dispatch(fetchProjectById(projectId));
+      
+      alert('Collaboration request sent successfully!');
+    } catch (error) {
+      console.error('❌ Error requesting collaboration:', error);
+      alert(error.message || 'Failed to request collaboration');
+    }
+  };
+
+  const handleCollaborationResponse = async (userId, status) => {
+    try {
+      console.log('🤝 Handling collaboration request:', { userId, status });
+      const result = await dispatch(handleCollaborationRequest({ 
+        projectId, 
+        userId, 
+        status 
+      })).unwrap();
+      console.log('✅ Collaboration request handled:', result);
+      
+      // Refresh project data
+      dispatch(fetchProjectById(projectId));
+      
+      alert(`Collaboration request ${status} successfully!`);
+    } catch (error) {
+      console.error('❌ Error handling collaboration request:', error);
+      alert(error.message || 'Failed to handle collaboration request');
+    }
   };
 
   const handleCommentSubmit = (e) => {
     e.preventDefault();
     if (comment.trim()) {
-      // TODO: Implement comment submission
-      // dispatch(addComment({ projectId, content: comment }));
-      setComment('');
+      dispatch(createComment({ projectId, commentData: { content: comment } }))
+        .then((result) => {
+          if (result.meta.requestStatus === 'fulfilled') {
+            setComment('');
+            setCommentSuccess(true);
+            setTimeout(() => setCommentSuccess(false), 3000);
+          }
+        });
     }
   };
 
@@ -130,6 +213,16 @@ const ProjectDetail = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+      {/* Page Title */}
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="h3" component="h1" gutterBottom>
+          Project Details
+        </Typography>
+        <Typography variant="body1" color="text.secondary">
+          View and manage project information
+        </Typography>
+      </Box>
+
       <Grid container spacing={3}>
         {/* Project Details */}
         <Grid item xs={12}>
@@ -166,13 +259,41 @@ const ProjectDetail = () => {
                   </IconButton>
                 </Box>
               ) : (
-                <Button
-                  variant="contained"
-                  color="primary"
-                  onClick={handleCollaborate}
-                >
-                  Request Collaboration
-                </Button>
+                <Box>
+                  {!user ? (
+                    <Button
+                      variant="outlined"
+                      color="primary"
+                      onClick={() => navigate('/login')}
+                    >
+                      Login to Collaborate
+                    </Button>
+                  ) : collaborationStatus === 'pending' ? (
+                    <Button
+                      variant="outlined"
+                      color="warning"
+                      disabled
+                    >
+                      Request Pending
+                    </Button>
+                  ) : collaborationStatus === 'accepted' ? (
+                    <Button
+                      variant="contained"
+                      color="success"
+                      disabled
+                    >
+                      Collaborator
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={handleCollaborate}
+                    >
+                      Request Collaboration
+                    </Button>
+                  )}
+                </Box>
               )}
             </Box>
 
@@ -293,14 +414,16 @@ const ProjectDetail = () => {
               </Box>
             )}
 
-            {/* Collaborators */}
-            {currentProject.collaborators && currentProject.collaborators.length > 0 && (
+            {/* Pending Collaboration Requests (for project owners) */}
+            {isOwner && currentProject.collaborators && currentProject.collaborators.filter(c => c.status === 'pending').length > 0 && (
               <Box sx={{ mb: 3 }}>
-                <Typography variant="h6" gutterBottom>
-                  Collaborators
+                <Typography variant="h6" gutterBottom color="warning.main">
+                  Pending Collaboration Requests
                 </Typography>
                 <List>
-                  {currentProject.collaborators.map((collaborator) => (
+                  {currentProject.collaborators
+                    .filter(collaborator => collaborator.status === 'pending')
+                    .map((collaborator) => (
                     <ListItem key={collaborator._id || collaborator.userId?._id}>
                       <ListItemAvatar>
                         <Avatar>{collaborator.username?.[0] || collaborator.userId?.username?.[0] || 'C'}</Avatar>
@@ -308,6 +431,60 @@ const ProjectDetail = () => {
                       <ListItemText
                         primary={collaborator.username || collaborator.userId?.username || 'Unknown User'}
                         secondary={collaborator.email || collaborator.userId?.email || 'No email'}
+                      />
+                      <Box sx={{ display: 'flex', gap: 1 }}>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="success"
+                          onClick={() => handleCollaborationResponse(
+                            collaborator.userId._id || collaborator.userId, 
+                            'accepted'
+                          )}
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="error"
+                          onClick={() => handleCollaborationResponse(
+                            collaborator.userId._id || collaborator.userId, 
+                            'rejected'
+                          )}
+                        >
+                          Reject
+                        </Button>
+                      </Box>
+                    </ListItem>
+                  ))}
+                </List>
+              </Box>
+            )}
+
+            {/* Collaborators */}
+            {currentProject.collaborators && currentProject.collaborators.filter(c => c.status === 'accepted').length > 0 && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Collaborators
+                </Typography>
+                <List>
+                  {currentProject.collaborators
+                    .filter(collaborator => collaborator.status === 'accepted')
+                    .map((collaborator) => (
+                    <ListItem key={collaborator._id || collaborator.userId?._id}>
+                      <ListItemAvatar>
+                        <Avatar>{collaborator.username?.[0] || collaborator.userId?.username?.[0] || 'C'}</Avatar>
+                      </ListItemAvatar>
+                      <ListItemText
+                        primary={collaborator.username || collaborator.userId?.username || 'Unknown User'}
+                        secondary={collaborator.email || collaborator.userId?.email || 'No email'}
+                      />
+                      <Chip 
+                        label="Accepted" 
+                        color="success" 
+                        size="small" 
+                        sx={{ ml: 1 }}
                       />
                     </ListItem>
                   ))}
@@ -317,64 +494,91 @@ const ProjectDetail = () => {
           </Paper>
         </Grid>
 
-        {/* Comments Section */}
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h5" gutterBottom>
-              Comments
-            </Typography>
+                    {/* Comments Section */}
+            <Grid item xs={12}>
+              <Paper sx={{ p: 3 }}>
+                <Typography variant="h5" gutterBottom>
+                  Comments
+                </Typography>
 
-            {user && (
-              <Box component="form" onSubmit={handleCommentSubmit} sx={{ mb: 3 }}>
-                <TextField
-                  fullWidth
-                  multiline
-                  rows={3}
-                  placeholder="Write a comment..."
-                  value={comment}
-                  onChange={(e) => setComment(e.target.value)}
-                  sx={{ mb: 1 }}
-                />
-                <Button
-                  type="submit"
-                  variant="contained"
-                  endIcon={<SendIcon />}
-                  disabled={!comment.trim()}
-                >
-                  Post Comment
-                </Button>
-              </Box>
-            )}
-
-            <List>
-              {currentProject.comments?.map((comment) => (
-                <React.Fragment key={comment._id}>
-                  <ListItem alignItems="flex-start">
-                    <ListItemAvatar>
-                      <Avatar src={comment.user?.profile?.avatar}>
-                        {comment.user?.username?.[0] || 'U'}
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={
-                        <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <Typography component="span" variant="subtitle2">
-                            {comment.user?.username || 'Unknown User'}
-                          </Typography>
-                          <Typography component="span" variant="caption" color="text.secondary">
-                            {new Date(comment.createdAt).toLocaleDateString()}
-                          </Typography>
-                        </Box>
-                      }
-                      secondary={comment.content}
+                {user && (
+                  <Box component="form" onSubmit={handleCommentSubmit} sx={{ mb: 3 }}>
+                    <TextField
+                      fullWidth
+                      multiline
+                      rows={3}
+                      placeholder="Write a comment..."
+                      value={comment}
+                      onChange={(e) => setComment(e.target.value)}
+                      sx={{ mb: 1 }}
                     />
-                  </ListItem>
-                  <Divider variant="inset" component="li" />
-                </React.Fragment>
-              ))}
-            </List>
-          </Paper>
-        </Grid>
+                    <Button
+                      type="submit"
+                      variant="contained"
+                      endIcon={<SendIcon />}
+                      disabled={!comment.trim() || commentsLoading}
+                    >
+                      {commentsLoading ? <CircularProgress size={20} /> : 'Post Comment'}
+                    </Button>
+                  </Box>
+                )}
+
+                {commentSuccess && (
+                  <Alert severity="success" sx={{ mb: 2 }}>
+                    Comment posted successfully!
+                  </Alert>
+                )}
+
+                {commentsError && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {commentsError}
+                  </Alert>
+                )}
+
+                {commentsLoading ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <List>
+                    {comments && comments.length > 0 ? (
+                      comments.map((comment) => (
+                        <React.Fragment key={comment._id}>
+                          <ListItem alignItems="flex-start">
+                            <ListItemAvatar>
+                              <Avatar>
+                                {comment.userId?.username?.[0] || 'U'}
+                              </Avatar>
+                            </ListItemAvatar>
+                            <ListItemText
+                              primary={
+                                <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                                  <Typography component="span" variant="subtitle2">
+                                    {comment.userId?.username || 'Unknown User'}
+                                  </Typography>
+                                  <Typography component="span" variant="caption" color="text.secondary">
+                                    {new Date(comment.createdAt).toLocaleDateString()}
+                                  </Typography>
+                                </Box>
+                              }
+                              secondary={comment.content}
+                            />
+                          </ListItem>
+                          <Divider variant="inset" component="li" />
+                        </React.Fragment>
+                      ))
+                    ) : (
+                      <ListItem>
+                        <ListItemText
+                          primary="No comments yet"
+                          secondary="Be the first to comment on this project!"
+                        />
+                      </ListItem>
+                    )}
+                  </List>
+                )}
+              </Paper>
+            </Grid>
       </Grid>
 
       {/* Delete Confirmation Dialog */}

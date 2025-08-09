@@ -1,0 +1,267 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { 
+  Container,
+  Paper,
+  Typography,
+  TextField,
+  Button,
+  Link,
+  Box,
+  Alert,
+  AlertTitle,
+  CircularProgress,
+} from '@mui/material';
+import { 
+  verifyPasswordResetToken, 
+  resetPassword, 
+  clearPasswordResetState 
+} from '../../store/slices/authSlice';
+
+const ResetPassword = () => {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const dispatch = useDispatch();
+  const { 
+    loading, 
+    error, 
+    passwordResetTokenValid, 
+    passwordResetSuccess 
+  } = useSelector((state) => state.auth);
+
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [token, setToken] = useState('');
+
+  useEffect(() => {
+    const tokenFromUrl = searchParams.get('token');
+    if (tokenFromUrl) {
+      setToken(tokenFromUrl);
+      dispatch(verifyPasswordResetToken(tokenFromUrl));
+    } else {
+      // No token in URL, redirect to forgot password
+      navigate('/forgot-password');
+    }
+
+    // Clear password reset state when component unmounts
+    return () => {
+      dispatch(clearPasswordResetState());
+    };
+  }, [searchParams, dispatch, navigate]);
+
+  const validateForm = () => {
+    let isValid = true;
+    
+    if (!password) {
+      setPasswordError('Password is required');
+      isValid = false;
+    } else if (password.length < 6) {
+      setPasswordError('Password must be at least 6 characters long');
+      isValid = false;
+    } else {
+      setPasswordError('');
+    }
+
+    if (!confirmPassword) {
+      setConfirmPasswordError('Please confirm your password');
+      isValid = false;
+    } else if (password !== confirmPassword) {
+      setConfirmPasswordError('Passwords do not match');
+      isValid = false;
+    } else {
+      setConfirmPasswordError('');
+    }
+
+    return isValid;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      dispatch(resetPassword({ token, password }));
+    }
+  };
+
+  const handlePasswordChange = (e) => {
+    setPassword(e.target.value);
+    if (passwordError) {
+      setPasswordError('');
+    }
+  };
+
+  const handleConfirmPasswordChange = (e) => {
+    setConfirmPassword(e.target.value);
+    if (confirmPasswordError) {
+      setConfirmPasswordError('');
+    }
+  };
+
+  if (passwordResetSuccess) {
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, mb: 4 }}>
+          <Paper elevation={3} sx={{ p: 4 }}>
+            <Alert severity="success" sx={{ mb: 3 }}>
+              <AlertTitle>Password Reset Successful</AlertTitle>
+              Your password has been reset successfully. You can now log in with your new password.
+            </Alert>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button
+                component={RouterLink}
+                to="/login"
+                variant="contained"
+                color="primary"
+              >
+                Go to Login
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (!token) {
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, mb: 4 }}>
+          <Paper elevation={3} sx={{ p: 4 }}>
+            <Alert severity="error" sx={{ mb: 3 }}>
+              <AlertTitle>Invalid Reset Link</AlertTitle>
+              This password reset link is invalid. Please request a new password reset.
+            </Alert>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button
+                component={RouterLink}
+                to="/forgot-password"
+                variant="contained"
+                color="primary"
+              >
+                Request Password Reset
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (loading && !passwordResetTokenValid) {
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
+          <CircularProgress />
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            Verifying reset link...
+          </Typography>
+        </Box>
+      </Container>
+    );
+  }
+
+  if (!passwordResetTokenValid) {
+    return (
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, mb: 4 }}>
+          <Paper elevation={3} sx={{ p: 4 }}>
+            <Alert severity="error" sx={{ mb: 3 }}>
+              <AlertTitle>Invalid or Expired Reset Link</AlertTitle>
+              This password reset link is invalid or has expired. Please request a new password reset.
+            </Alert>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Button
+                component={RouterLink}
+                to="/forgot-password"
+                variant="contained"
+                color="primary"
+              >
+                Request New Reset Link
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
+    );
+  }
+
+  return (
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8, mb: 4 }}>
+        <Paper elevation={3} sx={{ p: 4 }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Reset Password
+          </Typography>
+          
+          <Typography variant="body1" align="center" sx={{ mb: 3 }}>
+            Enter your new password below.
+          </Typography>
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+
+          <Box component="form" onSubmit={handleSubmit} noValidate>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="password"
+              label="New Password"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              autoFocus
+              value={password}
+              onChange={handlePasswordChange}
+              error={!!passwordError}
+              helperText={passwordError}
+              disabled={loading}
+            />
+
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="confirmPassword"
+              label="Confirm New Password"
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              value={confirmPassword}
+              onChange={handleConfirmPasswordChange}
+              error={!!confirmPasswordError}
+              helperText={confirmPasswordError}
+              disabled={loading}
+            />
+
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              sx={{ mt: 3, mb: 2 }}
+              disabled={loading}
+            >
+              {loading ? 'Resetting...' : 'Reset Password'}
+            </Button>
+
+            <Box sx={{ textAlign: 'center' }}>
+              <Link component={RouterLink} to="/login" variant="body2">
+                Back to Login
+              </Link>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
+    </Container>
+  );
+};
+
+export default ResetPassword;

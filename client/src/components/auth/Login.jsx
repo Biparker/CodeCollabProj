@@ -211,6 +211,11 @@ const Login = () => {
           </form>
 
           <Box sx={{ mt: 2, textAlign: 'center' }}>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              <Link component={RouterLink} to="/forgot-password" variant="body2">
+                Forgot your password?
+              </Link>
+            </Typography>
             <Typography variant="body2">
               Don't have an account?{' '}
               <Link component={RouterLink} to="/register">

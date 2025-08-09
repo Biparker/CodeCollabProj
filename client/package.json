@@ -1,4 +1,4 @@
-{"proxy": "http://backend:5000",
+{
   "name": "codecollab-client",
   "version": "1.0.0",
   "private": true,

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
@@ -9,8 +9,11 @@ import PrivateRoute from './components/routing/PrivateRoute';
 import Home from './pages/Home';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
+import ForgotPassword from './components/auth/ForgotPassword';
+import ResetPassword from './components/auth/ResetPassword';
 import ProjectList from './pages/ProjectList';
 import ProjectCreate from './pages/ProjectCreate';
+import ProjectForm from './components/projects/ProjectForm';
 import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 import MemberSearch from './pages/MemberSearch';
@@ -18,13 +21,6 @@ import Members from './pages/Members';
 import ProjectDetail from './pages/ProjectDetail';
 import EmailVerification from './pages/EmailVerification';
 import { getCurrentUser } from './store/slices/authSlice';
-
-const theme = createTheme({
-  palette: {
-    primary: { main: '#1976d2' },
-    secondary: { main: '#dc004e' },
-  },
-});
 
 function About() {
   return (
@@ -40,9 +36,38 @@ function About() {
 function App() {
   const dispatch = useDispatch();
 
+  // Memoize theme to prevent unnecessary re-renders
+  const theme = useMemo(() => createTheme({
+    palette: {
+      primary: { main: '#1976d2' },
+      secondary: { main: '#dc004e' },
+    },
+    // Add performance optimizations
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          // Optimize CSS rendering
+          '*': {
+            boxSizing: 'border-box',
+          },
+          html: {
+            WebkitFontSmoothing: 'antialiased',
+            MozOsxFontSmoothing: 'grayscale',
+          },
+        },
+      },
+    },
+  }), []);
+
   useEffect(() => {
-    if (localStorage.getItem('token')) {
+    const token = localStorage.getItem('token');
+    console.log('🔐 App startup - Token exists:', !!token);
+    
+    if (token) {
+      console.log('🔄 Dispatching getCurrentUser');
       dispatch(getCurrentUser());
+    } else {
+      console.log('❌ No token found - user not authenticated');
     }
   }, [dispatch]);
 
@@ -55,6 +80,8 @@ function App() {
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/forgot-password" element={<ForgotPassword />} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email/:token" element={<EmailVerification />} />
             <Route path="/verify-email" element={<EmailVerification />} />
             <Route path="/projects" element={<ProjectList />} />
@@ -95,6 +122,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <ProjectDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/projects/:projectId/edit"
+              element={
+                <PrivateRoute>
+                  <ProjectForm />
                 </PrivateRoute>
               }
             />

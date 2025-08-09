@@ -4,7 +4,7 @@ const User = require('./models/User');
 const Project = require('./models/Project');
 const bcrypt = require('bcryptjs');
 
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://mongo:27017/codecollab';
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollab';
 
 async function seed() {
   await mongoose.connect(MONGO_URI);
@@ -25,6 +25,7 @@ async function seed() {
       username: `user${i}`,
       email: `user${i}@example.com`,
       password: await bcrypt.hash('password123', 10),
+      isEmailVerified: true, // Explicitly set email verification to true
       skills: [
         skillsList[(i * 2) % skillsList.length],
         skillsList[(i * 3) % skillsList.length],

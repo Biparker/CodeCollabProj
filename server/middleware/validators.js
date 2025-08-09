@@ -160,19 +160,23 @@ const projectValidator = [
   body('technologies')
     .optional()
     .custom((value) => {
-      if (value) {
+      // Handle both array and JSON string formats
+      if (typeof value === 'string') {
         try {
           const parsed = JSON.parse(value);
-          if (!Array.isArray(parsed)) {
-            throw new Error('Technologies must be an array');
-          }
-          // Allow empty array for technologies
+          return Array.isArray(parsed);
         } catch (e) {
-          throw new Error('Invalid technologies format');
+          throw new Error('Technologies must be a valid JSON array');
         }
       }
-      return true;
-    }),
+      return Array.isArray(value);
+    })
+    .withMessage('Technologies must be an array'),
+  body('technologies.*')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Technology cannot be empty'),
   body('githubUrl')
     .optional()
     .trim()
