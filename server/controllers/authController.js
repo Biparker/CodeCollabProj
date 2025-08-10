@@ -1,14 +1,9 @@
 const jwt = require('jsonwebtoken');
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
+const sessionService = require('../services/sessionService');
+const logger = require('../utils/logger');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
-
-// Generate JWT token
-const generateToken = (userId) => {
-  return jwt.sign({ userId }, process.env.JWT_SECRET, {
-    expiresIn: '7d'
-  });
-};
 
 // Register new user
 const register = async (req, res) => {
@@ -44,12 +39,27 @@ const register = async (req, res) => {
     if (process.env.NODE_ENV === 'development') {
       console.log('🛠️  Development mode: Auto-verifying user');
       
-      // Generate token immediately since user is auto-verified
-      const token = generateToken(user._id);
+      // Create session with tokens
+      const deviceInfo = {
+        userAgent: req.get('User-Agent'),
+        ip: req.ip
+      };
+      
+      const sessionData = await sessionService.createSession(user._id, deviceInfo);
+      
+      logger.authAttempt(true, {
+        userId: user._id,
+        email: user.email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        method: 'register'
+      });
       
       return res.status(201).json({
         message: 'Account created successfully. You are automatically logged in.',
-        token,
+        accessToken: sessionData.accessToken,
+        refreshToken: sessionData.refreshToken,
+        expiresIn: sessionData.expiresIn,
         user: {
           id: user._id,
           email: user.email,
@@ -108,28 +118,63 @@ const login = async (req, res) => {
     // Find user
     const user = await User.findOne({ email });
     if (!user) {
+      logger.authAttempt(false, {
+        email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        reason: 'user_not_found'
+      });
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      logger.authAttempt(false, {
+        userId: user._id,
+        email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        reason: 'invalid_password'
+      });
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check if email is verified (only in production)
     if (process.env.NODE_ENV !== 'development' && !user.isEmailVerified) {
+      logger.authAttempt(false, {
+        userId: user._id,
+        email,
+        ip: req.ip,
+        userAgent: req.get('User-Agent'),
+        reason: 'email_not_verified'
+      });
       return res.status(401).json({ 
         message: 'Please verify your email address before logging in. Check your inbox for a verification email.',
         needsVerification: true
       });
     }
 
-    // Generate token
-    const token = generateToken(user._id);
+    // Create session with tokens
+    const deviceInfo = {
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
+    };
+    
+    const sessionData = await sessionService.createSession(user._id, deviceInfo);
+    
+    logger.authAttempt(true, {
+      userId: user._id,
+      email,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      method: 'login'
+    });
 
     res.json({
-      token,
+      accessToken: sessionData.accessToken,
+      refreshToken: sessionData.refreshToken,
+      expiresIn: sessionData.expiresIn,
       user: {
         id: user._id,
         email: user.email,
@@ -332,11 +377,22 @@ const resetPassword = async (req, res) => {
     user.clearPasswordResetToken();
     await user.save();
     
+    // Revoke all existing sessions when password is changed
+    await sessionService.revokeAllUserSessions(user._id, 'password_change');
+    
+    logger.securityEvent('PASSWORD_RESET', {
+      userId: user._id,
+      email: user.email,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+    
     console.log('🔐 Password reset successful for user:', user.email);
     console.log('🔐 Password has been hashed and saved');
+    console.log('🔐 All sessions revoked due to password change');
 
     res.json({ 
-      message: 'Password has been reset successfully. You can now log in with your new password.' 
+      message: 'Password has been reset successfully. All existing sessions have been revoked. You can now log in with your new password.' 
     });
   } catch (error) {
     res.status(500).json({ message: 'Error resetting password', error: error.message });
@@ -353,9 +409,146 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
+// Refresh token endpoint
+const refreshToken = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      return res.status(400).json({ message: 'Refresh token is required' });
+    }
+
+    const deviceInfo = {
+      userAgent: req.get('User-Agent'),
+      ip: req.ip
+    };
+
+    const sessionData = await sessionService.refreshSession(refreshToken, deviceInfo);
+
+    res.json({
+      accessToken: sessionData.accessToken,
+      expiresIn: sessionData.expiresIn
+    });
+  } catch (error) {
+    logger.error('Token refresh error:', { error: error.message });
+    res.status(401).json({ message: 'Invalid or expired refresh token' });
+  }
+};
+
+// Logout endpoint
+const logout = async (req, res) => {
+  try {
+    const sessionId = req.sessionId; // From auth middleware
+    
+    if (sessionId) {
+      await sessionService.revokeSession(sessionId, 'logout');
+      
+      logger.sessionEvent('logout', {
+        userId: req.user._id,
+        sessionId,
+        ip: req.ip
+      });
+    }
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    logger.error('Logout error:', { error: error.message });
+    res.status(500).json({ message: 'Error during logout' });
+  }
+};
+
+// Logout from all devices
+const logoutAll = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const revokedCount = await sessionService.revokeAllUserSessions(userId, 'logout_all');
+    
+    logger.sessionEvent('logout_all', {
+      userId,
+      revokedCount,
+      ip: req.ip
+    });
+
+    res.json({ 
+      message: `Logged out from ${revokedCount} devices successfully` 
+    });
+  } catch (error) {
+    logger.error('Logout all error:', { error: error.message });
+    res.status(500).json({ message: 'Error during logout from all devices' });
+  }
+};
+
+// Get active sessions
+const getActiveSessions = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const sessions = await sessionService.getUserSessions(userId);
+    
+    res.json(sessions);
+  } catch (error) {
+    logger.error('Get sessions error:', { error: error.message });
+    res.status(500).json({ message: 'Error fetching active sessions' });
+  }
+};
+
+// Change password (revokes all sessions)
+const changePassword = async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user._id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Verify current password
+    const isMatch = await user.comparePassword(currentPassword);
+    if (!isMatch) {
+      logger.securityEvent('INVALID_PASSWORD_CHANGE_ATTEMPT', {
+        userId,
+        ip: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+      return res.status(400).json({ message: 'Current password is incorrect' });
+    }
+
+    // Update password
+    user.password = newPassword;
+    user.markModified('password');
+    await user.save();
+
+    // Revoke all existing sessions
+    await sessionService.revokeAllUserSessions(userId, 'password_change');
+
+    logger.securityEvent('PASSWORD_CHANGED', {
+      userId,
+      ip: req.ip,
+      userAgent: req.get('User-Agent')
+    });
+
+    res.json({ 
+      message: 'Password changed successfully. All existing sessions have been revoked. Please log in again.' 
+    });
+  } catch (error) {
+    logger.error('Change password error:', { error: error.message });
+    res.status(500).json({ message: 'Error changing password' });
+  }
+};
+
 module.exports = {
   register,
   login,
+  logout,
+  logoutAll,
+  refreshToken,
+  changePassword,
+  getActiveSessions,
   verifyEmail,
   resendVerificationEmail,
   getCurrentUser,

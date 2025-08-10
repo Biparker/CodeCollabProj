@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -18,17 +17,21 @@ import {
   Alert,
 } from '@mui/material';
 import { Search, Add, Code, People, CalendarToday } from '@mui/icons-material';
-import { fetchProjects } from '../store/slices/projectsSlice';
+import { useProjects } from '../hooks/projects';
+import { useAuth } from '../hooks/auth';
 
 const ProjectList = () => {
-  const dispatch = useDispatch();
-  const { projects, loading, error } = useSelector((state) => state.projects);
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const projectRefs = useRef({});
 
-  useEffect(() => {
-    dispatch(fetchProjects());
-  }, [dispatch]);
+  // TanStack Query hook
+  const { 
+    data: projects = [], 
+    isLoading, 
+    error,
+    refetch 
+  } = useProjects();
 
   // Scroll to project card if hash is present
   useEffect(() => {
@@ -42,15 +45,17 @@ const ProjectList = () => {
     }
   }, [projects]);
 
-  const filteredProjects = projects.filter(project =>
-    project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (project.technologies && project.technologies.some(tech => 
-      tech.toLowerCase().includes(searchTerm.toLowerCase())
-    ))
+  const filteredProjects = useMemo(() => 
+    projects.filter(project =>
+      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (project.technologies && project.technologies.some(tech => 
+        tech.toLowerCase().includes(searchTerm.toLowerCase())
+      ))
+    ), [projects, searchTerm]
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <Container maxWidth="lg">
         <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
@@ -64,7 +69,16 @@ const ProjectList = () => {
     return (
       <Container maxWidth="lg">
         <Box sx={{ mt: 4 }}>
-          <Alert severity="error">{error}</Alert>
+          <Alert 
+            severity="error" 
+            action={
+              <Button color="inherit" size="small" onClick={() => refetch()}>
+                Retry
+              </Button>
+            }
+          >
+            Failed to load projects: {error.message}
+          </Alert>
         </Box>
       </Container>
     );
@@ -152,7 +166,7 @@ const ProjectList = () => {
                   <Button size="small" component={RouterLink} to={`/projects/${project._id}`}>
                     View Details
                   </Button>
-                  {project.owner && project.owner._id === localStorage.getItem('userId') && (
+                  {project.owner && project.owner._id === user?._id && (
                     <Button size="small" component={RouterLink} to={`/projects/${project._id}/edit`}>
                       Edit
                     </Button>

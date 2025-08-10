@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
 import { 
   Container,
   Paper,
@@ -14,43 +13,38 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { 
-  verifyPasswordResetToken, 
-  resetPassword, 
-  clearPasswordResetState 
-} from '../../store/slices/authSlice';
+  usePasswordResetTokenQuery,
+  useResetPassword 
+} from '../../hooks/auth';
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const dispatch = useDispatch();
-  const { 
-    loading, 
-    error, 
-    passwordResetTokenValid, 
-    passwordResetSuccess 
-  } = useSelector((state) => state.auth);
+  const resetPasswordMutation = useResetPassword();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
   const [token, setToken] = useState('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+
+  // Query to verify the password reset token
+  const {
+    data: tokenValidationData,
+    isLoading: isVerifyingToken,
+    error: tokenError,
+  } = usePasswordResetTokenQuery(token);
 
   useEffect(() => {
     const tokenFromUrl = searchParams.get('token');
     if (tokenFromUrl) {
       setToken(tokenFromUrl);
-      dispatch(verifyPasswordResetToken(tokenFromUrl));
     } else {
       // No token in URL, redirect to forgot password
       navigate('/forgot-password');
     }
-
-    // Clear password reset state when component unmounts
-    return () => {
-      dispatch(clearPasswordResetState());
-    };
-  }, [searchParams, dispatch, navigate]);
+  }, [searchParams, navigate]);
 
   const validateForm = () => {
     let isValid = true;
@@ -81,7 +75,18 @@ const ResetPassword = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (validateForm()) {
-      dispatch(resetPassword({ token, password }));
+      resetPasswordMutation.mutate(
+        { token, password },
+        {
+          onSuccess: (data) => {
+            console.log('✅ Password reset successful:', data);
+            setPasswordResetSuccess(true);
+          },
+          onError: (error) => {
+            console.error('❌ Password reset failed:', error);
+          },
+        }
+      );
     }
   };
 
@@ -151,7 +156,7 @@ const ResetPassword = () => {
     );
   }
 
-  if (loading && !passwordResetTokenValid) {
+  if (isVerifyingToken) {
     return (
       <Container maxWidth="sm">
         <Box sx={{ mt: 8, mb: 4, textAlign: 'center' }}>
@@ -164,7 +169,7 @@ const ResetPassword = () => {
     );
   }
 
-  if (!passwordResetTokenValid) {
+  if (tokenError || !tokenValidationData) {
     return (
       <Container maxWidth="sm">
         <Box sx={{ mt: 8, mb: 4 }}>
@@ -202,9 +207,11 @@ const ResetPassword = () => {
             Enter your new password below.
           </Typography>
 
-          {error && (
+          {resetPasswordMutation.error && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {error}
+              {resetPasswordMutation.error?.response?.data?.message || 
+               resetPasswordMutation.error?.message || 
+               'Failed to reset password'}
             </Alert>
           )}
 
@@ -223,7 +230,7 @@ const ResetPassword = () => {
               onChange={handlePasswordChange}
               error={!!passwordError}
               helperText={passwordError}
-              disabled={loading}
+              disabled={resetPasswordMutation.isPending}
             />
 
             <TextField
@@ -239,7 +246,7 @@ const ResetPassword = () => {
               onChange={handleConfirmPasswordChange}
               error={!!confirmPasswordError}
               helperText={confirmPasswordError}
-              disabled={loading}
+              disabled={resetPasswordMutation.isPending}
             />
 
             <Button
@@ -247,9 +254,9 @@ const ResetPassword = () => {
               fullWidth
               variant="contained"
               sx={{ mt: 3, mb: 2 }}
-              disabled={loading}
+              disabled={resetPasswordMutation.isPending}
             >
-              {loading ? 'Resetting...' : 'Reset Password'}
+              {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
             </Button>
 
             <Box sx={{ textAlign: 'center' }}>
