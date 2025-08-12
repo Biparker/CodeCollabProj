@@ -136,6 +136,15 @@ export const invalidateQueries = {
   
   // Invalidate user profile
   userProfile: () => queryClient.invalidateQueries({ queryKey: queryKeys.users.profile() }),
+  
+  // Invalidate all user messages
+  userMessages: () => queryClient.invalidateQueries({ queryKey: [...queryKeys.users.all, 'messages'] }),
+  
+  // Invalidate specific message type (inbox/sent)
+  userMessagesByType: (type) => queryClient.invalidateQueries({ queryKey: queryKeys.users.messages(type) }),
+  
+  // Invalidate specific message
+  userMessage: (messageId) => queryClient.invalidateQueries({ queryKey: queryKeys.users.messageDetail(messageId) }),
 };
 
 // Prefetch helpers for better UX

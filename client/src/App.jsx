@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo } from 'react';
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Container, Typography, Button, Box } from '@mui/material';
@@ -20,8 +19,16 @@ import Dashboard from './pages/Dashboard';
 import Profile from './pages/Profile';
 // MemberSearch available but not currently routed
 import Members from './pages/Members';
+import Messages from './pages/Messages';
 import ProjectDetail from './pages/ProjectDetail';
 import EmailVerification from './pages/EmailVerification';
+
+// Lazy load DevTools to prevent chunk loading issues
+const ReactQueryDevtools = React.lazy(() =>
+  import('@tanstack/react-query-devtools').then((d) => ({
+    default: d.ReactQueryDevtools,
+  }))
+);
 
 function About() {
   return (
@@ -120,6 +127,14 @@ function App() {
                 }
               />
               <Route
+                path="/messages"
+                element={
+                  <PrivateRoute>
+                    <Messages />
+                  </PrivateRoute>
+                }
+              />
+              <Route
                 path="/projects/:projectId"
                 element={
                   <PrivateRoute>
@@ -140,10 +155,12 @@ function App() {
           </Layout>
         </Router>
       </ThemeProvider>
-      {/* React Query DevTools - only shown in development */}
-      {process.env.NODE_ENV === 'development' && (
-        <ReactQueryDevtools initialIsOpen={false} />
-      )}
+      {/* React Query DevTools - temporarily disabled to avoid chunk loading issues */}
+      {/* {process.env.NODE_ENV === 'development' && (
+        <React.Suspense fallback={null}>
+          <ReactQueryDevtools initialIsOpen={false} />
+        </React.Suspense>
+      )} */}
     </QueryClientProvider>
   );
 }

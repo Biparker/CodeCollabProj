@@ -8,6 +8,7 @@ const {
   sendMessage,
   getMessages,
   markMessageAsRead,
+  deleteMessage,
   getMyProfile
 } = require('../controllers/userController');
 const { profileUpdateValidator, messageValidator } = require('../middleware/validators');
@@ -22,11 +23,6 @@ router.get('/', getAllUsers);
 // @desc    Search users by skills or name
 // @access  Public
 router.get('/search', searchUsers);
-
-// @route   GET /api/users/:id
-// @desc    Get user by ID
-// @access  Public
-router.get('/:id', getUserById);
 
 // @route   GET /api/users/profile/me
 // @desc    Get current user's profile
@@ -52,5 +48,15 @@ router.get('/messages', auth, getMessages);
 // @desc    Mark message as read
 // @access  Private
 router.put('/messages/:messageId/read', auth, markMessageAsRead);
+
+// @route   DELETE /api/users/messages/:messageId
+// @desc    Delete a message
+// @access  Private
+router.delete('/messages/:messageId', auth, deleteMessage);
+
+// @route   GET /api/users/:id
+// @desc    Get user by ID
+// @access  Public
+router.get('/:id', getUserById);
 
 module.exports = router; 

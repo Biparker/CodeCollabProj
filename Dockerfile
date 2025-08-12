@@ -10,7 +10,7 @@ WORKDIR /usr/src/app
 COPY server/package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm install --only=production && npm cache clean --force
 
 # Copy server source code
 COPY server/ .

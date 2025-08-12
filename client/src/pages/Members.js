@@ -1,10 +1,15 @@
-import React, { useMemo } from 'react';
-import { Container, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, Button, Box } from '@mui/material';
+import React, { useMemo, useState } from 'react';
+import { Container, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, Button, Box, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import { Message as MessageIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useUsers } from '../hooks/users';
 import { useProjects } from '../hooks/projects';
+import MessageForm from '../components/messaging/MessageForm';
 
 const Members = () => {
+  const [showMessageForm, setShowMessageForm] = useState(false);
+  const [selectedUser, setSelectedUser] = useState(null);
+
   // Fetch users and projects using TanStack Query
   const { 
     data: users = [], 
@@ -42,6 +47,21 @@ const Members = () => {
       });
     };
   }, [projects]);
+
+  const handleMessageUser = (user) => {
+    setSelectedUser(user);
+    setShowMessageForm(true);
+  };
+
+  const handleCloseMessageForm = () => {
+    setShowMessageForm(false);
+    setSelectedUser(null);
+  };
+
+  const handleMessageSent = () => {
+    setShowMessageForm(false);
+    setSelectedUser(null);
+  };
 
   if (loading) {
     return (
@@ -90,6 +110,7 @@ const Members = () => {
               <TableCell>Experience</TableCell>
               <TableCell>Availability</TableCell>
               <TableCell>Project Name(s)</TableCell>
+              <TableCell align="center">Actions</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -129,12 +150,50 @@ const Members = () => {
                       '—'
                     )}
                   </TableCell>
+                  <TableCell align="center">
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      startIcon={<MessageIcon />}
+                      onClick={() => handleMessageUser(user)}
+                      sx={{ minWidth: 'auto' }}
+                    >
+                      Message
+                    </Button>
+                  </TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
       </TableContainer>
+
+      {/* Message Form Dialog */}
+      <Dialog 
+        open={showMessageForm} 
+        onClose={handleCloseMessageForm}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box display="flex" justifyContent="between" alignItems="center">
+            Send Message to {selectedUser?.username}
+            <IconButton onClick={handleCloseMessageForm} sx={{ ml: 'auto' }}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent>
+          {selectedUser && (
+            <MessageForm
+              recipientId={selectedUser._id}
+              recipientUser={selectedUser}
+              onSuccess={handleMessageSent}
+              onCancel={handleCloseMessageForm}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </Container>
   );
 };

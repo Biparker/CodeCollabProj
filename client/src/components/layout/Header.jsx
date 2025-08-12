@@ -10,14 +10,26 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Badge,
 } from '@mui/material';
-import { AccountCircle, Menu as MenuIcon } from '@mui/icons-material';
+import { 
+  AccountCircle, 
+  Menu as MenuIcon,
+  Message as MessageIcon 
+} from '@mui/icons-material';
 import { useAuth, useLogout } from '../../hooks/auth';
+import { useMessages } from '../../hooks/users/useMessaging';
 
 const Header = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const logoutMutation = useLogout();
+  
+  // Get unread message count
+  const { data: inboxMessages = [] } = useMessages('inbox', {
+    enabled: isAuthenticated, // Only fetch if authenticated
+  });
+  const unreadCount = inboxMessages.filter(msg => !msg.isRead).length;
   
   console.log('Header isAuthenticated (TanStack Query):', isAuthenticated, 'user:', user);
   const [anchorEl, setAnchorEl] = React.useState(null);
@@ -83,6 +95,16 @@ const Header = () => {
               >
                 Members
               </Button>
+              <IconButton
+                color="inherit"
+                component={RouterLink}
+                to="/messages"
+                title="Messages"
+              >
+                <Badge badgeContent={unreadCount} color="error">
+                  <MessageIcon />
+                </Badge>
+              </IconButton>
               <Button
                 color="inherit"
                 component={RouterLink}

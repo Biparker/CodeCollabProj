@@ -223,6 +223,31 @@ const markMessageAsRead = async (req, res) => {
   }
 };
 
+// Delete a message
+const deleteMessage = async (req, res) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.user._id;
+
+    // Find and delete message if user is sender or recipient
+    const message = await Message.findOneAndDelete({
+      _id: messageId,
+      $or: [
+        { sender: userId },
+        { recipient: userId }
+      ]
+    });
+
+    if (!message) {
+      return res.status(404).json({ message: 'Message not found or access denied' });
+    }
+
+    res.json({ message: 'Message deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting message', error: error.message });
+  }
+};
+
 // Get user's own profile
 const getMyProfile = async (req, res) => {
   try {
@@ -241,5 +266,6 @@ module.exports = {
   sendMessage,
   getMessages,
   markMessageAsRead,
+  deleteMessage,
   getMyProfile
 }; 

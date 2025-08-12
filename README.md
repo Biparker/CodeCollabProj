@@ -22,7 +22,8 @@ A modern, secure web application for computer club members to collaborate on pro
 - **File Upload Security** - Validated file types and secure storage
 - **Access Control** - Role-based permissions and ownership validation
 
-### 💬 **Real-Time Features**
+### 💬 **Communication & Collaboration**
+- **Messaging System** - Direct member-to-member communication with inbox/sent organization
 - **Comments System** - Project discussions and feedback
 - **Live Updates** - Real-time data synchronization
 - **Optimistic UI** - Immediate feedback with error recovery
@@ -37,6 +38,32 @@ A modern, secure web application for computer club members to collaborate on pro
 - **Error Boundaries** - Graceful error handling throughout the app
 - **Loading States** - Smooth user experience with proper feedback
 
+## 💬 **Messaging System Features**
+
+### **📧 Core Messaging**
+- **Send Messages** - Direct communication between team members
+- **Inbox & Sent Organization** - Organized message management with tabs
+- **Message Threads** - View full message details with sender information
+- **Reply Functionality** - Easy conversation continuation
+- **Delete Messages** - Remove unwanted messages (sender and recipient can delete)
+
+### **🔔 Smart Notifications**
+- **Unread Message Badge** - Real-time notification in navigation header
+- **Message Status Tracking** - Read/unread status with timestamps
+- **Automatic Read Marking** - Messages marked as read when opened
+
+### **👥 User Integration**
+- **Message from Members Page** - Direct messaging from user profiles
+- **Recipient Search** - Smart user selection with autocomplete
+- **Message Validation** - Character limits and content validation
+- **Profile Integration** - Messages linked to user profiles with avatars
+
+### **⚡ Performance & UX**
+- **TanStack Query Integration** - Optimized caching and real-time updates
+- **Optimistic Updates** - Immediate UI feedback
+- **Background Sync** - Automatic message refresh
+- **Error Recovery** - Graceful handling of network issues
+
 ## 🛠️ Tech Stack
 
 ### Frontend
@@ -45,6 +72,7 @@ A modern, secure web application for computer club members to collaborate on pro
 - **TanStack Query v5** - Powerful data fetching, caching, and synchronization
 - **React Router DOM v6** - Client-side routing and navigation
 - **Axios** - HTTP client for API communication
+- **Date-fns** - Modern date utility library for message timestamps
 
 ### Backend
 - **Node.js** - JavaScript runtime environment
@@ -173,6 +201,7 @@ codecollab/
 │   │   │   ├── 📁 comments/     # Comment system components
 │   │   │   ├── 📁 dashboard/    # Dashboard components
 │   │   │   ├── 📁 layout/       # Layout components (Header, Footer)
+│   │   │   ├── 📁 messaging/    # Messaging system components
 │   │   │   ├── 📁 projects/     # Project-related components
 │   │   │   └── 📁 routing/      # Route protection components
 │   │   ├── 📁 config/           # App configuration
@@ -181,7 +210,7 @@ codecollab/
 │   │   │   ├── 📁 auth/         # Authentication hooks
 │   │   │   ├── 📁 comments/     # Comment hooks
 │   │   │   ├── 📁 projects/     # Project management hooks
-│   │   │   └── 📁 users/        # User management hooks
+│   │   │   └── 📁 users/        # User management & messaging hooks
 │   │   ├── 📁 pages/            # Page components
 │   │   ├── 📁 services/         # API service layer
 │   │   ├── 📁 styles/           # Global styles
@@ -191,7 +220,7 @@ codecollab/
 ├── 📁 server/                   # Express.js backend
 │   ├── 📁 controllers/         # Route handlers
 │   ├── 📁 middleware/          # Custom middleware (auth, security, errors)
-│   ├── 📁 models/              # MongoDB schemas (User, Project, Session, etc.)
+│   ├── 📁 models/              # MongoDB schemas (User, Project, Message, Session, etc.)
 │   ├── 📁 routes/              # API routes
 │   ├── 📁 services/            # Business logic services (session, email)
 │   ├── 📁 scripts/             # Utility scripts (secret generation)
@@ -357,6 +386,12 @@ For detailed security information, see `SECURITY.md`.
 - `GET /api/users/profile/me` - Get current user profile
 - `PUT /api/users/profile` - Update user profile
 - `GET /api/users/search` - Search users
+
+### Messaging Endpoints
+- `GET /api/users/messages` - Get user messages (inbox/sent)
+- `POST /api/users/messages` - Send a message to another user
+- `PUT /api/users/messages/:messageId/read` - Mark message as read
+- `DELETE /api/users/messages/:messageId` - Delete a message
 
 ## 🤝 Contributing
 

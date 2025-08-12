@@ -50,7 +50,7 @@ const sessionSchema = new mongoose.Schema({
   },
   revokedReason: {
     type: String,
-    enum: ['logout', 'password_change', 'admin_revoke', 'security_breach', 'expired']
+    enum: ['logout', 'password_change', 'admin_revoke', 'security_breach', 'expired', 'concurrent_limit']
   }
 }, {
   timestamps: true

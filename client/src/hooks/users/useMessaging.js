@@ -30,7 +30,7 @@ export const useMessage = (messageId, options = {}) => {
 };
 
 // Send message hook
-export const useSendMessage = () => {
+export const useSendMessage = (options = {}) => {
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -40,9 +40,19 @@ export const useSendMessage = () => {
       
       // Invalidate messages to show the new sent message
       invalidateQueries.userMessages();
+      
+      // Call custom onSuccess if provided
+      if (options.onSuccess) {
+        options.onSuccess(data);
+      }
     },
     onError: (error) => {
       console.error('❌ Failed to send message:', error);
+      
+      // Call custom onError if provided
+      if (options.onError) {
+        options.onError(error);
+      }
     },
   });
 };
@@ -71,7 +81,7 @@ export const useMarkMessageAsRead = () => {
 };
 
 // Delete message hook
-export const useDeleteMessage = () => {
+export const useDeleteMessage = (options = {}) => {
   const queryClient = useQueryClient();
   
   return useMutation({
@@ -86,9 +96,19 @@ export const useDeleteMessage = () => {
       
       // Invalidate messages list to remove the deleted message
       invalidateQueries.userMessages();
+      
+      // Call custom onSuccess if provided
+      if (options.onSuccess) {
+        options.onSuccess(data, messageId);
+      }
     },
     onError: (error) => {
       console.error('❌ Failed to delete message:', error);
+      
+      // Call custom onError if provided
+      if (options.onError) {
+        options.onError(error);
+      }
     },
   });
 };
