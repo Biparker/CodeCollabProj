@@ -112,6 +112,22 @@ const Header = () => {
               >
                 Dashboard
               </Button>
+              {/* Admin Panel Link - only show for admins and moderators */}
+              {(user?.role === 'admin' || user?.role === 'moderator') && (
+                <Button
+                  color="inherit"
+                  component={RouterLink}
+                  to="/admin"
+                  sx={{ 
+                    bgcolor: 'error.main',
+                    '&:hover': { bgcolor: 'error.dark' },
+                    borderRadius: 1,
+                    px: 2
+                  }}
+                >
+                  Admin
+                </Button>
+              )}
               <IconButton
                 size="large"
                 aria-label="account of current user"

@@ -13,19 +13,49 @@ async function seed() {
   await User.deleteMany({});
   await Project.deleteMany({});
 
-  // Create 10 users with skills and github
-  const userData = [];
+  // Create admin user first
+  const adminUser = {
+    username: 'admin',
+    email: 'admin@codecollab.com',
+    password: await bcrypt.hash('admin123!', 10),
+    isEmailVerified: true,
+    role: 'admin',
+    firstName: 'System',
+    lastName: 'Administrator',
+    bio: 'System administrator with full access to manage the platform.',
+    skills: ['System Administration', 'User Management', 'Security'],
+    socialLinks: {}
+  };
+
+  // Create moderator user
+  const moderatorUser = {
+    username: 'moderator',
+    email: 'moderator@codecollab.com',
+    password: await bcrypt.hash('mod123!', 10),
+    isEmailVerified: true,
+    role: 'moderator',
+    firstName: 'Content',
+    lastName: 'Moderator',
+    bio: 'Content moderator helping maintain community standards.',
+    skills: ['Content Moderation', 'Community Management'],
+    socialLinks: {}
+  };
+
+  // Create 10 regular users with skills and github
+  const userData = [adminUser, moderatorUser];
   const skillsList = [
     'JavaScript', 'Python', 'React', 'Node.js', 'MongoDB',
     'Docker', 'CSS', 'HTML', 'Express', 'TypeScript',
     'GraphQL', 'Redux', 'C++', 'Java', 'Go'
   ];
+  
   for (let i = 1; i <= 10; i++) {
     userData.push({
       username: `user${i}`,
       email: `user${i}@example.com`,
       password: await bcrypt.hash('password123', 10),
-      isEmailVerified: true, // Explicitly set email verification to true
+      isEmailVerified: true,
+      role: 'user', // Explicitly set role
       skills: [
         skillsList[(i * 2) % skillsList.length],
         skillsList[(i * 3) % skillsList.length],
@@ -79,7 +109,17 @@ async function seed() {
   }
   await Project.insertMany(projectData);
 
-  console.log('Seed data inserted!');
+  console.log('✅ Seed data inserted successfully!');
+  console.log('\n🔐 Admin Credentials:');
+  console.log('Email: admin@codecollab.com');
+  console.log('Password: admin123!');
+  console.log('\n👮 Moderator Credentials:');
+  console.log('Email: moderator@codecollab.com');
+  console.log('Password: mod123!');
+  console.log('\n👤 Regular Users:');
+  console.log('Email: user1@example.com to user10@example.com');
+  console.log('Password: password123');
+  
   mongoose.disconnect();
 }
 

@@ -7,6 +7,10 @@ import { Container, Typography, Button, Box } from '@mui/material';
 import queryClient from './config/queryClient';
 import Layout from './components/layout/Layout';
 import PrivateRoute from './components/routing/PrivateRoute';
+import AdminRoute from './components/routing/AdminRoute';
+import AdminLayout from './components/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import UserManagement from './pages/admin/UserManagement';
 import Home from './pages/Home';
 import Login from './components/auth/Login';
 import Register from './components/auth/Register';
@@ -151,6 +155,19 @@ function App() {
                 }
               />
               <Route path="/about" element={<About />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/*" element={
+                <AdminRoute requireRole={['admin', 'moderator']}>
+                  <AdminLayout />
+                </AdminRoute>
+              }>
+                <Route index element={<AdminDashboard />} />
+                <Route path="users" element={<UserManagement />} />
+                <Route path="logs" element={<div>System Logs (Coming Soon)</div>} />
+                <Route path="analytics" element={<div>Analytics (Coming Soon)</div>} />
+                <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
+              </Route>
             </Routes>
           </Layout>
         </Router>

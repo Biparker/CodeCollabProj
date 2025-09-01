@@ -114,6 +114,47 @@ const userSchema = new mongoose.Schema({
   isProfilePublic: {
     type: Boolean,
     default: true
+  },
+  // Role and permissions system
+  role: {
+    type: String,
+    enum: ['user', 'moderator', 'admin'],
+    default: 'user',
+    index: true
+  },
+  permissions: [{
+    type: String,
+    enum: [
+      // User management
+      'users.read', 'users.create', 'users.update', 'users.delete',
+      // Project management
+      'projects.read', 'projects.create', 'projects.update', 'projects.delete',
+      'projects.moderate',
+      // Comment management
+      'comments.read', 'comments.create', 'comments.update', 'comments.delete',
+      'comments.moderate',
+      // Admin functions
+      'admin.dashboard', 'admin.users', 'admin.analytics', 'admin.system',
+      // Moderation
+      'moderate.content', 'moderate.users', 'moderate.reports'
+    ]
+  }],
+  // Account status
+  isActive: {
+    type: Boolean,
+    default: true,
+    index: true
+  },
+  isSuspended: {
+    type: Boolean,
+    default: false
+  },
+  suspendedUntil: {
+    type: Date
+  },
+  suspensionReason: {
+    type: String,
+    trim: true
   }
 }, {
   timestamps: true
@@ -168,6 +209,108 @@ userSchema.methods.clearPasswordResetToken = function() {
   this.passwordResetToken = undefined;
   this.passwordResetExpires = undefined;
 };
+
+// Role and permission management methods
+userSchema.methods.hasRole = function(role) {
+  return this.role === role;
+};
+
+userSchema.methods.hasPermission = function(permission) {
+  return this.permissions.includes(permission);
+};
+
+userSchema.methods.hasAnyPermission = function(permissions) {
+  return permissions.some(permission => this.permissions.includes(permission));
+};
+
+userSchema.methods.addPermission = function(permission) {
+  if (!this.permissions.includes(permission)) {
+    this.permissions.push(permission);
+  }
+  return this;
+};
+
+userSchema.methods.removePermission = function(permission) {
+  this.permissions = this.permissions.filter(p => p !== permission);
+  return this;
+};
+
+userSchema.methods.setRole = function(role) {
+  this.role = role;
+  // Auto-assign permissions based on role
+  this.permissions = this.getDefaultPermissionsForRole(role);
+  return this;
+};
+
+userSchema.methods.getDefaultPermissionsForRole = function(role) {
+  const permissions = {
+    user: [
+      'projects.read', 'projects.create',
+      'comments.read', 'comments.create'
+    ],
+    moderator: [
+      'projects.read', 'projects.create', 'projects.moderate',
+      'comments.read', 'comments.create', 'comments.moderate',
+      'moderate.content', 'users.read'
+    ],
+    admin: [
+      // User management
+      'users.read', 'users.create', 'users.update', 'users.delete',
+      // Project management
+      'projects.read', 'projects.create', 'projects.update', 'projects.delete', 'projects.moderate',
+      // Comment management
+      'comments.read', 'comments.create', 'comments.update', 'comments.delete', 'comments.moderate',
+      // Admin functions
+      'admin.dashboard', 'admin.users', 'admin.analytics', 'admin.system',
+      // Moderation
+      'moderate.content', 'moderate.users', 'moderate.reports'
+    ]
+  };
+  
+  return permissions[role] || permissions.user;
+};
+
+userSchema.methods.isAdmin = function() {
+  return this.role === 'admin';
+};
+
+userSchema.methods.isModerator = function() {
+  return this.role === 'moderator' || this.role === 'admin';
+};
+
+userSchema.methods.canManageUsers = function() {
+  return this.hasAnyPermission(['users.update', 'users.delete', 'admin.users']);
+};
+
+userSchema.methods.suspend = function(reason, duration = null) {
+  this.isSuspended = true;
+  this.suspensionReason = reason;
+  if (duration) {
+    this.suspendedUntil = new Date(Date.now() + duration);
+  }
+  return this;
+};
+
+userSchema.methods.unsuspend = function() {
+  this.isSuspended = false;
+  this.suspendedUntil = undefined;
+  this.suspensionReason = undefined;
+  return this;
+};
+
+userSchema.methods.isCurrentlySuspended = function() {
+  if (!this.isSuspended) return false;
+  if (!this.suspendedUntil) return true;
+  return new Date() < this.suspendedUntil;
+};
+
+// Pre-save middleware to auto-assign permissions based on role
+userSchema.pre('save', function(next) {
+  if (this.isModified('role') && !this.isModified('permissions')) {
+    this.permissions = this.getDefaultPermissionsForRole(this.role);
+  }
+  next();
+});
 
 const User = mongoose.model('User', userSchema);
 

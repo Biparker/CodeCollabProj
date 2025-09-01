@@ -81,16 +81,21 @@ app.use('/uploads', (req, res, next) => {
   next();
 }, trackFileUploads, express.static('uploads'));
 
-// Rate limiting - general
+// Rate limiting - general (with admin exemption)
 const generalLimiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 50, // stricter limit
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // increased limit
   message: {
     error: 'Too many requests from this IP, please try again later.',
     retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting for admin routes
+  skip: (req) => {
+    // Skip for admin routes - they have their own protection
+    return req.path.startsWith('/api/admin');
+  },
   handler: (req, res) => {
     logger.rateLimitHit({
       ip: req.ip,
@@ -104,6 +109,31 @@ const generalLimiter = rateLimit({
     });
   }
 });
+
+// Admin-specific rate limiting (more permissive)
+const adminLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  max: 200, // 200 requests per 5 minutes for admin operations
+  message: {
+    error: 'Too many admin requests, please slow down.',
+    retryAfter: 300 // 5 minutes
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    logger.rateLimitHit({
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+      limit: 'admin'
+    });
+    res.status(429).json({
+      error: 'Too many admin requests, please slow down.',
+      retryAfter: 300
+    });
+  }
+});
+
 app.use(generalLimiter);
 
 // Auth-specific rate limiting
@@ -163,11 +193,13 @@ const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
 const projectRoutes = require('./routes/projects');
 const commentRoutes = require('./routes/comments');
+const adminRoutes = require('./routes/admin');
 
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/projects/:projectId/comments', commentRoutes);
+app.use('/api/admin', adminLimiter, adminRoutes);
 
 // Basic route for testing
 app.get('/', (req, res) => {

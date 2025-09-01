@@ -136,6 +136,14 @@ class SecurityLogger {
       severity: 'low'
     });
   }
+
+  adminAction(action, details = {}) {
+    this.securityEvent(`ADMIN_${action.toUpperCase()}`, {
+      ...details,
+      severity: 'medium',
+      timestamp: new Date().toISOString()
+    });
+  }
 }
 
 module.exports = new SecurityLogger();

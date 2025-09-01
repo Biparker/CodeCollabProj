@@ -178,7 +178,11 @@ const login = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
-        username: user.username
+        username: user.username,
+        role: user.role,
+        permissions: user.permissions,
+        isActive: user.isActive,
+        isSuspended: user.isSuspended
       }
     });
   } catch (error) {
