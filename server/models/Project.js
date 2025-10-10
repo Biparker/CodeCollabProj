@@ -70,7 +70,39 @@ const projectSchema = new mongoose.Schema({
     fileId: {
       type: mongoose.Schema.Types.ObjectId
     }
-  }]
+  }],
+  incentives: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    type: {
+      type: String,
+      enum: ['monetary', 'equity', 'recognition', 'learning', 'other'],
+      default: 'recognition'
+    },
+    description: {
+      type: String,
+      trim: true
+    },
+    amount: {
+      type: Number,
+      min: 0
+    },
+    currency: {
+      type: String,
+      default: 'USD'
+    },
+    equityPercentage: {
+      type: Number,
+      min: 0,
+      max: 100
+    },
+    customReward: {
+      type: String,
+      trim: true
+    }
+  }
 }, {
   timestamps: true
 });

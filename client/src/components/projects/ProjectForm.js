@@ -50,6 +50,15 @@ const ProjectForm = () => {
     liveUrl: '',
     resources: [{ name: '', url: '' }],
     status: 'ideation',
+    incentives: {
+      enabled: false,
+      type: 'recognition',
+      description: '',
+      amount: 0,
+      currency: 'USD',
+      equityPercentage: 0,
+      customReward: ''
+    }
   });
 
   const [formErrors, setFormErrors] = useState({});
@@ -118,6 +127,15 @@ const ProjectForm = () => {
           ? currentProject.resources
           : [{ name: '', url: '' }],
         status: currentProject.status || 'ideation',
+        incentives: currentProject.incentives || {
+          enabled: false,
+          type: 'recognition',
+          description: '',
+          amount: 0,
+          currency: 'USD',
+          equityPercentage: 0,
+          customReward: ''
+        }
       });
     }
   }, [currentProject, projectId]);
@@ -523,6 +541,47 @@ const ProjectForm = () => {
               >
                 Add Resource
               </Button>
+            </Grid>
+
+            {/* Incentives Section - Simplified */}
+            <Grid item xs={12}>
+              <Typography variant="h6" gutterBottom>
+                Project Incentives (Optional)
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Indicate if you will offer incentives to contributors. Specific details can be discussed privately.
+              </Typography>
+              
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <FormControl>
+                  <InputLabel>Offer Incentives to Contributors</InputLabel>
+                  <Select
+                    value={formData.incentives.enabled ? 'yes' : 'no'}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        incentives: {
+                          ...formData.incentives,
+                          enabled: e.target.value === 'yes'
+                        }
+                      });
+                    }}
+                    label="Offer Incentives to Contributors"
+                  >
+                    <MenuItem value="no">No</MenuItem>
+                    <MenuItem value="yes">Yes - I will offer incentives</MenuItem>
+                  </Select>
+                </FormControl>
+              </Box>
+
+              {formData.incentives.enabled && (
+                <Box sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
+                  <Typography variant="body2" color="info.contrastText">
+                    💡 <strong>Note:</strong> This will show potential contributors that incentives are available. 
+                    Specific details about rewards will be discussed privately with accepted collaborators.
+                  </Typography>
+                </Box>
+              )}
             </Grid>
 
             <Grid item xs={12}>

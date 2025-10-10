@@ -15,7 +15,7 @@ const Footer = () => {
     >
       <Container maxWidth="sm">
         <Typography variant="body2" color="text.secondary" align="center">
-          © 2024 CodeCollab. All rights reserved.
+          © 2024 CodeCollabProj. All rights reserved.
         </Typography>
       </Container>
     </Box>

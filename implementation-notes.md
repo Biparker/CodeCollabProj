@@ -1,4 +1,4 @@
-# CodeCollab Implementation Notes
+# CodeCollabProj Implementation Notes
 
 ## Project Overview
 A collaborative coding platform built with React frontend and Node.js backend, using MongoDB for data storage.

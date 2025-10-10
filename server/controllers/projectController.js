@@ -17,7 +17,7 @@ const createProject = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, technologies, githubUrl, liveUrl, requiredSkills, tags, resources } = req.body;
+    const { title, description, technologies, githubUrl, liveUrl, requiredSkills, tags, resources, incentives } = req.body;
     const owner = req.user._id;
 
     // Handle image upload
@@ -36,6 +36,25 @@ const createProject = async (req, res) => {
       }
     }
 
+    // Parse incentives if provided
+    let parsedIncentives = {
+      enabled: false,
+      type: 'recognition',
+      description: '',
+      amount: 0,
+      currency: 'USD',
+      equityPercentage: 0,
+      customReward: ''
+    };
+    
+    if (incentives) {
+      try {
+        parsedIncentives = typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
+      } catch (e) {
+        console.log('Error parsing incentives, using defaults:', e.message);
+      }
+    }
+
     const project = new Project({
       title,
       description,
@@ -46,6 +65,7 @@ const createProject = async (req, res) => {
       requiredSkills,
       tags,
       resources,
+      incentives: parsedIncentives,
       owner
     });
 
@@ -105,7 +125,7 @@ const updateProject = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, status, requiredSkills, tags, resources, technologies, githubUrl, liveUrl } = req.body;
+    const { title, description, status, requiredSkills, tags, resources, technologies, githubUrl, liveUrl, incentives } = req.body;
     const projectId = req.params.id;
     const userId = req.user._id;
 
@@ -147,6 +167,26 @@ const updateProject = async (req, res) => {
     }
     if (resources !== undefined) {
       updateFields.resources = Array.isArray(resources) ? resources : [];
+    }
+    
+    // Handle incentives
+    if (incentives !== undefined) {
+      try {
+        const parsedIncentives = typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
+        updateFields.incentives = parsedIncentives;
+      } catch (e) {
+        console.log('Error parsing incentives for update:', e.message);
+        // Use default incentives if parsing fails
+        updateFields.incentives = {
+          enabled: false,
+          type: 'recognition',
+          description: '',
+          amount: 0,
+          currency: 'USD',
+          equityPercentage: 0,
+          customReward: ''
+        };
+      }
     }
 
     console.log('📝 Updating project with fields:', updateFields);

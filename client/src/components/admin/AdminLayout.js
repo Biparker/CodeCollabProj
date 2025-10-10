@@ -94,15 +94,9 @@ const AdminLayout = () => {
           <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
             Admin Panel
           </Typography>
-          <Badge
-            badgeContent={user?.role}
-            color="secondary"
-            sx={{ mr: 2 }}
-          >
-            <Typography variant="body2">
-              {user?.username}
-            </Typography>
-          </Badge>
+          <Typography variant="body2" sx={{ mr: 2 }}>
+            {user?.username}
+          </Typography>
         </Toolbar>
       </AppBar>
 
@@ -121,7 +115,7 @@ const AdminLayout = () => {
       >
         <Toolbar>
           <Typography variant="h6" sx={{ color: 'error.main', fontWeight: 'bold' }}>
-            CodeCollab Admin
+            CodeCollabProj Admin
           </Typography>
         </Toolbar>
         <Divider />

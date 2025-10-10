@@ -42,7 +42,7 @@ FRONTEND_URL=https://your-domain.com
 
 # Database Configuration
 # SECURITY: Strong auto-generated password
-MONGODB_URI=mongodb://admin:${dbPassword}@mongodb:27017/codecollab?authSource=admin
+MONGODB_URI=mongodb://admin:${dbPassword}@mongodb:27017/codecollabproj?authSource=admin
 
 # JWT Configuration
 # SECURITY: Strong auto-generated secrets (128 characters each)

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 CodeCollab Setup Script"
+echo "🚀 CodeCollabProj Setup Script"
 echo "=========================="
 
 # Function to generate a secure JWT secret

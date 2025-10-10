@@ -1,6 +1,6 @@
-# 🛠️ CodeCollab Setup Instructions
+# 🛠️ CodeCollabProj Setup Instructions
 
-This guide provides comprehensive setup instructions for the CodeCollab platform with enhanced security features.
+This guide provides comprehensive setup instructions for the CodeCollabProj platform with enhanced security features.
 
 ## 🚀 Quick Setup (Recommended)
 
@@ -9,8 +9,8 @@ This guide provides comprehensive setup instructions for the CodeCollab platform
 Run the automated setup script to configure everything:
 
 ```bash
-git clone https://github.com/your-username/codecollab.git
-cd codecollab
+git clone https://github.com/biparker/codecollabproj.git
+cd codecollabproj
 chmod +x setup.sh start.sh
 ./setup.sh
 ```
@@ -57,8 +57,8 @@ If you prefer to set up manually or need more control:
 ### 1. **Clone and Setup Dependencies**
 
 ```bash
-git clone https://github.com/your-username/codecollab.git
-cd codecollab
+git clone https://github.com/biparker/codecollabproj.git
+cd codecollabproj
 npm run install-all  # Installs both client and server dependencies
 ```
 
@@ -94,7 +94,7 @@ FRONTEND_URL=http://localhost:3000
 # ================================
 # DATABASE
 # ================================
-MONGODB_URI=mongodb://admin:password123@mongodb:27017/codecollab?authSource=admin
+MONGODB_URI=mongodb://admin:password123@mongodb:27017/codecollabproj?authSource=admin
 
 # ================================
 # SECURITY - JWT TOKENS

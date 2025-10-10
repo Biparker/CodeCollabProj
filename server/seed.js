@@ -4,7 +4,7 @@ const User = require('./models/User');
 const Project = require('./models/Project');
 const bcrypt = require('bcryptjs');
 
-const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollab';
+const MONGO_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollabproj';
 
 async function seed() {
   await mongoose.connect(MONGO_URI);
@@ -16,7 +16,7 @@ async function seed() {
   // Create admin user first
   const adminUser = {
     username: 'admin',
-    email: 'admin@codecollab.com',
+    email: 'admin@codecollabproj.com',
     password: await bcrypt.hash('admin123!', 10),
     isEmailVerified: true,
     role: 'admin',
@@ -30,7 +30,7 @@ async function seed() {
   // Create moderator user
   const moderatorUser = {
     username: 'moderator',
-    email: 'moderator@codecollab.com',
+    email: 'moderator@codecollabproj.com',
     password: await bcrypt.hash('mod123!', 10),
     isEmailVerified: true,
     role: 'moderator',
@@ -111,10 +111,10 @@ async function seed() {
 
   console.log('✅ Seed data inserted successfully!');
   console.log('\n🔐 Admin Credentials:');
-  console.log('Email: admin@codecollab.com');
+  console.log('Email: admin@codecollabproj.com');
   console.log('Password: admin123!');
   console.log('\n👮 Moderator Credentials:');
-  console.log('Email: moderator@codecollab.com');
+  console.log('Email: moderator@codecollabproj.com');
   console.log('Password: mod123!');
   console.log('\n👤 Regular Users:');
   console.log('Email: user1@example.com to user10@example.com');

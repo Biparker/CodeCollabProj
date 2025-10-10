@@ -1,7 +1,7 @@
 // MongoDB initialization script
 // This script will be run when the MongoDB container starts
 
-db = db.getSiblingDB('codecollab');
+db = db.getSiblingDB('codecollabproj');
 
 // Create collections
 db.createCollection('users');

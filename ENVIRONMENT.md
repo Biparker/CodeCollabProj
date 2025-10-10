@@ -1,6 +1,6 @@
 # 🔧 Environment Configuration Reference
 
-This document provides a comprehensive reference for all environment variables used in the CodeCollab application.
+This document provides a comprehensive reference for all environment variables used in the CodeCollabProj application.
 
 ## 📋 Quick Reference
 
@@ -17,7 +17,7 @@ FRONTEND_URL=http://localhost:3000     # Frontend URL for CORS
 # ================================
 # DATABASE CONFIGURATION
 # ================================
-MONGODB_URI=mongodb://admin:password123@mongodb:27017/codecollab?authSource=admin
+MONGODB_URI=mongodb://admin:password123@mongodb:27017/codecollabproj?authSource=admin
 
 # ================================
 # JWT SECURITY CONFIGURATION

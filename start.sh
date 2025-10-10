@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Starting CodeCollab with MongoDB..."
+echo "🚀 Starting CodeCollabProj with MongoDB..."
 
 # Check if setup has been run
 if [ ! -f "server/.env" ] || [ ! -f "client/.env" ] || [ ! -f "docker-compose.yml" ]; then

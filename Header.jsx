@@ -57,7 +57,7 @@ const Header = () => {
             alignItems: 'center',
           }}
         >
-          CodeCollab
+          CodeCollabProj
         </Typography>
 
         <Box sx={{ display: { xs: 'none', sm: 'flex' } }}>

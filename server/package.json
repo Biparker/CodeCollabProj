@@ -1,7 +1,7 @@
 {
-  "name": "codecollab-server",
+  "name": "codecollabproj-server",
   "version": "1.0.0",
-  "description": "Backend server for CodeCollab platform",
+  "description": "Backend server for CodeCollabProj platform",
   "main": "index.js",
   "scripts": {
     "start": "node index.js",

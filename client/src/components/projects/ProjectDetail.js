@@ -405,6 +405,33 @@ const ProjectDetail = () => {
               </Box>
             )}
 
+            {/* Project Incentives - Simple Indicator */}
+            {currentProject.incentives && currentProject.incentives.enabled && (
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="h6" gutterBottom color="success.main">
+                  💰 Project Incentives Available
+                </Typography>
+                <Paper sx={{ p: 2, bgcolor: 'success.light', color: 'success.contrastText' }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Typography variant="h6" sx={{ mr: 1 }}>
+                      🎁
+                    </Typography>
+                    <Typography variant="h6">
+                      Incentives Available
+                    </Typography>
+                  </Box>
+                  
+                  <Typography variant="body1" sx={{ mb: 1 }}>
+                    This project offers incentives to contributors. Details will be discussed privately with accepted collaborators.
+                  </Typography>
+                  
+                  <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                    💬 Contact the project owner for more information about available rewards.
+                  </Typography>
+                </Paper>
+              </Box>
+            )}
+
             {/* Required Skills */}
             {currentProject.requiredSkills && currentProject.requiredSkills.length > 0 && (
               <Box sx={{ mb: 3 }}>

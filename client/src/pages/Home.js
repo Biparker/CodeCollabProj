@@ -7,7 +7,7 @@ const Home = () => {
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 8 }}>
         <Typography variant="h2" component="h1" gutterBottom align="center">
-          Welcome to CodeCollab
+          Welcome to CodeCollabProj
         </Typography>
         <Typography variant="h5" component="h2" gutterBottom align="center" color="text.secondary">
           Collaborate on code projects with ease. Share, learn, and build together.

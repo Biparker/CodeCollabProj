@@ -36,14 +36,14 @@ const sendVerificationEmail = async (email, token, username) => {
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email?token=${token}`;
     
     const mailOptions = {
-      from: `"CodeCollab" <${process.env.EMAIL_USER}>`,
+      from: `"CodeCollabProj" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: 'Verify your email address - CodeCollab',
+      subject: 'Verify your email address - CodeCollabProj',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #333;">Welcome to CodeCollab!</h2>
+          <h2 style="color: #333;">Welcome to CodeCollabProj!</h2>
           <p>Hi ${username},</p>
-          <p>Thank you for registering with CodeCollab. To complete your registration, please verify your email address by clicking the button below:</p>
+          <p>Thank you for registering with CodeCollabProj. To complete your registration, please verify your email address by clicking the button below:</p>
           
           <div style="text-align: center; margin: 30px 0;">
             <a href="${verificationUrl}" 
@@ -57,11 +57,11 @@ const sendVerificationEmail = async (email, token, username) => {
           
           <p>This link will expire in 24 hours.</p>
           
-          <p>If you didn't create an account with CodeCollab, you can safely ignore this email.</p>
+          <p>If you didn't create an account with CodeCollabProj, you can safely ignore this email.</p>
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #666; font-size: 12px;">
-            This is an automated email from CodeCollab. Please do not reply to this email.
+            This is an automated email from CodeCollabProj. Please do not reply to this email.
           </p>
         </div>
       `
@@ -100,7 +100,7 @@ const sendPasswordResetEmail = async (email, token, username) => {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-      subject: 'Reset your password - CodeCollab',
+      subject: 'Reset your password - CodeCollabProj',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
           <h2 style="color: #333;">Password Reset Request</h2>
@@ -123,7 +123,7 @@ const sendPasswordResetEmail = async (email, token, username) => {
           
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
           <p style="color: #666; font-size: 12px;">
-            This is an automated email from CodeCollab. Please do not reply to this email.
+            This is an automated email from CodeCollabProj. Please do not reply to this email.
           </p>
         </div>
       `

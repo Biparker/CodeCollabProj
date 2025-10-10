@@ -1,4 +1,4 @@
-# CodeCollab - Computer Club Collaboration Platform
+# CodeCollabProj - Computer Club Collaboration Platform
 
 A web application for computer club members to collaborate on projects, share skills, and work together effectively.
 
@@ -51,8 +51,8 @@ A web application for computer club members to collaborate on projects, share sk
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/your-username/codecollab.git
-   cd codecollab
+   git clone https://github.com/biparker/codecollabproj.git
+   cd codecollabproj
    ```
 
 2. **Run the automated setup:**
@@ -70,8 +70,8 @@ A web application for computer club members to collaborate on projects, share sk
 
 1. **Clone and install dependencies:**
    ```bash
-   git clone https://github.com/your-username/codecollab.git
-   cd codecollab
+   git clone https://github.com/biparker/codecollabproj.git
+   cd codecollabproj
    npm run install-all
    ```
 
@@ -86,7 +86,7 @@ A web application for computer club members to collaborate on projects, share sk
    NODE_ENV=development
    PORT=5001
    FRONTEND_URL=http://localhost:3000
-   MONGODB_URI=mongodb://localhost:27017/codecollab
+   MONGODB_URI=mongodb://localhost:27017/codecollabproj
    JWT_SECRET=your_jwt_secret_here
    JWT_REFRESH_SECRET=your_refresh_secret_here
    ```
@@ -104,7 +104,7 @@ A web application for computer club members to collaborate on projects, share sk
 ## 📁 Project Structure
 
 ```
-codecollab/
+codecollabproj/
 ├── 📁 client/                    # React frontend application
 │   ├── 📁 src/
 │   │   ├── 📁 components/        # React components
@@ -235,3 +235,8 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - **Material-UI** for components
 - **MongoDB** for data storage
 - **Express.js** for backend framework 
+
+
+## Test Users
+
+- To facilitate further development of CodeCollabProj, builders have created 12 login accounts: user1@example.com - user10@example.com. All of these have the same login password: password123. Some of these have test projects and messages created to facilitate development and illustrate creating projects. There is also an admin and a moderator account created, check with the leaders of the project to get access to these.

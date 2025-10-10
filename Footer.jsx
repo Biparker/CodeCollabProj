@@ -18,7 +18,7 @@ const Footer = () => {
         <Grid container spacing={4}>
           <Grid item xs={12} sm={4}>
             <Typography variant="h6" gutterBottom>
-              CodeCollab
+              CodeCollabProj
             </Typography>
             <Typography variant="body2" color="text.secondary">
               Collaborate on code projects with ease. Share, learn, and build together.
@@ -90,7 +90,7 @@ const Footer = () => {
           <Typography variant="body2" color="text.secondary" align="center">
             {'© '}
             {new Date().getFullYear()}
-            {' CodeCollab. All rights reserved.'}
+            {' CodeCollabProj. All rights reserved.'}
           </Typography>
         </Box>
       </Container>

@@ -166,7 +166,7 @@ app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/refresh-token', authLimiter);
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollab';
+const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollabproj';
 
 // Only try to connect if we're not in test mode
 if (process.env.NODE_ENV !== 'test') {
@@ -203,7 +203,7 @@ app.use('/api/admin', adminLimiter, adminRoutes);
 
 // Basic route for testing
 app.get('/', (req, res) => {
-  res.json({ message: 'Welcome to CodeCollab API' });
+  res.json({ message: 'Welcome to CodeCollabProj API' });
 });
 
 // Health check endpoint

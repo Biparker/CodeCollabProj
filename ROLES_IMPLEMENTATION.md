@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the comprehensive role-based access control system implemented in CodeCollab. The system provides three distinct user roles with granular permissions and a complete admin interface for user management.
+This document describes the comprehensive role-based access control system implemented in CodeCollabProj. The system provides three distinct user roles with granular permissions and a complete admin interface for user management.
 
 ## Role Types
 
@@ -186,12 +186,12 @@ if (hasPermission('users.update')) { /* Show user edit */ }
 ### Default Accounts Created
 
 **Admin Account:**
-- Email: `admin@codecollab.com`
+- Email: `admin@codecollabproj.com`
 - Password: `admin123!`
 - Role: `admin`
 
 **Moderator Account:**
-- Email: `moderator@codecollab.com`
+- Email: `moderator@codecollabproj.com`
 - Password: `mod123!`
 - Role: `moderator`
 
@@ -350,6 +350,6 @@ console.log(user.role, user.permissions);
 
 ## Conclusion
 
-This role-based access control system provides a robust foundation for managing user permissions in CodeCollab. It offers flexible permission management, comprehensive security features, and an intuitive admin interface while maintaining scalability for future enhancements.
+This role-based access control system provides a robust foundation for managing user permissions in CodeCollabProj. It offers flexible permission management, comprehensive security features, and an intuitive admin interface while maintaining scalability for future enhancements.
 
 The implementation follows security best practices with server-side validation, comprehensive logging, and protection against common attack vectors. The modular design allows for easy extension and customization based on specific business requirements.
