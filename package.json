@@ -3,11 +3,15 @@
   "version": "1.0.0",
   "description": "Computer Club Collaboration Platform",
   "scripts": {
-    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "cd server && npm start",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && npm run dev",
     "client": "cd client && npm start",
+    "build": "cd client && npm run build",
     "install-all": "npm install && cd client && npm install && cd ../server && npm install",
-    "test": "concurrently \"cd server && npm test\" \"cd client && npm test\""
+    "test": "concurrently \"cd server && npm test\" \"cd client && npm test\"",
+    "railway:backend": "cd server && npm start",
+    "railway:frontend": "cd client && npm run build && npx serve -s build -l 3000"
   },
   "keywords": [
     "collaboration",
