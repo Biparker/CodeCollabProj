@@ -139,7 +139,7 @@ app.use(generalLimiter);
 // Auth-specific rate limiting
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 5, // only 5 auth attempts per 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 50, // 50 auth attempts per 15 minutes (increased for testing)
   skipSuccessfulRequests: true,
   message: {
     error: 'Too many authentication attempts from this IP, please try again later.',
