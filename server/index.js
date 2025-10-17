@@ -17,6 +17,7 @@ const {
 
 // Load environment variables
 dotenv.config();
+// Force redeploy - updated auth verification logic
 
 // Validate environment variables before starting server
 try {
