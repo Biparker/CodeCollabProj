@@ -11,6 +11,7 @@
     "test:coverage": "jest --coverage",
     "test:logger": "node test-logger-simple.js",
     "seed": "node seed.js",
+    "verify-all": "node verify-all-users.js",
     "reset-users": "node resetUsers.js",
     "delete-user": "node deleteUser.js",
     "verify-user": "node verifyUser.js",
