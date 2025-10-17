@@ -142,6 +142,7 @@ const login = async (req, res) => {
 
     // Check if email is verified
     // Skip verification check for pre-seeded test users (they have isEmailVerified: true)
+    console.log('🔍 AUTH CHECK - user.isEmailVerified:', user.isEmailVerified, 'for user:', user.email);
     if (!user.isEmailVerified) {
       logger.authAttempt(false, {
         userId: user._id,
