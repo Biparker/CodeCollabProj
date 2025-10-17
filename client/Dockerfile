@@ -13,6 +13,9 @@ RUN npm ci --only=production
 # Copy source code
 COPY . .
 
+# Set environment variable for Railway backend
+ENV REACT_APP_API_URL=https://codecollabproj-production.up.railway.app/api
+
 # Build the React app
 RUN npm run build
 
