@@ -4,6 +4,10 @@ nixPkgs = ["nodejs_18"]
 [phases.install]
 cmds = ["npm install --only=production"]
 
+# Explicitly disable build phase - backend has no build step
+[phases.build]
+cmds = []
+
 [start]
 cmd = "npm start"
 
