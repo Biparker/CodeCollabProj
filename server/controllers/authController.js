@@ -140,8 +140,9 @@ const login = async (req, res) => {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Check if email is verified (only in production)
-    if (process.env.NODE_ENV !== 'development' && !user.isEmailVerified) {
+    // Check if email is verified
+    // Skip verification check for pre-seeded test users (they have isEmailVerified: true)
+    if (!user.isEmailVerified) {
       logger.authAttempt(false, {
         userId: user._id,
         email,
