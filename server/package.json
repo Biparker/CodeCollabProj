@@ -4,7 +4,7 @@
   "description": "Backend server for CodeCollabProj platform",
   "main": "index.js",
   "scripts": {
-    "build": "echo 'No build step needed for backend'",
+    "build": "echo 'Backend has no build step - ready for Railway'",
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "jest",
