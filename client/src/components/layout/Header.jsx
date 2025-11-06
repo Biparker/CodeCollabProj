@@ -63,8 +63,7 @@ const Header = () => {
           <MenuIcon />
         </IconButton>
 
-        <Typography
-          variant="h6"
+        <Box
           component={RouterLink}
           to="/"
           sx={{
@@ -73,10 +72,39 @@ const Header = () => {
             color: 'inherit',
             display: 'flex',
             alignItems: 'center',
+            gap: 1.5,
           }}
         >
-          CodeCollabProj
-        </Typography>
+          <img
+            src="/CC-Logo-ColorBg.png"
+            alt="Casual Coding Meetup Group Logo"
+            style={{
+              height: '40px',
+              width: 'auto',
+            }}
+          />
+          <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                lineHeight: 1.2,
+              }}
+            >
+              CodeCollabProj
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontSize: '0.7rem',
+                lineHeight: 1,
+                opacity: 0.9,
+              }}
+            >
+              Casual Coding Meetup Group
+            </Typography>
+          </Box>
+        </Box>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {isAuthenticated ? (
