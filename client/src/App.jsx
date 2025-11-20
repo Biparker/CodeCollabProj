@@ -99,75 +99,8 @@ function App() {
               v7_relativeSplatPath: true,
             }}
           >
-            <Layout>
-              <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/verify-email/:token" element={<EmailVerification />} />
-              <Route path="/verify-email" element={<EmailVerification />} />
-              <Route path="/projects" element={<ProjectList />} />
-              <Route
-                path="/projects/create"
-                element={
-                  <PrivateRoute>
-                    <ProjectForm />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <PrivateRoute>
-                    <Profile />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/members"
-                element={
-                  <PrivateRoute>
-                    <Members />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/messages"
-                element={
-                  <PrivateRoute>
-                    <Messages />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/projects/:projectId"
-                element={
-                  <PrivateRoute>
-                    <ProjectDetail />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/projects/:projectId/edit"
-                element={
-                  <PrivateRoute>
-                    <ProjectForm />
-                  </PrivateRoute>
-                }
-              />
-              <Route path="/about" element={<About />} />
-              
-              {/* Admin Routes */}
+            <Routes>
+              {/* Admin Routes - Outside Layout to avoid duplicate navigation */}
               <Route path="/admin/*" element={
                 <AdminRoute requireRole={['admin', 'moderator']}>
                   <AdminLayout />
@@ -179,8 +112,80 @@ function App() {
                 <Route path="analytics" element={<div>Analytics (Coming Soon)</div>} />
                 <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
               </Route>
-              </Routes>
-            </Layout>
+
+              {/* Main App Routes - Inside Layout */}
+              <Route path="/*" element={
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/verify-email/:token" element={<EmailVerification />} />
+                    <Route path="/verify-email" element={<EmailVerification />} />
+                    <Route path="/projects" element={<ProjectList />} />
+                    <Route
+                      path="/projects/create"
+                      element={
+                        <PrivateRoute>
+                          <ProjectForm />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <PrivateRoute>
+                          <Dashboard />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <PrivateRoute>
+                          <Profile />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/members"
+                      element={
+                        <PrivateRoute>
+                          <Members />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/messages"
+                      element={
+                        <PrivateRoute>
+                          <Messages />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/projects/:projectId"
+                      element={
+                        <PrivateRoute>
+                          <ProjectDetail />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/projects/:projectId/edit"
+                      element={
+                        <PrivateRoute>
+                          <ProjectForm />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route path="/about" element={<About />} />
+                  </Routes>
+                </Layout>
+              } />
+            </Routes>
           </Router>
         </ThemeProvider>
         {/* React Query DevTools - temporarily disabled to avoid chunk loading issues */}
