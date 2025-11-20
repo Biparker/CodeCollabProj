@@ -16,6 +16,8 @@ const {
   resetPassword
 } = require('../controllers/authController');
 const auth = require('../middleware/auth');
+const { passwordValidator } = require('../utils/passwordValidator');
+const { VALIDATION_LIMITS } = require('../config/constants');
 
 const router = express.Router();
 
@@ -26,11 +28,11 @@ const registerValidation = [
     .withMessage('Please enter a valid email address')
     .normalizeEmail(),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .custom(passwordValidator)
+    .withMessage('Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character'),
   body('username')
-    .isLength({ min: 3 })
-    .withMessage('Username must be at least 3 characters long')
+    .isLength({ min: VALIDATION_LIMITS.USERNAME_MIN_LENGTH, max: VALIDATION_LIMITS.USERNAME_MAX_LENGTH })
+    .withMessage(`Username must be between ${VALIDATION_LIMITS.USERNAME_MIN_LENGTH} and ${VALIDATION_LIMITS.USERNAME_MAX_LENGTH} characters`)
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage('Username can only contain letters, numbers, and underscores')
 ];
@@ -64,8 +66,8 @@ const resetPasswordValidation = [
     .notEmpty()
     .withMessage('Reset token is required'),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long')
+    .custom(passwordValidator)
+    .withMessage('Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character')
 ];
 
 const changePasswordValidation = [
@@ -73,8 +75,8 @@ const changePasswordValidation = [
     .notEmpty()
     .withMessage('Current password is required'),
   body('newPassword')
-    .isLength({ min: 6 })
-    .withMessage('New password must be at least 6 characters long')
+    .custom(passwordValidator)
+    .withMessage('New password must be at least 8 characters long and contain uppercase, lowercase, number, and special character')
     .custom((value, { req }) => {
       if (value === req.body.currentPassword) {
         throw new Error('New password must be different from current password');

@@ -19,6 +19,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth, useLogout } from '../../hooks/auth';
 import { useMessages } from '../../hooks/users/useMessaging';
+import logger from '../../utils/logger';
 
 const Header = () => {
   const navigate = useNavigate();
@@ -31,7 +32,10 @@ const Header = () => {
   });
   const unreadCount = inboxMessages.filter(msg => !msg.isRead).length;
   
-  console.log('Header isAuthenticated (TanStack Query):', isAuthenticated, 'user:', user);
+  // Only log in development
+  if (process.env.NODE_ENV === 'development') {
+    logger.debug('Header isAuthenticated (TanStack Query):', isAuthenticated, 'user:', user);
+  }
   const [anchorEl, setAnchorEl] = React.useState(null);
 
   const handleMenu = (event) => {
@@ -57,7 +61,9 @@ const Header = () => {
         <IconButton
           edge="start"
           color="inherit"
-          aria-label="menu"
+          aria-label="Open navigation menu"
+          aria-expanded="false"
+          aria-controls="mobile-menu"
           sx={{ mr: 2, display: { sm: 'none' } }}
         >
           <MenuIcon />
@@ -127,9 +133,10 @@ const Header = () => {
                 color="inherit"
                 component={RouterLink}
                 to="/messages"
-                title="Messages"
+                aria-label={`Messages${unreadCount > 0 ? `, ${unreadCount} unread` : ''}`}
+                title={`Messages${unreadCount > 0 ? ` (${unreadCount} unread)` : ''}`}
               >
-                <Badge badgeContent={unreadCount} color="error">
+                <Badge badgeContent={unreadCount} color="error" aria-hidden="true">
                   <MessageIcon />
                 </Badge>
               </IconButton>
@@ -158,20 +165,21 @@ const Header = () => {
               )}
               <IconButton
                 size="large"
-                aria-label="account of current user"
+                aria-label={`Account menu for ${user?.username || 'user'}`}
                 aria-controls="menu-appbar"
                 aria-haspopup="true"
+                aria-expanded={Boolean(anchorEl)}
                 onClick={handleMenu}
                 color="inherit"
               >
                 {user?.avatar ? (
                   <Avatar
                     src={user.avatar}
-                    alt={user.username}
+                    alt={`${user.username}'s avatar`}
                     sx={{ width: 32, height: 32 }}
                   />
                 ) : (
-                  <AccountCircle />
+                  <AccountCircle aria-hidden="true" />
                 )}
               </IconButton>
               <Menu
@@ -188,6 +196,7 @@ const Header = () => {
                 }}
                 open={Boolean(anchorEl)}
                 onClose={handleClose}
+                aria-labelledby="account-menu-button"
               >
                 <MenuItem component={RouterLink} to="/profile" onClick={handleClose}>
                   Profile

@@ -1,8 +1,12 @@
 import api from '../utils/api';
+import tokenEncryption from '../utils/tokenEncryption';
+import { TOKEN_EXPIRATION } from '../config/constants';
+import logger from '../utils/logger';
 
 /**
  * Enhanced authentication service with dual-token system
  * Handles access tokens, refresh tokens, and session management
+ * Uses token encryption for additional security layer
  */
 
 export const authService = {
@@ -41,8 +45,9 @@ export const authService = {
       const response = await api.post('/auth/refresh-token', { refreshToken });
       
       if (response.data.accessToken) {
-        // Update access token, keep the same refresh token
-        localStorage.setItem('accessToken', response.data.accessToken);
+        // Update access token using setTokens to encrypt it
+        const refreshToken = authService.getRefreshToken();
+        authService.setTokens(response.data.accessToken, refreshToken);
         return response.data.accessToken;
       }
       
@@ -66,7 +71,7 @@ export const authService = {
       // Call server logout endpoint to invalidate session
       await api.post('/auth/logout');
     } catch (error) {
-      console.warn('Server logout failed:', error.message);
+      logger.warn('Server logout failed:', error.message);
     } finally {
       // Always clear local tokens regardless of server response
       authService.clearTokens();
@@ -78,7 +83,7 @@ export const authService = {
     try {
       await api.post('/auth/logout-all');
     } catch (error) {
-      console.warn('Server logout-all failed:', error.message);
+      logger.warn('Server logout-all failed:', error.message);
     } finally {
       authService.clearTokens();
     }
@@ -128,14 +133,27 @@ export const authService = {
     return response.data;
   },
 
-  // Token management functions
+  // Token management functions with encryption
   setTokens: (accessToken, refreshToken) => {
-    localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
-    
-    // Set expiration tracking for access token (15 minutes)
-    const expirationTime = Date.now() + (15 * 60 * 1000);
-    localStorage.setItem('tokenExpiration', expirationTime.toString());
+    try {
+      // Encrypt tokens before storing
+      const encryptedAccessToken = tokenEncryption.encrypt(accessToken);
+      const encryptedRefreshToken = tokenEncryption.encrypt(refreshToken);
+      
+      localStorage.setItem('accessToken', encryptedAccessToken);
+      localStorage.setItem('refreshToken', encryptedRefreshToken);
+      
+      // Set expiration tracking for access token
+      const expirationTime = Date.now() + TOKEN_EXPIRATION.ACCESS_TOKEN;
+      localStorage.setItem('tokenExpiration', expirationTime.toString());
+    } catch (error) {
+      logger.error('Failed to encrypt tokens:', error);
+      // Fallback to unencrypted storage if encryption fails
+      localStorage.setItem('accessToken', accessToken);
+      localStorage.setItem('refreshToken', refreshToken);
+      const expirationTime = Date.now() + TOKEN_EXPIRATION.ACCESS_TOKEN;
+      localStorage.setItem('tokenExpiration', expirationTime.toString());
+    }
   },
 
   clearTokens: () => {
@@ -144,14 +162,38 @@ export const authService = {
     localStorage.removeItem('tokenExpiration');
     // Remove legacy token if it exists
     localStorage.removeItem('token');
+    // Clear encryption key
+    tokenEncryption.clearKey();
   },
 
   getAccessToken: () => {
-    return localStorage.getItem('accessToken') || localStorage.getItem('token'); // Fallback for legacy
+    try {
+      const encryptedToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
+      if (!encryptedToken) return null;
+      
+      // Try to decrypt, fallback to plain if decryption fails (backward compatibility)
+      const decrypted = tokenEncryption.decrypt(encryptedToken);
+      return decrypted || encryptedToken; // Fallback if decryption fails
+    } catch (error) {
+      logger.error('Failed to decrypt access token:', error);
+      // Fallback to plain token
+      return localStorage.getItem('accessToken') || localStorage.getItem('token');
+    }
   },
 
   getRefreshToken: () => {
-    return localStorage.getItem('refreshToken');
+    try {
+      const encryptedToken = localStorage.getItem('refreshToken');
+      if (!encryptedToken) return null;
+      
+      // Try to decrypt, fallback to plain if decryption fails
+      const decrypted = tokenEncryption.decrypt(encryptedToken);
+      return decrypted || encryptedToken; // Fallback if decryption fails
+    } catch (error) {
+      logger.error('Failed to decrypt refresh token:', error);
+      // Fallback to plain token
+      return localStorage.getItem('refreshToken');
+    }
   },
 
   // Check if access token is expired or about to expire
@@ -159,8 +201,8 @@ export const authService = {
     const expiration = localStorage.getItem('tokenExpiration');
     if (!expiration) return true;
     
-    // Consider expired if less than 2 minutes remaining
-    return Date.now() > (parseInt(expiration) - 2 * 60 * 1000);
+    // Consider expired if less than threshold remaining
+    return Date.now() > (parseInt(expiration) - TOKEN_EXPIRATION.TOKEN_REFRESH_THRESHOLD);
   },
 
   // Check if user is authenticated (has valid tokens)
@@ -190,7 +232,7 @@ export const authService = {
       try {
         return await authService.refreshToken();
       } catch (error) {
-        console.error('Token refresh failed:', error);
+        logger.error('Token refresh failed:', error);
         authService.clearTokens(); // Clear invalid tokens
         return null;
       }

@@ -54,12 +54,16 @@ class EnvValidator {
     }
     
     if (errors.length > 0) {
-      console.error('❌ Environment validation failed:');
-      errors.forEach(error => console.error(`   • ${error}`));
+      const logger = require('./logger');
+      logger.error('Environment validation failed:', { errors });
       throw new Error('Environment validation failed. Please check your .env file.');
     }
     
-    console.log('✅ Environment validation passed');
+    // Only log success in development
+    if (process.env.NODE_ENV === 'development') {
+      const logger = require('./logger');
+      logger.info('Environment validation passed');
+    }
   }
 
   /**

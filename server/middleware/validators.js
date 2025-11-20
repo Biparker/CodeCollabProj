@@ -1,19 +1,25 @@
 const { body } = require('express-validator');
+const { passwordValidator } = require('../utils/passwordValidator');
+const { VALIDATION_LIMITS } = require('../config/constants');
 
 const registerValidator = [
   body('email')
     .isEmail()
     .withMessage('Please enter a valid email')
-    .normalizeEmail(),
+    .normalizeEmail()
+    .isLength({ max: VALIDATION_LIMITS.EMAIL_MAX_LENGTH })
+    .withMessage(`Email must not exceed ${VALIDATION_LIMITS.EMAIL_MAX_LENGTH} characters`),
   body('password')
-    .isLength({ min: 6 })
-    .withMessage('Password must be at least 6 characters long'),
+    .custom(passwordValidator)
+    .withMessage('Password must be at least 8 characters long and contain uppercase, lowercase, number, and special character'),
   body('username')
     .trim()
     .notEmpty()
     .withMessage('Username is required')
-    .isLength({ min: 2 })
-    .withMessage('Username must be at least 2 characters long')
+    .isLength({ min: VALIDATION_LIMITS.USERNAME_MIN_LENGTH, max: VALIDATION_LIMITS.USERNAME_MAX_LENGTH })
+    .withMessage(`Username must be between ${VALIDATION_LIMITS.USERNAME_MIN_LENGTH} and ${VALIDATION_LIMITS.USERNAME_MAX_LENGTH} characters`)
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores')
 ];
 
 const loginValidator = [

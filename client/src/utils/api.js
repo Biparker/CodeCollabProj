@@ -1,4 +1,5 @@
 import axios from 'axios';
+import logger from './logger';
 
 // We'll import authService after it's defined to avoid circular dependency
 let authService;
@@ -62,14 +63,14 @@ api.interceptors.request.use(
           config.headers.Authorization = `Bearer ${token}`;
         }
       } catch (error) {
-        console.warn('Failed to get token:', error.message);
+        logger.warn('Failed to get token:', error.message);
         // Continue with request without token
       }
     }
     
     // Only log API requests in development mode and for important operations
     if (process.env.NODE_ENV === 'development' && isCriticalOperation) {
-      console.log('🌐 API Request:', {
+      logger.debug('🌐 API Request:', {
         method: config.method?.toUpperCase() || 'unknown',
         url: config.url || 'unknown',
         hasToken: !!config.headers?.Authorization,
@@ -81,7 +82,7 @@ api.interceptors.request.use(
     return config;
   },
   (error) => {
-    console.error('❌ Request interceptor error:', error);
+    logger.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
 );
@@ -95,7 +96,7 @@ api.interceptors.response.use(
                          response?.config?.url?.includes('/session');
     
     if (process.env.NODE_ENV === 'development' && isCriticalUrl) {
-      console.log('✅ API Response:', {
+      logger.debug('✅ API Response:', {
         status: response?.status || 'unknown',
         url: response?.config?.url || 'unknown'
       });
@@ -115,11 +116,11 @@ api.interceptors.response.use(
       errorType: error?.code || 'unknown'
     };
     
-    console.error('❌ API Error:', errorInfo);
+    logger.error('❌ API Error:', errorInfo);
 
     // Handle network errors (connection issues)
     if (!error?.response) {
-      console.error('🌐 Network error - server may be down');
+      logger.error('🌐 Network error - server may be down');
       return Promise.reject(error);
     }
 
@@ -132,7 +133,7 @@ api.interceptors.response.use(
       if (isAuthEndpoint || needsVerification) {
         // For auth endpoints or verification needed, don't retry
         if (needsVerification) {
-          console.log('🔐 Email verification required');
+          logger.debug('🔐 Email verification required');
         }
         return Promise.reject(error);
       }
@@ -143,7 +144,7 @@ api.interceptors.response.use(
           const authModule = await import('../services/authService');
           authService = authModule.authService || authModule.default;
         } catch (importError) {
-          console.error('Failed to import authService:', importError);
+          logger.error('Failed to import authService:', importError);
           return Promise.reject(error);
         }
       }
@@ -173,7 +174,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         
-        console.log('🔐 Token refresh failed - clearing tokens and redirecting to login');
+        logger.debug('🔐 Token refresh failed - clearing tokens and redirecting to login');
         authService.clearTokens();
         
         // Redirect to login after a brief delay
@@ -189,13 +190,13 @@ api.interceptors.response.use(
 
     // Handle 403 Forbidden
     if (error?.response?.status === 403) {
-      console.warn('🚫 Access forbidden - insufficient permissions');
+      logger.warn('🚫 Access forbidden - insufficient permissions');
     }
 
     // Handle 429 Too Many Requests
     if (error?.response?.status === 429) {
       const retryAfter = error?.response?.data?.retryAfter || 60;
-      console.warn(`⏱️ Rate limited - retry after ${retryAfter} seconds`);
+      logger.warn(`⏱️ Rate limited - retry after ${retryAfter} seconds`);
     }
 
     return Promise.reject(error);
@@ -204,11 +205,13 @@ api.interceptors.response.use(
 
 // Debug function to help troubleshoot API configuration
 export const debugApiConfig = () => {
-  console.log('🔍 API Debug Info:', {
-    baseURL: api.defaults.baseURL,
-    timeout: api.defaults.timeout,
-    headers: api.defaults.headers
-  });
+  if (process.env.NODE_ENV === 'development') {
+    logger.debug('🔍 API Debug Info:', {
+      baseURL: api.defaults.baseURL,
+      timeout: api.defaults.timeout,
+      headers: api.defaults.headers
+    });
+  }
 };
 
 export default api; 
