@@ -2,12 +2,14 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
+const crypto = require('crypto');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
 const envValidator = require('./utils/envValidator');
 const logger = require('./utils/logger');
 const scheduledTasks = require('./utils/scheduledTasks');
+const { RATE_LIMITS } = require('./config/constants');
 const { 
   trackFailedAuth, 
   trackSuspiciousActivity, 
@@ -24,7 +26,7 @@ try {
   envValidator.validateEnvironment();
   logger.info('Server starting with secure configuration', envValidator.getSanitizedEnvInfo());
 } catch (error) {
-  console.error('❌ Server startup failed:', error.message);
+  logger.error('Server startup failed:', { error: error.message });
   process.exit(1);
 }
 
@@ -32,13 +34,24 @@ try {
 const app = express();
 
 // Security middleware - applied first
+// Generate nonce for CSP (in production, use proper nonce generation)
+const generateNonce = () => {
+  return Buffer.from(crypto.randomBytes(16)).toString('base64');
+};
+
+app.use((req, res, next) => {
+  // Generate nonce for this request
+  res.locals.nonce = generateNonce();
+  next();
+});
+
 app.use(helmet({
   crossOriginEmbedderPolicy: false,
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      styleSrc: ["'self'", "'unsafe-inline'"],
-      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
+      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
       imgSrc: ["'self'", "data:", "https:"],
       connectSrc: ["'self'"],
       fontSrc: ["'self'"],
@@ -84,11 +97,11 @@ app.use('/uploads', (req, res, next) => {
 
 // Rate limiting - general (with admin exemption)
 const generalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // increased limit
+  windowMs: RATE_LIMITS.GENERAL_WINDOW_MS,
+  max: RATE_LIMITS.GENERAL_MAX_REQUESTS,
   message: {
     error: 'Too many requests from this IP, please try again later.',
-    retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+    retryAfter: Math.ceil(RATE_LIMITS.GENERAL_WINDOW_MS / 1000)
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -106,15 +119,15 @@ const generalLimiter = rateLimit({
     });
     res.status(429).json({
       error: 'Too many requests from this IP, please try again later.',
-      retryAfter: Math.ceil((parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000) / 1000)
+      retryAfter: Math.ceil(RATE_LIMITS.GENERAL_WINDOW_MS / 1000)
     });
   }
 });
 
 // Admin-specific rate limiting (more permissive)
 const adminLimiter = rateLimit({
-  windowMs: 5 * 60 * 1000, // 5 minutes
-  max: 200, // 200 requests per 5 minutes for admin operations
+  windowMs: RATE_LIMITS.ADMIN_WINDOW_MS,
+  max: RATE_LIMITS.ADMIN_MAX_REQUESTS,
   message: {
     error: 'Too many admin requests, please slow down.',
     retryAfter: 300 // 5 minutes
@@ -139,12 +152,12 @@ app.use(generalLimiter);
 
 // Auth-specific rate limiting
 const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 50, // 50 auth attempts per 15 minutes (increased for testing)
+  windowMs: RATE_LIMITS.AUTH_WINDOW_MS,
+  max: RATE_LIMITS.AUTH_MAX_ATTEMPTS,
   skipSuccessfulRequests: true,
   message: {
     error: 'Too many authentication attempts from this IP, please try again later.',
-    retryAfter: 900 // 15 minutes in seconds
+    retryAfter: Math.ceil(RATE_LIMITS.AUTH_WINDOW_MS / 1000)
   },
   handler: (req, res) => {
     logger.rateLimitHit({
@@ -161,10 +174,36 @@ const authLimiter = rateLimit({
   }
 });
 
+// Password reset rate limiting (stricter)
+const passwordResetLimiter = rateLimit({
+  windowMs: RATE_LIMITS.PASSWORD_RESET_WINDOW_MS,
+  max: RATE_LIMITS.PASSWORD_RESET_MAX_ATTEMPTS,
+  skipSuccessfulRequests: true,
+  message: {
+    error: 'Too many password reset requests from this IP, please try again later.',
+    retryAfter: Math.ceil(RATE_LIMITS.PASSWORD_RESET_WINDOW_MS / 1000)
+  },
+  handler: (req, res) => {
+    logger.rateLimitHit({
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      path: req.path,
+      limit: 'password_reset',
+      severity: 'high'
+    });
+    res.status(429).json({
+      error: 'Too many password reset requests from this IP, please try again later.',
+      retryAfter: Math.ceil(RATE_LIMITS.PASSWORD_RESET_WINDOW_MS / 1000)
+    });
+  }
+});
+
 // Apply auth rate limiting to auth routes
 app.use('/api/auth/login', authLimiter);
 app.use('/api/auth/register', authLimiter);
 app.use('/api/auth/refresh-token', authLimiter);
+app.use('/api/auth/request-password-reset', passwordResetLimiter);
+app.use('/api/auth/reset-password', passwordResetLimiter);
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollabproj';
@@ -178,15 +217,15 @@ if (process.env.NODE_ENV !== 'test') {
     socketTimeoutMS: 45000,
   })
     .then(() => {
-      console.log('✅ Connected to MongoDB');
+      logger.info('Connected to MongoDB');
     })
     .catch((error) => {
-      console.error('❌ MongoDB connection error:', error);
-      console.log('Server will continue without database connection');
+      logger.error('MongoDB connection error:', { error: error.message });
+      logger.warn('Server will continue without database connection');
       // Don't exit the process, let it continue without DB
     });
 } else {
-  console.log('Test mode - skipping MongoDB connection');
+  logger.info('Test mode - skipping MongoDB connection');
 }
 
 // Routes
@@ -229,32 +268,28 @@ app.use(errorHandler);
 // Start server
 const PORT = process.env.PORT || 5001;
 const server = app.listen(PORT, () => {
-  console.log(`🚀 Server is running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 Health check: http://localhost:${PORT}/health`);
-  console.log(`🔒 Security features enabled: Helmet, CORS, Rate Limiting, MongoDB Sanitization`);
+  logger.info('Server started successfully', {
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development',
+    healthCheck: `http://localhost:${PORT}/health`,
+    securityFeatures: ['helmet', 'cors', 'rate-limiting', 'mongo-sanitize', 'session-management']
+  });
   
   // Start scheduled security tasks
   scheduledTasks.start();
-  
-  logger.info('Server started successfully', {
-    port: PORT,
-    environment: process.env.NODE_ENV,
-    securityFeatures: ['helmet', 'cors', 'rate-limiting', 'mongo-sanitize', 'session-management']
-  });
 });
 
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
-  console.log(`🛑 ${signal} received, shutting down gracefully`);
+  logger.info(`${signal} received, shutting down gracefully`);
   
   // Stop scheduled tasks
   scheduledTasks.stop();
   
   server.close(() => {
-    console.log('✅ Server closed');
+    logger.info('Server closed');
     mongoose.connection.close(false, () => {
-      console.log('✅ MongoDB connection closed');
+      logger.info('MongoDB connection closed');
       logger.info('Server shutdown completed', { signal });
       process.exit(0);
     });
@@ -262,7 +297,7 @@ const gracefulShutdown = (signal) => {
   
   // Force exit after 10 seconds
   setTimeout(() => {
-    console.error('❌ Forced shutdown after timeout');
+    logger.error('Forced shutdown after timeout');
     process.exit(1);
   }, 10000);
 };

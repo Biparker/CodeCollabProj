@@ -5,6 +5,8 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Container, Typography, Button, Box } from '@mui/material';
 import queryClient from './config/queryClient';
+import ErrorBoundary from './components/common/ErrorBoundary';
+import logger from './utils/logger';
 import Layout from './components/layout/Layout';
 import PrivateRoute from './components/routing/PrivateRoute';
 import AdminRoute from './components/routing/AdminRoute';
@@ -72,91 +74,33 @@ function App() {
   // TanStack Query will automatically handle authentication checks
   // when components mount and use the useAuth hook
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    console.log('🔐 App startup - Token exists:', !!token);
-    console.log('🔐 QueryClient initialized:', !!queryClient);
-    
-    if (token) {
-      console.log('✅ Token found - TanStack Query will handle auth state');
-    } else {
-      console.log('❌ No token found - user not authenticated');
+    // Only log in development
+    if (process.env.NODE_ENV === 'development') {
+      const token = localStorage.getItem('token');
+      logger.debug('🔐 App startup - Token exists:', !!token);
+      logger.debug('🔐 QueryClient initialized:', !!queryClient);
+      
+      if (token) {
+        logger.debug('✅ Token found - TanStack Query will handle auth state');
+      } else {
+        logger.debug('❌ No token found - user not authenticated');
+      }
     }
   }, []);
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Router>
-          <Layout>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ThemeProvider theme={theme}>
+          <CssBaseline />
+          <Router
+            future={{
+              v7_startTransition: true,
+              v7_relativeSplatPath: true,
+            }}
+          >
             <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/forgot-password" element={<ForgotPassword />} />
-              <Route path="/reset-password" element={<ResetPassword />} />
-              <Route path="/verify-email/:token" element={<EmailVerification />} />
-              <Route path="/verify-email" element={<EmailVerification />} />
-              <Route path="/projects" element={<ProjectList />} />
-              <Route
-                path="/projects/create"
-                element={
-                  <PrivateRoute>
-                    <ProjectForm />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/dashboard"
-                element={
-                  <PrivateRoute>
-                    <Dashboard />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/profile"
-                element={
-                  <PrivateRoute>
-                    <Profile />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/members"
-                element={
-                  <PrivateRoute>
-                    <Members />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/messages"
-                element={
-                  <PrivateRoute>
-                    <Messages />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/projects/:projectId"
-                element={
-                  <PrivateRoute>
-                    <ProjectDetail />
-                  </PrivateRoute>
-                }
-              />
-              <Route
-                path="/projects/:projectId/edit"
-                element={
-                  <PrivateRoute>
-                    <ProjectForm />
-                  </PrivateRoute>
-                }
-              />
-              <Route path="/about" element={<About />} />
-              
-              {/* Admin Routes */}
+              {/* Admin Routes - Outside Layout to avoid duplicate navigation */}
               <Route path="/admin/*" element={
                 <AdminRoute requireRole={['admin', 'moderator']}>
                   <AdminLayout />
@@ -168,17 +112,90 @@ function App() {
                 <Route path="analytics" element={<div>Analytics (Coming Soon)</div>} />
                 <Route path="settings" element={<div>Settings (Coming Soon)</div>} />
               </Route>
+
+              {/* Main App Routes - Inside Layout */}
+              <Route path="/*" element={
+                <Layout>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                    <Route path="/forgot-password" element={<ForgotPassword />} />
+                    <Route path="/reset-password" element={<ResetPassword />} />
+                    <Route path="/verify-email/:token" element={<EmailVerification />} />
+                    <Route path="/verify-email" element={<EmailVerification />} />
+                    <Route path="/projects" element={<ProjectList />} />
+                    <Route
+                      path="/projects/create"
+                      element={
+                        <PrivateRoute>
+                          <ProjectForm />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/dashboard"
+                      element={
+                        <PrivateRoute>
+                          <Dashboard />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/profile"
+                      element={
+                        <PrivateRoute>
+                          <Profile />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/members"
+                      element={
+                        <PrivateRoute>
+                          <Members />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/messages"
+                      element={
+                        <PrivateRoute>
+                          <Messages />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/projects/:projectId"
+                      element={
+                        <PrivateRoute>
+                          <ProjectDetail />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route
+                      path="/projects/:projectId/edit"
+                      element={
+                        <PrivateRoute>
+                          <ProjectForm />
+                        </PrivateRoute>
+                      }
+                    />
+                    <Route path="/about" element={<About />} />
+                  </Routes>
+                </Layout>
+              } />
             </Routes>
-          </Layout>
-        </Router>
-      </ThemeProvider>
-      {/* React Query DevTools - temporarily disabled to avoid chunk loading issues */}
-      {/* {process.env.NODE_ENV === 'development' && (
-        <React.Suspense fallback={null}>
-          <ReactQueryDevtools initialIsOpen={false} />
-        </React.Suspense>
-      )} */}
-    </QueryClientProvider>
+          </Router>
+        </ThemeProvider>
+        {/* React Query DevTools - temporarily disabled to avoid chunk loading issues */}
+        {/* {process.env.NODE_ENV === 'development' && (
+          <React.Suspense fallback={null}>
+            <ReactQueryDevtools initialIsOpen={false} />
+          </React.Suspense>
+        )} */}
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

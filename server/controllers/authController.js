@@ -16,12 +16,13 @@ const register = async (req, res) => {
     const { email, password, username } = req.body;
 
     // Check if user already exists
+    // Use generic error message to prevent user enumeration
     const existingUser = await User.findOne({ 
       $or: [{ email }, { username }] 
     });
     if (existingUser) {
       return res.status(400).json({ 
-        message: existingUser.email === email ? 'Email already exists' : 'Username already exists' 
+        message: 'An account with this email or username already exists' 
       });
     }
 
@@ -33,11 +34,11 @@ const register = async (req, res) => {
     });
 
     await user.save();
-    console.log(`👤 User saved to database: ${user._id}`);
+    logger.info(`User saved to database: ${user._id}`);
 
     // In development, skip email verification
     if (process.env.NODE_ENV === 'development') {
-      console.log('🛠️  Development mode: Auto-verifying user');
+      logger.info('Development mode: Auto-verifying user');
       
       // Create session with tokens
       const deviceInfo = {
@@ -71,15 +72,15 @@ const register = async (req, res) => {
 
     // Production: Send verification email
     const verificationToken = user.generateEmailVerificationToken();
-    console.log(`🔐 Generated verification token for ${email}: ${verificationToken}`);
+    logger.info(`Generated verification token for ${email}`);
     await user.save();
 
     // Send verification email
-    console.log(`📧 Attempting to send verification email to: ${email}`);
+    logger.info(`Attempting to send verification email to: ${email}`);
     const emailSent = await sendVerificationEmail(email, verificationToken, username);
 
     if (!emailSent) {
-      console.log('❌ Failed to send verification email');
+      logger.warn('Failed to send verification email');
       return res.status(201).json({
         message: 'Account created successfully, but verification email could not be sent. Please contact support.',
         user: {
@@ -90,7 +91,7 @@ const register = async (req, res) => {
       });
     }
 
-    console.log('✅ Verification email sent successfully');
+    logger.info('Verification email sent successfully');
     res.status(201).json({
       message: 'Account created successfully. Please check your email to verify your account.',
       user: {
@@ -100,7 +101,7 @@ const register = async (req, res) => {
       }
     });
   } catch (error) {
-    console.error('❌ Registration error:', error);
+    logger.error('Registration error:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Error creating user', error: error.message });
   }
 };
@@ -116,6 +117,7 @@ const login = async (req, res) => {
     const { email, password } = req.body;
 
     // Find user
+    // Use generic error message to prevent user enumeration
     const user = await User.findOne({ email });
     if (!user) {
       logger.authAttempt(false, {
@@ -124,6 +126,7 @@ const login = async (req, res) => {
         userAgent: req.get('User-Agent'),
         reason: 'user_not_found'
       });
+      // Use generic error message to prevent user enumeration
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
@@ -137,12 +140,12 @@ const login = async (req, res) => {
         userAgent: req.get('User-Agent'),
         reason: 'invalid_password'
       });
+      // Use generic error message to prevent user enumeration
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check if email is verified
     // Skip verification check for pre-seeded test users (they have isEmailVerified: true)
-    console.log('🔍 AUTH CHECK - user.isEmailVerified:', user.isEmailVerified, 'for user:', user.email);
     if (!user.isEmailVerified) {
       logger.authAttempt(false, {
         userId: user._id,
@@ -197,32 +200,17 @@ const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
     
-    console.log('🔍 VERIFY EMAIL DEBUG:');
-    console.log('- Token received:', token);
-    console.log('- Token length:', token ? token.length : 'null');
-    console.log('- Current timestamp:', Date.now());
+    if (process.env.NODE_ENV === 'development') {
+      logger.debug('VERIFY EMAIL DEBUG:', {
+        tokenLength: token ? token.length : 0,
+        timestamp: Date.now()
+      });
+    }
 
     const user = await User.findOne({
       emailVerificationToken: token,
       emailVerificationExpires: { $gt: Date.now() }
     });
-
-    console.log('- User found:', !!user);
-    if (user) {
-      console.log('- User email:', user.email);
-      console.log('- Token expires at:', user.emailVerificationExpires);
-      console.log('- Time until expiry:', user.emailVerificationExpires - Date.now(), 'ms');
-    } else {
-      // Check if user exists with this token but expired
-      const expiredUser = await User.findOne({ emailVerificationToken: token });
-      if (expiredUser) {
-        console.log('- Found user with EXPIRED token');
-        console.log('- Expired at:', expiredUser.emailVerificationExpires);
-        console.log('- Current time:', Date.now());
-      } else {
-        console.log('- No user found with this token at all');
-      }
-    }
 
     if (!user) {
       return res.status(400).json({ 
@@ -303,8 +291,8 @@ const requestPasswordReset = async (req, res) => {
 
     // In development mode, return the token directly for testing
     if (process.env.NODE_ENV === 'development') {
-      console.log(`🔐 Development mode: Password reset token for ${email}: ${resetToken}`);
-      console.log(`🔗 Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
+      logger.debug(`Development mode: Password reset token generated for ${email}`);
+      logger.debug(`Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
       
       return res.json({ 
         message: 'Password reset link generated successfully (development mode)',
@@ -326,7 +314,7 @@ const requestPasswordReset = async (req, res) => {
       message: 'If an account with that email exists, a password reset link has been sent.' 
     });
   } catch (error) {
-    console.error('Error requesting password reset:', error);
+    logger.error('Error requesting password reset:', { error: error.message, stack: error.stack });
     res.status(500).json({ message: 'Error requesting password reset', error: error.message });
   }
 };
@@ -393,9 +381,7 @@ const resetPassword = async (req, res) => {
       userAgent: req.get('User-Agent')
     });
     
-    console.log('🔐 Password reset successful for user:', user.email);
-    console.log('🔐 Password has been hashed and saved');
-    console.log('🔐 All sessions revoked due to password change');
+    logger.info('Password reset successful', { userId: user._id });
 
     res.json({ 
       message: 'Password has been reset successfully. All existing sessions have been revoked. You can now log in with your new password.' 

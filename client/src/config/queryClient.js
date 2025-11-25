@@ -1,24 +1,29 @@
 import { QueryClient } from '@tanstack/react-query';
+import { QUERY_CONFIG } from './constants';
+import logger from '../utils/logger';
 
 // Create a query client with optimized defaults
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Stale time - how long data is considered fresh (5 minutes)
-      staleTime: 5 * 60 * 1000,
-      // Cache time - how long data stays in cache when not being used (10 minutes)
-      gcTime: 10 * 60 * 1000,
-      // Retry failed requests up to 2 times
+      // Stale time - how long data is considered fresh
+      staleTime: QUERY_CONFIG.STALE_TIME,
+      // Cache time - how long data stays in cache when not being used
+      gcTime: QUERY_CONFIG.CACHE_TIME,
+      // Retry failed requests
       retry: (failureCount, error) => {
         // Don't retry on 4xx errors (client errors)
         if (error?.status >= 400 && error?.status < 500) {
           return false;
         }
-        // Retry up to 2 times for other errors
-        return failureCount < 2;
+        // Retry up to MAX_RETRIES times for other errors
+        return failureCount < QUERY_CONFIG.MAX_RETRIES;
       },
       // Retry delay with exponential backoff
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+      retryDelay: (attemptIndex) => Math.min(
+        QUERY_CONFIG.RETRY_DELAY_BASE * 2 ** attemptIndex, 
+        QUERY_CONFIG.RETRY_DELAY_MAX
+      ),
       // Don't refetch on window focus in development
       refetchOnWindowFocus: process.env.NODE_ENV === 'production',
       // Don't refetch on reconnect unless data is stale
@@ -30,10 +35,10 @@ export const queryClient = new QueryClient({
       // Retry mutations once on failure
       retry: 1,
       // Retry delay for mutations
-      retryDelay: 1000,
+      retryDelay: QUERY_CONFIG.RETRY_DELAY_BASE,
       // Global mutation error handler
       onError: (error) => {
-        console.error('Mutation error:', error);
+        logger.error('Mutation error:', error);
         // You can add global error handling here (toast notifications, etc.)
       },
     },
