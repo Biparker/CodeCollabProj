@@ -17,7 +17,7 @@ async function seed() {
   const adminUser = {
     username: 'admin',
     email: 'admin@codecollabproj.com',
-    password: await bcrypt.hash('admin123!', 10),
+    password: await bcrypt.hash('Admin123!', 10),
     isEmailVerified: true,
     role: 'admin',
     firstName: 'System',
@@ -31,7 +31,7 @@ async function seed() {
   const moderatorUser = {
     username: 'moderator',
     email: 'moderator@codecollabproj.com',
-    password: await bcrypt.hash('mod123!', 10),
+    password: await bcrypt.hash('Moderator123!', 10),
     isEmailVerified: true,
     role: 'moderator',
     firstName: 'Content',
@@ -53,7 +53,7 @@ async function seed() {
     userData.push({
       username: `user${i}`,
       email: `user${i}@example.com`,
-      password: await bcrypt.hash('password123', 10),
+      password: await bcrypt.hash('Password123!', 10),
       isEmailVerified: true,
       role: 'user', // Explicitly set role
       skills: [
@@ -112,13 +112,13 @@ async function seed() {
   console.log('✅ Seed data inserted successfully!');
   console.log('\n🔐 Admin Credentials:');
   console.log('Email: admin@codecollabproj.com');
-  console.log('Password: admin123!');
+  console.log('Password: Admin123!');
   console.log('\n👮 Moderator Credentials:');
   console.log('Email: moderator@codecollabproj.com');
-  console.log('Password: mod123!');
+  console.log('Password: Moderator123!');
   console.log('\n👤 Regular Users:');
   console.log('Email: user1@example.com to user10@example.com');
-  console.log('Password: password123');
+  console.log('Password: Password123!');
   
   mongoose.disconnect();
 }
