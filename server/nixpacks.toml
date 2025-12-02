@@ -2,7 +2,10 @@
 nixPkgs = ["nodejs_18"]
 
 [phases.install]
-cmds = ["npm ci --only=production"]
+cmds = [
+  "npm ci --only=production",
+  "mkdir -p uploads logs"
+]
 
 # Explicitly disable build phase - backend has no build step
 [phases.build]
