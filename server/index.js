@@ -33,6 +33,12 @@ try {
 // Create Express app
 const app = express();
 
+// Trust proxy for Railway/production deployments
+// This allows express-rate-limit to correctly identify users behind proxies
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // Security middleware - applied first
 // Generate nonce for CSP (in production, use proper nonce generation)
 const generateNonce = () => {
