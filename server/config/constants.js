@@ -65,8 +65,9 @@ const REQUEST_LIMITS = {
 const FILE_UPLOAD = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB in bytes
   MAX_FILE_SIZE_MB: 5, // 5MB for display
-  ALLOWED_IMAGE_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
-  ALLOWED_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.gif', '.webp'],
+  // Common image types for reference/documentation - actual validation accepts any image/* MIME type
+  COMMON_IMAGE_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/avif'],
+  COMMON_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic', '.avif'],
 };
 
 module.exports = {

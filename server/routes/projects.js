@@ -33,11 +33,11 @@ const upload = multer({
     fileSize: FILE_UPLOAD.MAX_FILE_SIZE
   },
   fileFilter: function (req, file, cb) {
-    // Check file type against allowed types
-    if (FILE_UPLOAD.ALLOWED_IMAGE_TYPES.includes(file.mimetype)) {
+    // Accept any image MIME type (image/jpeg, image/png, image/svg+xml, image/heic, etc.)
+    if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error(`Only image files are allowed! Accepted types: ${FILE_UPLOAD.ALLOWED_IMAGE_TYPES.join(', ')}`), false);
+      cb(new Error('Only image files are allowed!'), false);
     }
   }
 });
