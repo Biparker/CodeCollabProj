@@ -98,9 +98,11 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-  // Allow cross-origin access for avatar images (needed for frontend on different port)
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Allow cross-origin access for avatar images (needed for frontend on different port in dev)
+  if (process.env.NODE_ENV !== 'production') {
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
   next();
 }, trackFileUploads, express.static('uploads'));
 
