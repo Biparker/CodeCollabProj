@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Container, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, CircularProgress, Alert, Button, Box, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
+import { Container, Typography, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Alert, Button, Box, Dialog, DialogTitle, DialogContent, IconButton } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 import { Message as MessageIcon, Close as CloseIcon } from '@mui/icons-material';
 import { useUsers } from '../hooks/users';
 import { useProjects } from '../hooks/projects';
 import MessageForm from '../components/messaging/MessageForm';
 import Avatar from '../components/common/Avatar';
+import { MembersTableSkeleton } from '../components/common/Skeletons';
 
 const Members = () => {
   const [showMessageForm, setShowMessageForm] = useState(false);
@@ -67,12 +68,24 @@ const Members = () => {
   if (loading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
-          <CircularProgress />
-          <Typography variant="h6" sx={{ ml: 2 }}>
-            Loading members...
-          </Typography>
-        </Box>
+        <Typography variant="h4" gutterBottom>Members</Typography>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Username</TableCell>
+                <TableCell>Skills</TableCell>
+                <TableCell>Experience</TableCell>
+                <TableCell>Availability</TableCell>
+                <TableCell>Project Name(s)</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              <MembersTableSkeleton count={5} />
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Container>
     );
   }
