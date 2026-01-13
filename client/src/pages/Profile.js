@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Container,
   Typography,
@@ -16,22 +16,26 @@ import {
   Switch,
   FormControlLabel,
   Divider,
-  Avatar,
   CircularProgress,
+  IconButton,
 } from '@mui/material';
-import { Add, Delete, Save, Edit } from '@mui/icons-material';
+import { Add, Delete, Save, PhotoCamera, Close } from '@mui/icons-material';
 import { useAuth } from '../hooks/auth';
-import { useMyProfile, useUpdateProfile } from '../hooks/users';
+import { useMyProfile, useUpdateProfile, useUploadAvatar, useDeleteAvatar } from '../hooks/users';
+import Avatar from '../components/common/Avatar';
 
 const Profile = () => {
   // Auth and profile data
   const { user, isAuthenticated } = useAuth();
-  const { 
-    data: profile, 
-    isLoading: profileLoading, 
-    error: profileError 
+  const {
+    data: profile,
+    isLoading: profileLoading,
+    error: profileError
   } = useMyProfile();
   const updateProfileMutation = useUpdateProfile();
+  const uploadAvatarMutation = useUploadAvatar();
+  const deleteAvatarMutation = useDeleteAvatar();
+  const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
     firstName: '',
@@ -135,9 +139,56 @@ const Profile = () => {
     }));
   };
 
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleAvatarChange = (event) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setValidationError('Please select an image file');
+        return;
+      }
+
+      // Validate file size (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        setValidationError('Image must be less than 5MB');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('avatar', file);
+
+      uploadAvatarMutation.mutate(formData, {
+        onSuccess: () => {
+          setValidationError('');
+        },
+        onError: (error) => {
+          setValidationError(error?.response?.data?.message || 'Failed to upload avatar');
+        },
+      });
+    }
+
+    // Reset the input so the same file can be selected again
+    event.target.value = '';
+  };
+
+  const handleRemoveAvatar = () => {
+    deleteAvatarMutation.mutate(undefined, {
+      onSuccess: () => {
+        setValidationError('');
+      },
+      onError: (error) => {
+        setValidationError(error?.response?.data?.message || 'Failed to remove avatar');
+      },
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!formData.firstName.trim()) {
       setValidationError('First name is required');
       return;
@@ -225,6 +276,68 @@ const Profile = () => {
           
           <Box component="form" onSubmit={handleSubmit}>
             <Grid container spacing={3}>
+              {/* Profile Picture */}
+              <Grid item xs={12}>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
+                  <Box sx={{ position: 'relative', mb: 2 }}>
+                    <Avatar
+                      user={profile}
+                      size="xxl"
+                      onClick={handleAvatarClick}
+                      sx={{ cursor: 'pointer' }}
+                    />
+                    <IconButton
+                      sx={{
+                        position: 'absolute',
+                        bottom: 0,
+                        right: 0,
+                        bgcolor: 'primary.main',
+                        color: 'white',
+                        '&:hover': { bgcolor: 'primary.dark' },
+                      }}
+                      size="small"
+                      onClick={handleAvatarClick}
+                      disabled={uploadAvatarMutation.isPending}
+                    >
+                      <PhotoCamera fontSize="small" />
+                    </IconButton>
+                  </Box>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleAvatarChange}
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                  />
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleAvatarClick}
+                      disabled={uploadAvatarMutation.isPending}
+                      startIcon={uploadAvatarMutation.isPending ? <CircularProgress size={16} /> : <PhotoCamera />}
+                    >
+                      {uploadAvatarMutation.isPending ? 'Uploading...' : 'Change Photo'}
+                    </Button>
+                    {profile?.profileImage && (
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        color="error"
+                        onClick={handleRemoveAvatar}
+                        disabled={deleteAvatarMutation.isPending}
+                        startIcon={deleteAvatarMutation.isPending ? <CircularProgress size={16} /> : <Close />}
+                      >
+                        {deleteAvatarMutation.isPending ? 'Removing...' : 'Remove'}
+                      </Button>
+                    )}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1 }}>
+                    Click on the avatar or button to upload a new photo
+                  </Typography>
+                </Box>
+              </Grid>
+
               {/* Basic Information */}
               <Grid item xs={12}>
                 <Typography variant="h6" gutterBottom>

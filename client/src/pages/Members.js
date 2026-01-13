@@ -5,6 +5,7 @@ import { Message as MessageIcon, Close as CloseIcon } from '@mui/icons-material'
 import { useUsers } from '../hooks/users';
 import { useProjects } from '../hooks/projects';
 import MessageForm from '../components/messaging/MessageForm';
+import Avatar from '../components/common/Avatar';
 
 const Members = () => {
   const [showMessageForm, setShowMessageForm] = useState(false);
@@ -105,7 +106,7 @@ const Members = () => {
         <Table>
           <TableHead>
             <TableRow>
-              <TableCell>Username</TableCell>
+              <TableCell>Member</TableCell>
               <TableCell>Skills</TableCell>
               <TableCell>Experience</TableCell>
               <TableCell>Availability</TableCell>
@@ -118,7 +119,14 @@ const Members = () => {
               const userProjects = getUserProjects(user._id);
               return (
                 <TableRow key={user._id}>
-                  <TableCell>{user.username}</TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                      <Avatar user={user} size="sm" />
+                      <Typography variant="body2" fontWeight={500}>
+                        {user.username}
+                      </Typography>
+                    </Box>
+                  </TableCell>
                   <TableCell>
                     {user.skills && user.skills.length > 0
                       ? user.skills.join(', ')

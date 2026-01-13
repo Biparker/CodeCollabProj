@@ -51,30 +51,68 @@ export const useUploadProfileImage = () => {
 // Toggle follow user hook
 export const useToggleFollow = () => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
     mutationFn: usersService.toggleFollow,
     onSuccess: (data, userId) => {
       console.log('✅ Follow status toggled successfully:', data);
-      
+
       // Invalidate the specific user's data
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.users.detail(userId) 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.users.detail(userId)
       });
-      
+
       // Invalidate followers/following lists
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.users.followers(userId) 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.users.followers(userId)
       });
-      queryClient.invalidateQueries({ 
-        queryKey: queryKeys.users.following(userId) 
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.users.following(userId)
       });
-      
+
       // Invalidate current user's following list
       invalidateQueries.userProfile();
     },
     onError: (error) => {
       console.error('❌ Failed to toggle follow status:', error);
+    },
+  });
+};
+
+// Upload avatar hook
+export const useUploadAvatar = () => {
+  return useMutation({
+    mutationFn: usersService.uploadAvatar,
+    onSuccess: (data) => {
+      console.log('✅ Avatar uploaded successfully:', data);
+
+      // Invalidate profile queries
+      invalidateQueries.userProfile();
+
+      // Also invalidate auth queries since avatar might be used there
+      invalidateQueries.auth();
+    },
+    onError: (error) => {
+      console.error('❌ Failed to upload avatar:', error);
+    },
+  });
+};
+
+// Delete avatar hook
+export const useDeleteAvatar = () => {
+  return useMutation({
+    mutationFn: usersService.deleteAvatar,
+    onSuccess: (data) => {
+      console.log('✅ Avatar deleted successfully:', data);
+
+      // Invalidate profile queries
+      invalidateQueries.userProfile();
+
+      // Also invalidate auth queries
+      invalidateQueries.auth();
+    },
+    onError: (error) => {
+      console.error('❌ Failed to delete avatar:', error);
     },
   });
 };

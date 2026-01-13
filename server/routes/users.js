@@ -1,18 +1,49 @@
 const express = require('express');
 const router = express.Router();
-const { 
-  getAllUsers, 
-  getUserById, 
-  updateProfile, 
+const multer = require('multer');
+const path = require('path');
+const {
+  getAllUsers,
+  getUserById,
+  updateProfile,
   searchUsers,
   sendMessage,
   getMessages,
   markMessageAsRead,
   deleteMessage,
-  getMyProfile
+  getMyProfile,
+  uploadAvatar,
+  deleteAvatar
 } = require('../controllers/userController');
 const { profileUpdateValidator, messageValidator } = require('../middleware/validators');
 const auth = require('../middleware/auth');
+const { FILE_UPLOAD } = require('../config/constants');
+
+// Configure multer for avatar uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
+  }
+});
+
+const avatarUpload = multer({
+  storage: storage,
+  limits: {
+    fileSize: FILE_UPLOAD.MAX_FILE_SIZE
+  },
+  fileFilter: function (req, file, cb) {
+    // Accept any image MIME type
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'), false);
+    }
+  }
+});
 
 // @route   GET /api/users
 // @desc    Get all users (public profiles)
@@ -33,6 +64,16 @@ router.get('/profile/me', auth, getMyProfile);
 // @desc    Update user profile
 // @access  Private
 router.put('/profile', auth, profileUpdateValidator, updateProfile);
+
+// @route   POST /api/users/avatar
+// @desc    Upload user avatar
+// @access  Private
+router.post('/avatar', auth, avatarUpload.single('avatar'), uploadAvatar);
+
+// @route   DELETE /api/users/avatar
+// @desc    Delete user avatar
+// @access  Private
+router.delete('/avatar', auth, deleteAvatar);
 
 // @route   POST /api/users/messages
 // @desc    Send a message to another user
