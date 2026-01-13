@@ -11,12 +11,12 @@ import {
   CardActions,
   Avatar,
   Chip,
-  CircularProgress,
   Alert,
 } from '@mui/material';
 import { Add, Code, People, CalendarToday } from '@mui/icons-material';
 import { useAuth } from '../hooks/auth';
 import { useProjects } from '../hooks/projects';
+import { DashboardSkeleton } from '../components/common/Skeletons';
 
 const Dashboard = () => {
   // Auth and project data
@@ -42,8 +42,8 @@ const Dashboard = () => {
   if (loading) {
     return (
       <Container maxWidth="lg">
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
+        <Box sx={{ mt: 4, mb: 4 }}>
+          <DashboardSkeleton />
         </Box>
       </Container>
     );
