@@ -27,8 +27,10 @@ const Header = () => {
   const { isAuthenticated, user } = useAuth();
   const logoutMutation = useLogout();
 
-  // Get user profile for avatar
-  const { data: profile } = useMyProfile();
+  // Get user profile for avatar (only fetch if authenticated)
+  const { data: profile } = useMyProfile({
+    enabled: isAuthenticated,
+  });
 
   // Get unread message count
   const { data: inboxMessages = [] } = useMessages('inbox', {
