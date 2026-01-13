@@ -1,19 +1,23 @@
 const { validationResult } = require('express-validator');
 const Project = require('../models/Project');
 const User = require('../models/User');
+const logger = require('../utils/logger');
 
 // Create new project
 const createProject = async (req, res) => {
   try {
-    console.log('Project creation request received:', {
-      body: req.body,
-      file: req.file,
-      user: req.user
+    logger.info('Project creation request received', {
+      userId: req.user?._id,
+      hasFile: !!req.file,
+      bodyKeys: Object.keys(req.body)
     });
-    
+
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('Validation errors:', errors.array());
+      logger.warn('Project creation validation failed', {
+        userId: req.user?._id,
+        errors: errors.array()
+      });
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -51,7 +55,10 @@ const createProject = async (req, res) => {
       try {
         parsedIncentives = typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
       } catch (e) {
-        console.log('Error parsing incentives, using defaults:', e.message);
+        logger.debug('Error parsing incentives, using defaults', {
+          error: e.message,
+          userId: req.user?._id
+        });
       }
     }
 
@@ -72,9 +79,19 @@ const createProject = async (req, res) => {
     await project.save();
     await project.populate('owner', 'username email');
 
+    logger.info('Project created successfully', {
+      projectId: project._id,
+      userId: req.user?._id,
+      title: project.title
+    });
+
     res.status(201).json(project);
   } catch (error) {
-    console.error('Error creating project:', error);
+    logger.error('Failed to create project', {
+      userId: req.user?._id,
+      errorMessage: error.message,
+      errorStack: error.stack
+    });
     res.status(500).json({ message: 'Error creating project', error: error.message });
   }
 };
@@ -112,16 +129,19 @@ const getProjectById = async (req, res) => {
 // Update project
 const updateProject = async (req, res) => {
   try {
-    console.log('🔄 Update project request received:', {
+    logger.info('Project update request received', {
       projectId: req.params.id,
-      body: req.body,
-      user: req.user._id,
-      headers: req.headers
+      userId: req.user._id,
+      updateFields: Object.keys(req.body)
     });
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      console.log('❌ Validation errors:', errors.array());
+      logger.warn('Project update validation failed', {
+        projectId: req.params.id,
+        userId: req.user._id,
+        errors: errors.array()
+      });
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -129,21 +149,21 @@ const updateProject = async (req, res) => {
     const projectId = req.params.id;
     const userId = req.user._id;
 
-    console.log('📋 Extracted data:', {
-      title, description, status, requiredSkills, tags, resources, technologies, githubUrl, liveUrl
-    });
-
     const project = await Project.findById(projectId);
     if (!project) {
-      console.log('❌ Project not found:', projectId);
+      logger.warn('Project not found for update', {
+        projectId,
+        userId
+      });
       return res.status(404).json({ message: 'Project not found' });
     }
 
     // Check if user is the owner
     if (project.owner.toString() !== userId.toString()) {
-      console.log('❌ User not authorized to update project:', {
+      logger.warn('Unauthorized project update attempt', {
+        projectId,
         projectOwner: project.owner.toString(),
-        userId: userId.toString()
+        attemptedBy: userId.toString()
       });
       return res.status(403).json({ message: 'Not authorized to update this project' });
     }
@@ -175,7 +195,11 @@ const updateProject = async (req, res) => {
         const parsedIncentives = typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
         updateFields.incentives = parsedIncentives;
       } catch (e) {
-        console.log('Error parsing incentives for update:', e.message);
+        logger.debug('Error parsing incentives for update, using defaults', {
+          projectId,
+          userId,
+          error: e.message
+        });
         // Use default incentives if parsing fails
         updateFields.incentives = {
           enabled: false,
@@ -189,18 +213,26 @@ const updateProject = async (req, res) => {
       }
     }
 
-    console.log('📝 Updating project with fields:', updateFields);
-
     const updatedProject = await Project.findByIdAndUpdate(
       projectId,
       { $set: updateFields },
       { new: true }
     ).populate('owner', 'name email');
 
-    console.log('✅ Project updated successfully:', updatedProject._id);
+    logger.info('Project updated successfully', {
+      projectId: updatedProject._id,
+      userId,
+      updatedFields: Object.keys(updateFields)
+    });
+
     res.json(updatedProject);
   } catch (error) {
-    console.error('❌ Error updating project:', error);
+    logger.error('Failed to update project', {
+      projectId: req.params.id,
+      userId: req.user?._id,
+      errorMessage: error.message,
+      errorStack: error.stack
+    });
     res.status(500).json({ message: 'Error updating project', error: error.message });
   }
 };
