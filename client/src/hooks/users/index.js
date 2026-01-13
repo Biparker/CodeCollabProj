@@ -8,10 +8,12 @@ export {
   useMyProfile 
 } from './useUsers';
 
-export { 
+export {
   useUpdateProfile,
   useUploadProfileImage,
   useToggleFollow,
+  useUploadAvatar,
+  useDeleteAvatar,
 } from './useProfileMutations';
 
 export { 

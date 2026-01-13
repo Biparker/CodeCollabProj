@@ -258,6 +258,101 @@ const getMyProfile = async (req, res) => {
   }
 };
 
+// Upload user avatar
+const uploadAvatar = async (req, res) => {
+  const fs = require('fs');
+  const path = require('path');
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const userId = req.user._id;
+    const newFilePath = path.join(__dirname, '..', 'uploads', req.file.filename);
+
+    // Get current user to check for existing avatar
+    const currentUser = await User.findById(userId);
+
+    if (!currentUser) {
+      // Clean up uploaded file if user not found
+      if (fs.existsSync(newFilePath)) {
+        fs.unlinkSync(newFilePath);
+      }
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // Delete old avatar file if it exists
+    if (currentUser.profileImage) {
+      const oldFilePath = path.join(__dirname, '..', currentUser.profileImage);
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
+      }
+    }
+
+    // Create the URL path for the uploaded file
+    const avatarUrl = `/uploads/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { profileImage: avatarUrl },
+      { new: true }
+    ).select('-password');
+
+    res.json({
+      message: 'Avatar uploaded successfully',
+      profileImage: user.profileImage,
+      user
+    });
+  } catch (error) {
+    // Clean up uploaded file on error
+    if (req.file) {
+      const newFilePath = path.join(__dirname, '..', 'uploads', req.file.filename);
+      if (fs.existsSync(newFilePath)) {
+        fs.unlinkSync(newFilePath);
+      }
+    }
+    res.status(500).json({ message: 'Error uploading avatar', error: error.message });
+  }
+};
+
+// Delete user avatar
+const deleteAvatar = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Get current user to find existing avatar
+    const currentUser = await User.findById(userId);
+
+    if (currentUser && currentUser.profileImage) {
+      // Try to delete the old file
+      const oldFilePath = path.join(__dirname, '..', currentUser.profileImage);
+      if (fs.existsSync(oldFilePath)) {
+        fs.unlinkSync(oldFilePath);
+      }
+    }
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { profileImage: null },
+      { new: true }
+    ).select('-password');
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      message: 'Avatar deleted successfully',
+      user
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting avatar', error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -267,5 +362,7 @@ module.exports = {
   getMessages,
   markMessageAsRead,
   deleteMessage,
-  getMyProfile
+  getMyProfile,
+  uploadAvatar,
+  deleteAvatar
 }; 

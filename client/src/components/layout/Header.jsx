@@ -9,23 +9,29 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  Avatar,
   Badge,
+  Tooltip,
 } from '@mui/material';
-import { 
-  AccountCircle, 
+import {
   Menu as MenuIcon,
-  Message as MessageIcon 
+  Message as MessageIcon
 } from '@mui/icons-material';
 import { useAuth, useLogout } from '../../hooks/auth';
 import { useMessages } from '../../hooks/users/useMessaging';
+import { useMyProfile } from '../../hooks/users';
+import Avatar from '../common/Avatar';
 import logger from '../../utils/logger';
 
 const Header = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const logoutMutation = useLogout();
-  
+
+  // Get user profile for avatar (only fetch if authenticated)
+  const { data: profile } = useMyProfile({
+    enabled: isAuthenticated,
+  });
+
   // Get unread message count
   const { data: inboxMessages = [] } = useMessages('inbox', {
     enabled: isAuthenticated, // Only fetch if authenticated
@@ -163,25 +169,23 @@ const Header = () => {
                   Admin
                 </Button>
               )}
-              <IconButton
-                size="large"
-                aria-label={`Account menu for ${user?.username || 'user'}`}
-                aria-controls="menu-appbar"
-                aria-haspopup="true"
-                aria-expanded={Boolean(anchorEl)}
-                onClick={handleMenu}
-                color="inherit"
-              >
-                {user?.avatar ? (
+              <Tooltip title={profile?.username || user?.username || 'Account'}>
+                <IconButton
+                  size="large"
+                  aria-label={`Account menu for ${user?.username || 'user'}`}
+                  aria-controls="menu-appbar"
+                  aria-haspopup="true"
+                  aria-expanded={Boolean(anchorEl)}
+                  onClick={handleMenu}
+                  color="inherit"
+                  sx={{ p: 0.5 }}
+                >
                   <Avatar
-                    src={user.avatar}
-                    alt={`${user.username}'s avatar`}
-                    sx={{ width: 32, height: 32 }}
+                    user={profile || user}
+                    size="sm"
                   />
-                ) : (
-                  <AccountCircle aria-hidden="true" />
-                )}
-              </IconButton>
+                </IconButton>
+              </Tooltip>
               <Menu
                 id="menu-appbar"
                 anchorEl={anchorEl}

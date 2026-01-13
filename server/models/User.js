@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const crypto = require('crypto');
+const { SECURITY } = require('../config/constants');
 
 const userSchema = new mongoose.Schema({
   email: {
@@ -187,7 +188,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 userSchema.methods.generateEmailVerificationToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
   this.emailVerificationToken = token;
-  this.emailVerificationExpires = Date.now() + 24 * 60 * 60 * 1000; // 24 hours
+  this.emailVerificationExpires = Date.now() + SECURITY.EMAIL_VERIFICATION_TOKEN_EXPIRY;
   return token;
 };
 
@@ -195,7 +196,7 @@ userSchema.methods.generateEmailVerificationToken = function() {
 userSchema.methods.generatePasswordResetToken = function() {
   const token = crypto.randomBytes(32).toString('hex');
   this.passwordResetToken = token;
-  this.passwordResetExpires = Date.now() + 60 * 60 * 1000; // 1 hour
+  this.passwordResetExpires = Date.now() + SECURITY.PASSWORD_RESET_TOKEN_EXPIRY;
   return token;
 };
 

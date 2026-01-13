@@ -83,12 +83,28 @@ export const usersService = {
   uploadProfileImage: async (imageFile) => {
     const formData = new FormData();
     formData.append('profileImage', imageFile);
-    
+
     const response = await api.post('/users/profile/image', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
     });
+    return response.data;
+  },
+
+  // Upload avatar
+  uploadAvatar: async (formData) => {
+    const response = await api.post('/users/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  },
+
+  // Delete avatar
+  deleteAvatar: async () => {
+    const response = await api.delete('/users/avatar');
     return response.data;
   },
 

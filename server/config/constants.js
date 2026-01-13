@@ -61,6 +61,15 @@ const REQUEST_LIMITS = {
   URL_ENCODED_BODY_SIZE: '10mb',
 };
 
+// File upload configuration
+const FILE_UPLOAD = {
+  MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB in bytes
+  MAX_FILE_SIZE_MB: 5, // 5MB for display
+  // Common image types for reference/documentation - actual validation accepts any image/* MIME type
+  COMMON_IMAGE_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/avif'],
+  COMMON_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic', '.avif'],
+};
+
 module.exports = {
   SESSION_CONFIG,
   RATE_LIMITS,
@@ -68,5 +77,6 @@ module.exports = {
   SECURITY,
   VALIDATION_LIMITS,
   REQUEST_LIMITS,
+  FILE_UPLOAD,
 };
 

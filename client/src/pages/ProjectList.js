@@ -13,12 +13,12 @@ import {
   TextField,
   InputAdornment,
   Chip,
-  CircularProgress,
   Alert,
 } from '@mui/material';
 import { Search, Add, Code, People, CalendarToday } from '@mui/icons-material';
 import { useProjects } from '../hooks/projects';
 import { useAuth } from '../hooks/auth';
+import { ProjectListSkeleton } from '../components/common/Skeletons';
 
 const ProjectList = () => {
   const { user } = useAuth();
@@ -58,8 +58,13 @@ const ProjectList = () => {
   if (isLoading) {
     return (
       <Container maxWidth="lg">
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
-          <CircularProgress />
+        <Box sx={{ mt: 4, mb: 4 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+            <Typography variant="h4" component="h1">
+              Projects
+            </Typography>
+          </Box>
+          <ProjectListSkeleton count={6} />
         </Box>
       </Container>
     );

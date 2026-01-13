@@ -14,6 +14,7 @@ const {
 } = require('../controllers/projectController');
 const { projectValidator } = require('../middleware/validators');
 const auth = require('../middleware/auth');
+const { FILE_UPLOAD } = require('../config/constants');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -29,10 +30,10 @@ const storage = multer.diskStorage({
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+    fileSize: FILE_UPLOAD.MAX_FILE_SIZE
   },
   fileFilter: function (req, file, cb) {
-    // Check file type
+    // Accept any image MIME type (image/jpeg, image/png, image/svg+xml, image/heic, etc.)
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
