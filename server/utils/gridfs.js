@@ -16,7 +16,6 @@ const initGridFS = (connection) => {
     bucketName: 'avatars'
   });
 
-  console.log('GridFS avatar bucket initialized');
   return avatarBucket;
 };
 

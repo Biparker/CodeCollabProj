@@ -83,17 +83,12 @@ export const useToggleFollow = () => {
 export const useUploadAvatar = () => {
   return useMutation({
     mutationFn: usersService.uploadAvatar,
-    onSuccess: (data) => {
-      console.log('✅ Avatar uploaded successfully:', data);
-
+    onSuccess: () => {
       // Invalidate profile queries
       invalidateQueries.userProfile();
 
       // Also invalidate auth queries since avatar might be used there
       invalidateQueries.auth();
-    },
-    onError: (error) => {
-      console.error('❌ Failed to upload avatar:', error);
     },
   });
 };
@@ -102,17 +97,12 @@ export const useUploadAvatar = () => {
 export const useDeleteAvatar = () => {
   return useMutation({
     mutationFn: usersService.deleteAvatar,
-    onSuccess: (data) => {
-      console.log('✅ Avatar deleted successfully:', data);
-
+    onSuccess: () => {
       // Invalidate profile queries
       invalidateQueries.userProfile();
 
       // Also invalidate auth queries
       invalidateQueries.auth();
-    },
-    onError: (error) => {
-      console.error('❌ Failed to delete avatar:', error);
     },
   });
 };
