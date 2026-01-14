@@ -19,9 +19,26 @@ const { profileUpdateValidator, messageValidator } = require('../middleware/vali
 const auth = require('../middleware/auth');
 const { FILE_UPLOAD } = require('../config/constants');
 
-// Configure multer for avatar uploads (memory storage for GridFS)
+// Configure multer for avatar uploads
+// Use global uploadPath from server/index.js (supports Railway volumes)
+const path = require('path');
+const uploadPath = global.uploadPath || path.join(__dirname, '../uploads');
+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    console.log(`📤 Avatar upload destination: ${uploadPath}`);
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = 'avatar-' + uniqueSuffix + path.extname(file.originalname);
+    console.log(`📝 Saving avatar as: ${filename}`);
+    cb(null, filename);
+  }
+});
+
 const avatarUpload = multer({
-  storage: multer.memoryStorage(),
+  storage: storage,
   limits: {
     fileSize: FILE_UPLOAD.MAX_FILE_SIZE
   },

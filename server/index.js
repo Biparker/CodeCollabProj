@@ -34,6 +34,30 @@ try {
 // Create Express app
 const app = express();
 
+// Configure upload path for Railway volumes
+const path = require('path');
+const fs = require('fs');
+
+const uploadPath = process.env.UPLOAD_PATH || path.join(__dirname, 'uploads');
+
+// Ensure upload directory exists
+if (!fs.existsSync(uploadPath)) {
+  fs.mkdirSync(uploadPath, { recursive: true, mode: 0o755 });
+  console.log(`✅ Created upload directory: ${uploadPath}`);
+} else {
+  console.log(`✅ Upload directory exists: ${uploadPath}`);
+  try {
+    const files = fs.readdirSync(uploadPath);
+    console.log(`📁 Current files in uploads: ${files.length}`);
+  } catch (err) {
+    console.error('❌ Error reading upload directory:', err.message);
+  }
+}
+
+// Make uploadPath available globally for controllers
+global.uploadPath = uploadPath;
+logger.info('Upload path configured', { uploadPath, isProduction: process.env.NODE_ENV === 'production' });
+
 // Trust proxy for Railway/production deployments
 // This allows express-rate-limit to correctly identify users behind proxies
 if (process.env.NODE_ENV === 'production') {
@@ -99,13 +123,14 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-  // Allow cross-origin access for avatar images (needed for frontend on different port in dev)
+  // Allow cross-origin access for avatar images
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
   if (process.env.NODE_ENV !== 'production') {
-    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
+  console.log(`📷 Serving image: ${req.path}`);
   next();
-}, trackFileUploads, express.static('uploads'));
+}, trackFileUploads, express.static(uploadPath));
 
 // Rate limiting - general (with admin exemption)
 const generalLimiter = rateLimit({
