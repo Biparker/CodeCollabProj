@@ -407,9 +407,9 @@ const Profile = () => {
                   </Button>
                 </Box>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {formData.skills.map((skill) => (
+                  {formData.skills.map((skill, index) => (
                     <Chip
-                      key={skill}
+                      key={`${skill}-${index}`}
                       label={skill}
                       onDelete={() => handleRemoveSkill(skill)}
                       deleteIcon={<Delete />}

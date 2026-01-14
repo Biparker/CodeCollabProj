@@ -160,7 +160,10 @@ const adminLimiter = rateLimit({
   }
 });
 
-app.use(generalLimiter);
+// Only apply rate limiting in production
+if (process.env.NODE_ENV === 'production') {
+  app.use(generalLimiter);
+}
 
 // Auth-specific rate limiting
 const authLimiter = rateLimit({
@@ -210,12 +213,14 @@ const passwordResetLimiter = rateLimit({
   }
 });
 
-// Apply auth rate limiting to auth routes
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/refresh-token', authLimiter);
-app.use('/api/auth/request-password-reset', passwordResetLimiter);
-app.use('/api/auth/reset-password', passwordResetLimiter);
+// Apply auth rate limiting to auth routes (production only)
+if (process.env.NODE_ENV === 'production') {
+  app.use('/api/auth/login', authLimiter);
+  app.use('/api/auth/register', authLimiter);
+  app.use('/api/auth/refresh-token', authLimiter);
+  app.use('/api/auth/request-password-reset', passwordResetLimiter);
+  app.use('/api/auth/reset-password', passwordResetLimiter);
+}
 
 // MongoDB Connection
 const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollabproj';

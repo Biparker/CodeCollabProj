@@ -275,19 +275,22 @@ const uploadAvatar = async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete old avatar from GridFS if it exists (only if it's a valid ObjectId)
-    if (currentUser.profileImage && /^[0-9a-fA-F]{24}$/.test(currentUser.profileImage)) {
+    // Store old avatar ID to delete after successful upload
+    const oldAvatarId = currentUser.profileImage;
+
+    // Upload new avatar to GridFS FIRST (before deleting old one)
+    const filename = `avatar-${userId}-${Date.now()}${getExtension(req.file.originalname)}`;
+    const fileId = await uploadToGridFS(req.file.buffer, filename, req.file.mimetype);
+
+    // Delete old avatar from GridFS only AFTER new upload succeeds
+    if (oldAvatarId && /^[0-9a-fA-F]{24}$/.test(oldAvatarId)) {
       try {
-        await deleteFromGridFS(currentUser.profileImage);
+        await deleteFromGridFS(oldAvatarId);
       } catch (deleteError) {
         // Log but don't fail if old file deletion fails
         console.warn('Could not delete old avatar:', deleteError.message);
       }
     }
-
-    // Upload new avatar to GridFS
-    const filename = `avatar-${userId}-${Date.now()}${getExtension(req.file.originalname)}`;
-    const fileId = await uploadToGridFS(req.file.buffer, filename, req.file.mimetype);
 
     // Store the GridFS file ID in the user document
     const user = await User.findByIdAndUpdate(
@@ -386,6 +389,8 @@ const getAvatar = async (req, res) => {
     downloadStream.on('error', (error) => {
       console.error('GridFS download error:', error);
       if (!res.headersSent) {
+        // Reset Content-Type for JSON error response
+        res.set('Content-Type', 'application/json');
         res.status(500).json({ message: 'Error downloading avatar' });
       }
     });
