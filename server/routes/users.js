@@ -1,7 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
-const path = require('path');
 const {
   getAllUsers,
   getUserById,
@@ -13,25 +12,16 @@ const {
   deleteMessage,
   getMyProfile,
   uploadAvatar,
-  deleteAvatar
+  deleteAvatar,
+  getAvatar
 } = require('../controllers/userController');
 const { profileUpdateValidator, messageValidator } = require('../middleware/validators');
 const auth = require('../middleware/auth');
 const { FILE_UPLOAD } = require('../config/constants');
 
-// Configure multer for avatar uploads
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, 'uploads/');
-  },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, 'avatar-' + uniqueSuffix + path.extname(file.originalname));
-  }
-});
-
+// Configure multer for avatar uploads (memory storage for GridFS)
 const avatarUpload = multer({
-  storage: storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: FILE_UPLOAD.MAX_FILE_SIZE
   },
@@ -74,6 +64,11 @@ router.post('/avatar', auth, avatarUpload.single('avatar'), uploadAvatar);
 // @desc    Delete user avatar
 // @access  Private
 router.delete('/avatar', auth, deleteAvatar);
+
+// @route   GET /api/users/avatar/:fileId
+// @desc    Serve avatar image from GridFS
+// @access  Public
+router.get('/avatar/:fileId', getAvatar);
 
 // @route   POST /api/users/messages
 // @desc    Send a message to another user

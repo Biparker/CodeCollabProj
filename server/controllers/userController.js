@@ -1,6 +1,7 @@
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const Message = require('../models/Message');
+const { uploadToGridFS, downloadFromGridFS, deleteFromGridFS, getFileInfo } = require('../utils/gridfs');
 
 // Get all users (public profiles)
 const getAllUsers = async (req, res) => {
@@ -258,44 +259,43 @@ const getMyProfile = async (req, res) => {
   }
 };
 
-// Upload user avatar
+// Upload user avatar (using GridFS)
 const uploadAvatar = async (req, res) => {
-  const fs = require('fs');
-  const path = require('path');
-
   try {
     if (!req.file) {
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const userId = req.user._id;
-    const newFilePath = path.join(__dirname, '..', 'uploads', req.file.filename);
 
     // Get current user to check for existing avatar
     const currentUser = await User.findById(userId);
 
     if (!currentUser) {
-      // Clean up uploaded file if user not found
-      if (fs.existsSync(newFilePath)) {
-        fs.unlinkSync(newFilePath);
-      }
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Delete old avatar file if it exists
-    if (currentUser.profileImage) {
-      const oldFilePath = path.join(__dirname, '..', currentUser.profileImage);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
+    // Store old avatar ID to delete after successful upload
+    const oldAvatarId = currentUser.profileImage;
+
+    // Upload new avatar to GridFS FIRST (before deleting old one)
+    const filename = `avatar-${userId}-${Date.now()}${getExtension(req.file.originalname)}`;
+    const fileId = await uploadToGridFS(req.file.buffer, filename, req.file.mimetype);
+
+    // Delete old avatar from GridFS only AFTER new upload succeeds
+    if (oldAvatarId && /^[0-9a-fA-F]{24}$/.test(oldAvatarId)) {
+      try {
+        await deleteFromGridFS(oldAvatarId);
+      } catch (deleteError) {
+        // Log but don't fail if old file deletion fails
+        console.warn('Could not delete old avatar:', deleteError.message);
       }
     }
 
-    // Create the URL path for the uploaded file
-    const avatarUrl = `/uploads/${req.file.filename}`;
-
+    // Store the GridFS file ID in the user document
     const user = await User.findByIdAndUpdate(
       userId,
-      { profileImage: avatarUrl },
+      { profileImage: fileId.toString() },
       { new: true }
     ).select('-password');
 
@@ -305,32 +305,31 @@ const uploadAvatar = async (req, res) => {
       user
     });
   } catch (error) {
-    // Clean up uploaded file on error
-    if (req.file) {
-      const newFilePath = path.join(__dirname, '..', 'uploads', req.file.filename);
-      if (fs.existsSync(newFilePath)) {
-        fs.unlinkSync(newFilePath);
-      }
-    }
     res.status(500).json({ message: 'Error uploading avatar', error: error.message });
   }
 };
 
-// Delete user avatar
+// Helper function to get file extension
+const getExtension = (filename) => {
+  const lastDot = filename.lastIndexOf('.');
+  return lastDot !== -1 ? filename.substring(lastDot) : '';
+};
+
+// Delete user avatar (using GridFS)
 const deleteAvatar = async (req, res) => {
   try {
     const userId = req.user._id;
-    const fs = require('fs');
-    const path = require('path');
 
     // Get current user to find existing avatar
     const currentUser = await User.findById(userId);
 
-    if (currentUser && currentUser.profileImage) {
-      // Try to delete the old file
-      const oldFilePath = path.join(__dirname, '..', currentUser.profileImage);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
+    // Delete avatar from GridFS if it exists (only if it's a valid ObjectId)
+    if (currentUser && currentUser.profileImage && /^[0-9a-fA-F]{24}$/.test(currentUser.profileImage)) {
+      try {
+        await deleteFromGridFS(currentUser.profileImage);
+      } catch (deleteError) {
+        // Log but don't fail if deletion fails
+        console.warn('Could not delete avatar from GridFS:', deleteError.message);
       }
     }
 
@@ -353,6 +352,55 @@ const deleteAvatar = async (req, res) => {
   }
 };
 
+// Get avatar from GridFS
+const getAvatar = async (req, res) => {
+  try {
+    const { fileId } = req.params;
+
+    // Validate fileId format (MongoDB ObjectId is 24 hex chars)
+    if (!fileId || !/^[0-9a-fA-F]{24}$/.test(fileId)) {
+      return res.status(400).json({ message: 'Invalid file ID' });
+    }
+
+    // Get file info to set correct content type
+    const fileInfo = await getFileInfo(fileId);
+
+    if (!fileInfo) {
+      return res.status(404).json({ message: 'Avatar not found' });
+    }
+
+    // Set response headers
+    const headers = {
+      'Content-Type': fileInfo.contentType || 'image/jpeg',
+      'Cache-Control': 'public, max-age=31536000', // 1 year cache
+      'X-Content-Type-Options': 'nosniff',
+    };
+
+    // Allow cross-origin access in development (frontend on different port)
+    if (process.env.NODE_ENV !== 'production') {
+      headers['Cross-Origin-Resource-Policy'] = 'cross-origin';
+    }
+
+    res.set(headers);
+
+    // Stream the file from GridFS
+    const downloadStream = downloadFromGridFS(fileId);
+
+    downloadStream.on('error', (error) => {
+      console.error('GridFS download error:', error);
+      if (!res.headersSent) {
+        // Reset Content-Type for JSON error response
+        res.set('Content-Type', 'application/json');
+        res.status(500).json({ message: 'Error downloading avatar' });
+      }
+    });
+
+    downloadStream.pipe(res);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching avatar', error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
@@ -364,5 +412,6 @@ module.exports = {
   deleteMessage,
   getMyProfile,
   uploadAvatar,
-  deleteAvatar
+  deleteAvatar,
+  getAvatar
 }; 
