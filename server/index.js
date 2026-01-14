@@ -9,6 +9,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const envValidator = require('./utils/envValidator');
 const logger = require('./utils/logger');
 const scheduledTasks = require('./utils/scheduledTasks');
+const { initGridFS } = require('./utils/gridfs');
 const { RATE_LIMITS } = require('./config/constants');
 const { 
   trackFailedAuth, 
@@ -229,6 +230,8 @@ if (process.env.NODE_ENV !== 'test') {
   })
     .then(() => {
       logger.info('Connected to MongoDB');
+      // Initialize GridFS for avatar storage
+      initGridFS(mongoose.connection);
     })
     .catch((error) => {
       logger.error('MongoDB connection error:', { error: error.message });

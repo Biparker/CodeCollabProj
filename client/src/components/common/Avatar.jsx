@@ -72,8 +72,19 @@ const Avatar = ({
       return user.profileImage;
     }
 
-    // Otherwise, prepend the API base URL
-    const baseUrl = process.env.REACT_APP_API_URL?.replace('/api', '') || 'http://localhost:5001';
+    // Get the API base URL
+    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+
+    // Check if profileImage is a GridFS ObjectId (24 hex characters)
+    // or an old-style file path (starts with /uploads/)
+    if (/^[0-9a-fA-F]{24}$/.test(user.profileImage)) {
+      // GridFS: use the avatar endpoint
+      // The fileId itself changes on upload, so no cache-busting needed
+      return `${apiUrl}/users/avatar/${user.profileImage}`;
+    }
+
+    // Legacy: old file path format (e.g., /uploads/avatar-xxx.png)
+    const baseUrl = apiUrl.replace('/api', '');
     return `${baseUrl}${user.profileImage}`;
   };
 
