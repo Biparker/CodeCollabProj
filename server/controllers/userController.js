@@ -1,7 +1,8 @@
 const { validationResult } = require('express-validator');
 const User = require('../models/User');
 const Message = require('../models/Message');
-const { uploadToGridFS, downloadFromGridFS, deleteFromGridFS, getFileInfo } = require('../utils/gridfs');
+// GridFS removed - now using filesystem storage
+// const { uploadToGridFS, downloadFromGridFS, deleteFromGridFS, getFileInfo } = require('../utils/gridfs');
 
 // Get all users (public profiles)
 const getAllUsers = async (req, res) => {
@@ -382,52 +383,14 @@ const deleteAvatar = async (req, res) => {
 };
 
 // Get avatar from GridFS
+// getAvatar - NO LONGER NEEDED
+// Avatars are now served directly via express.static from /uploads
+// This endpoint kept for backwards compatibility but returns 410 Gone
 const getAvatar = async (req, res) => {
-  try {
-    const { fileId } = req.params;
-
-    // Validate fileId format (MongoDB ObjectId is 24 hex chars)
-    if (!fileId || !/^[0-9a-fA-F]{24}$/.test(fileId)) {
-      return res.status(400).json({ message: 'Invalid file ID' });
-    }
-
-    // Get file info to set correct content type
-    const fileInfo = await getFileInfo(fileId);
-
-    if (!fileInfo) {
-      return res.status(404).json({ message: 'Avatar not found' });
-    }
-
-    // Set response headers
-    const headers = {
-      'Content-Type': fileInfo.contentType || 'image/jpeg',
-      'Cache-Control': 'public, max-age=31536000', // 1 year cache
-      'X-Content-Type-Options': 'nosniff',
-    };
-
-    // Allow cross-origin access in development (frontend on different port)
-    if (process.env.NODE_ENV !== 'production') {
-      headers['Cross-Origin-Resource-Policy'] = 'cross-origin';
-    }
-
-    res.set(headers);
-
-    // Stream the file from GridFS
-    const downloadStream = downloadFromGridFS(fileId);
-
-    downloadStream.on('error', (error) => {
-      console.error('GridFS download error:', error);
-      if (!res.headersSent) {
-        // Reset Content-Type for JSON error response
-        res.set('Content-Type', 'application/json');
-        res.status(500).json({ message: 'Error downloading avatar' });
-      }
-    });
-
-    downloadStream.pipe(res);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching avatar', error: error.message });
-  }
+  res.status(410).json({ 
+    message: 'This endpoint is deprecated. Avatars are now served from /uploads/{filename}',
+    migration: 'Use profileImage field directly (e.g., /uploads/avatar-123456.jpg)'
+  });
 };
 
 module.exports = {
