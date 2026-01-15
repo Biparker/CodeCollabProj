@@ -85,7 +85,7 @@ export const useUploadAvatar = () => {
   
   return useMutation({
     mutationFn: usersService.uploadAvatar,
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       console.log('✅ Avatar upload response:', data);
       
       // If response includes updated user, update BOTH caches immediately
@@ -97,12 +97,17 @@ export const useUploadAvatar = () => {
         queryClient.setQueryData(queryKeys.users.profile(), data.user);
         
         console.log('✅ Updated both auth and profile caches with new avatar:', data.user.profileImage);
+        console.log('🔍 Full user object:', data.user);
       }
       
-      // Invalidate profile queries to ensure fresh data
+      // Force immediate refetch to ensure UI updates
+      await queryClient.refetchQueries({ 
+        queryKey: queryKeys.users.profile(),
+        type: 'active'
+      });
+      
+      // Invalidate to mark stale (in case refetch didn't happen)
       invalidateQueries.userProfile();
-
-      // Also invalidate auth queries since avatar might be used there
       invalidateQueries.auth();
     },
   });
