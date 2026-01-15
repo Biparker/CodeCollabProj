@@ -87,6 +87,8 @@ export const useUploadAvatar = () => {
     mutationFn: usersService.uploadAvatar,
     onSuccess: async (data) => {
       console.log('✅ Avatar upload response:', data);
+      console.log('🔍 data.user exists?', !!data.user);
+      console.log('🔍 data.user.profileImage:', data.user?.profileImage);
       
       // If response includes updated user, update BOTH caches immediately
       if (data.user) {
@@ -98,17 +100,24 @@ export const useUploadAvatar = () => {
         
         console.log('✅ Updated both auth and profile caches with new avatar:', data.user.profileImage);
         console.log('🔍 Full user object:', data.user);
+        console.log('🔍 Cache keys used:', {
+          auth: queryKeys.auth.currentUser(),
+          profile: queryKeys.users.profile()
+        });
+      } else {
+        console.error('❌ No user object in upload response!');
       }
       
-      // Force immediate refetch to ensure UI updates
-      await queryClient.refetchQueries({ 
+      // Invalidate queries to force refetch and re-render
+      await queryClient.invalidateQueries({ 
         queryKey: queryKeys.users.profile(),
-        type: 'active'
+        refetchType: 'active'
       });
       
-      // Invalidate to mark stale (in case refetch didn't happen)
-      invalidateQueries.userProfile();
-      invalidateQueries.auth();
+      await queryClient.invalidateQueries({ 
+        queryKey: queryKeys.auth.currentUser(),
+        refetchType: 'active'
+      });
     },
   });
 };
