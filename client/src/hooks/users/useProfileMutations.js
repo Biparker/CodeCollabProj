@@ -88,13 +88,18 @@ export const useUploadAvatar = () => {
     onSuccess: (data) => {
       console.log('✅ Avatar upload response:', data);
       
-      // If response includes updated user, update auth cache immediately
+      // If response includes updated user, update BOTH caches immediately
       if (data.user) {
+        // Update auth cache
         queryClient.setQueryData(queryKeys.auth.currentUser(), data.user);
-        console.log('✅ Updated auth cache with new avatar:', data.user.profileImage);
+        
+        // CRITICAL: Also update the users.profile cache (used by Profile page!)
+        queryClient.setQueryData(queryKeys.users.profile(), data.user);
+        
+        console.log('✅ Updated both auth and profile caches with new avatar:', data.user.profileImage);
       }
       
-      // Invalidate profile queries
+      // Invalidate profile queries to ensure fresh data
       invalidateQueries.userProfile();
 
       // Also invalidate auth queries since avatar might be used there
@@ -105,9 +110,20 @@ export const useUploadAvatar = () => {
 
 // Delete avatar hook
 export const useDeleteAvatar = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: usersService.deleteAvatar,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('✅ Avatar deleted successfully');
+      
+      // If response includes updated user, update both caches
+      if (data && data.user) {
+        queryClient.setQueryData(queryKeys.auth.currentUser(), data.user);
+        queryClient.setQueryData(queryKeys.users.profile(), data.user);
+        console.log('✅ Updated both caches after avatar deletion');
+      }
+      
       // Invalidate profile queries
       invalidateQueries.userProfile();
 
