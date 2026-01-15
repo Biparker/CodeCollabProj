@@ -123,11 +123,12 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-  // Allow cross-origin access for avatar images
+  
+  // Allow cross-origin access for avatar images (production and development)
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  if (process.env.NODE_ENV !== 'production') {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
+  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
   // Minimal logging only for 404s
   const requestedFile = path.join(uploadPath, req.path);
