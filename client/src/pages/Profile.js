@@ -165,14 +165,10 @@ const Profile = () => {
         onSuccess: (data) => {
           console.log('✅ Avatar uploaded:', data);
           setValidationError('');
-          // Clear localStorage to force fresh auth data on reload
-          const token = localStorage.getItem('token');
-          const refreshToken = localStorage.getItem('refreshToken');
-          localStorage.clear();
-          if (token) localStorage.setItem('token', token);
-          if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-          // Force page refresh
-          window.location.reload();
+          // Small delay then hard refresh to bypass cache
+          setTimeout(() => {
+            window.location.href = window.location.href + '?t=' + Date.now();
+          }, 500);
         },
         onError: (error) => {
           console.error('❌ Avatar upload failed:', error);
