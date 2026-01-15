@@ -128,7 +128,26 @@ app.use('/uploads', (req, res, next) => {
   if (process.env.NODE_ENV !== 'production') {
     res.setHeader('Access-Control-Allow-Origin', '*');
   }
-  console.log(`📷 Serving image: ${req.path}`);
+  
+  // Debug logging
+  const requestedFile = path.join(uploadPath, req.path);
+  const fileExists = fs.existsSync(requestedFile);
+  console.log(`📷 Image request: ${req.path}`);
+  console.log(`📁 Full path: ${requestedFile}`);
+  console.log(`✅ File exists: ${fileExists}`);
+  console.log(`📂 Upload path: ${uploadPath}`);
+  
+  if (!fileExists) {
+    console.log(`❌ File not found at: ${requestedFile}`);
+    // List directory contents for debugging
+    try {
+      const files = fs.readdirSync(uploadPath);
+      console.log(`📁 Files in upload directory: ${files.join(', ')}`);
+    } catch (err) {
+      console.error(`❌ Error reading directory: ${err.message}`);
+    }
+  }
+  
   next();
 }, trackFileUploads, express.static(uploadPath));
 
