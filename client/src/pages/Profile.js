@@ -162,10 +162,14 @@ const Profile = () => {
       formData.append('avatar', file);
 
       uploadAvatarMutation.mutate(formData, {
-        onSuccess: () => {
+        onSuccess: (data) => {
+          console.log('✅ Avatar uploaded:', data);
           setValidationError('');
+          // Force page refresh to show new avatar immediately
+          window.location.reload();
         },
         onError: (error) => {
+          console.error('❌ Avatar upload failed:', error);
           setValidationError(error?.response?.data?.message || 'Failed to upload avatar');
         },
       });
