@@ -81,9 +81,19 @@ export const useToggleFollow = () => {
 
 // Upload avatar hook
 export const useUploadAvatar = () => {
+  const queryClient = useQueryClient();
+  
   return useMutation({
     mutationFn: usersService.uploadAvatar,
-    onSuccess: () => {
+    onSuccess: (data) => {
+      console.log('✅ Avatar upload response:', data);
+      
+      // If response includes updated user, update auth cache immediately
+      if (data.user) {
+        queryClient.setQueryData(queryKeys.auth.currentUser(), data.user);
+        console.log('✅ Updated auth cache with new avatar:', data.user.profileImage);
+      }
+      
       // Invalidate profile queries
       invalidateQueries.userProfile();
 

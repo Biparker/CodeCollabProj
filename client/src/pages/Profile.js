@@ -165,10 +165,8 @@ const Profile = () => {
         onSuccess: (data) => {
           console.log('✅ Avatar uploaded:', data);
           setValidationError('');
-          // Small delay then hard refresh to bypass cache
-          setTimeout(() => {
-            window.location.href = window.location.href + '?t=' + Date.now();
-          }, 500);
+          // Cache will auto-update via the mutation hook
+          // No page reload needed!
         },
         onError: (error) => {
           console.error('❌ Avatar upload failed:', error);
