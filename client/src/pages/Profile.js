@@ -143,7 +143,7 @@ const Profile = () => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = (event) => {
+  const handleAvatarChange = async (event) => {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
@@ -165,7 +165,13 @@ const Profile = () => {
         onSuccess: (data) => {
           console.log('✅ Avatar uploaded:', data);
           setValidationError('');
-          // Force page refresh to show new avatar immediately
+          // Clear localStorage to force fresh auth data on reload
+          const token = localStorage.getItem('token');
+          const refreshToken = localStorage.getItem('refreshToken');
+          localStorage.clear();
+          if (token) localStorage.setItem('token', token);
+          if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+          // Force page refresh
           window.location.reload();
         },
         onError: (error) => {
