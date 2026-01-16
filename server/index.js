@@ -39,6 +39,7 @@ const path = require('path');
 const fs = require('fs');
 
 const uploadPath = process.env.UPLOAD_PATH || path.join(__dirname, 'uploads');
+global.uploadPath = uploadPath; // Make uploadPath globally accessible for multer in routes
 
 // Ensure upload directory exists
 if (!fs.existsSync(uploadPath)) {
