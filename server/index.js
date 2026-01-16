@@ -131,14 +131,15 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  // Minimal logging only for 404s
+  // Debug logging for file requests
   const requestedFile = path.join(uploadPath, req.path);
-  if (!fs.existsSync(requestedFile)) {
-    console.log(`❌ File not found: ${req.path} (Upload path: ${uploadPath})`);
-  }
+  console.log(`📁 Static file request: ${req.path}`);
+  console.log(`   Upload path: ${uploadPath}`);
+  console.log(`   Full path: ${requestedFile}`);
+  console.log(`   File exists: ${fs.existsSync(requestedFile)}`);
   
   next();
-}, trackFileUploads, express.static(uploadPath));
+}, express.static(uploadPath));
 
 // Rate limiting - general (with admin exemption)
 const generalLimiter = rateLimit({
