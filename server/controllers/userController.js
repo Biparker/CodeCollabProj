@@ -305,6 +305,8 @@ const uploadAvatar = async (req, res) => {
     // Store the file path (e.g., /uploads/avatar-123456.jpg)
     const avatarPath = `/uploads/${req.file.filename}`;
     console.log('💾 New avatar path:', avatarPath);
+    console.log('📍 File saved at:', req.file.path);
+    console.log('✔️  File exists?', fs.existsSync(req.file.path));
 
     // Update user with new avatar path
     const user = await User.findByIdAndUpdate(
