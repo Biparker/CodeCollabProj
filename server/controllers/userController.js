@@ -263,11 +263,7 @@ const getMyProfile = async (req, res) => {
 // Upload user avatar (using Railway volume filesystem storage)
 const uploadAvatar = async (req, res) => {
   try {
-    console.log('📤 Avatar upload started');
-    console.log('📁 File:', req.file ? req.file.filename : 'NO FILE');
-    
     if (!req.file) {
-      console.log('❌ No file in request');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
@@ -275,17 +271,12 @@ const uploadAvatar = async (req, res) => {
     const fs = require('fs');
     const path = require('path');
 
-    console.log('👤 User ID:', userId);
-
     // Get current user to check for existing avatar
     const currentUser = await User.findById(userId);
 
     if (!currentUser) {
-      console.log('❌ User not found:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
-
-    console.log('✅ Current user found, old avatar:', currentUser.profileImage);
 
     // Delete old avatar file if it exists (and it's a file path, not GridFS ID)
     const oldAvatarPath = currentUser.profileImage;
@@ -295,7 +286,6 @@ const uploadAvatar = async (req, res) => {
       try {
         if (fs.existsSync(oldFilePath)) {
           fs.unlinkSync(oldFilePath);
-          console.log(`🗑️  Deleted old avatar: ${oldFilePath}`);
         }
       } catch (deleteError) {
         console.warn('Could not delete old avatar:', deleteError.message);
@@ -304,9 +294,6 @@ const uploadAvatar = async (req, res) => {
 
     // Store the file path (e.g., /uploads/avatar-123456.jpg)
     const avatarPath = `/uploads/${req.file.filename}`;
-    console.log('💾 New avatar path:', avatarPath);
-    console.log('📍 File saved at:', req.file.path);
-    console.log('✔️  File exists?', fs.existsSync(req.file.path));
 
     // Update user with new avatar path
     const user = await User.findByIdAndUpdate(
@@ -316,11 +303,8 @@ const uploadAvatar = async (req, res) => {
     ).select('-password');
 
     if (!user) {
-      console.log('❌ Failed to update user');
       return res.status(500).json({ message: 'Failed to update user profile' });
     }
-
-    console.log('✅ User updated, new profileImage:', user.profileImage);
 
     res.json({
       message: 'Avatar uploaded successfully',
@@ -329,7 +313,7 @@ const uploadAvatar = async (req, res) => {
       user
     });
   } catch (error) {
-    console.error('❌ Error uploading avatar:', error);
+    console.error('Error uploading avatar:', error);
     res.status(500).json({ message: 'Error uploading avatar', error: error.message });
   }
 };

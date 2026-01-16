@@ -104,30 +104,4 @@ router.post('/request-password-reset', requestPasswordResetValidation, requestPa
 router.get('/verify-password-reset/:token', verifyPasswordResetToken);
 router.post('/reset-password', resetPasswordValidation, resetPassword);
 
-// Diagnostic endpoint to check uploads directory (temporary - no auth required)
-router.get('/debug-uploads/:filename?', async (req, res) => {
-  try {
-    const fs = require('fs');
-    const path = require('path');
-    const uploadPath = global.uploadPath || process.env.UPLOAD_PATH || path.join(__dirname, '../uploads');
-    
-    if (!fs.existsSync(uploadPath)) {
-      return res.json({ error: 'Uploads directory does not exist', path: uploadPath });
-    }
-    
-    const files = fs.readdirSync(uploadPath);
-    const lookingFor = req.params.filename || 'avatar-1768527686957-172319404.png';
-    
-    res.json({ 
-      uploadPath, 
-      fileCount: files.length,
-      files: files.slice(0, 20), // Show first 20 files
-      lookingFor,
-      found: files.includes(lookingFor)
-    });
-  } catch (error) {
-    res.status(500).json({ error: error.message, stack: error.stack });
-  }
-});
-
 module.exports = router; 

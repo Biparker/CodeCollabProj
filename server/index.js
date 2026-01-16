@@ -131,13 +131,6 @@ app.use('/uploads', (req, res, next) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   
-  // Debug logging for file requests
-  const requestedFile = path.join(uploadPath, req.path);
-  console.log(`📁 Static file request: ${req.path}`);
-  console.log(`   Upload path: ${uploadPath}`);
-  console.log(`   Full path: ${requestedFile}`);
-  console.log(`   File exists: ${fs.existsSync(requestedFile)}`);
-  
   next();
 }, express.static(uploadPath));
 

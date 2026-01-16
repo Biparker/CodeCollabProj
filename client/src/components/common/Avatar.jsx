@@ -65,31 +65,21 @@ const Avatar = ({
 
   // Construct the full image URL
   const getImageUrl = () => {
-    console.log('🔍 Avatar component - user object:', user);
-    console.log('🔍 Avatar component - profileImage:', user?.profileImage);
-    
-    if (!user?.profileImage) {
-      console.log('❌ No profileImage found');
-      return null;
-    }
+    if (!user?.profileImage) return null;
 
     // If it's already a full URL, use it directly
     if (user.profileImage.startsWith('http')) {
-      console.log('✅ Using full URL:', user.profileImage);
       return user.profileImage;
     }
 
     // Get the API base URL
     const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
-    console.log('🔍 API URL:', apiUrl);
 
     // Check if profileImage is a GridFS ObjectId (24 hex characters)
     // or an old-style file path (starts with /uploads/)
     if (/^[0-9a-fA-F]{24}$/.test(user.profileImage)) {
       // GridFS: use the avatar endpoint
-      const url = `${apiUrl}/users/avatar/${user.profileImage}`;
-      console.log('✅ Using GridFS URL:', url);
-      return url;
+      return `${apiUrl}/users/avatar/${user.profileImage}`;
     }
 
     // Legacy: old file path format (e.g., /uploads/avatar-xxx.png)
@@ -98,14 +88,10 @@ const Avatar = ({
     if (apiUrl.endsWith('/api')) {
       baseUrl = apiUrl.substring(0, apiUrl.length - 4);
     }
-    const finalUrl = `${baseUrl}${user.profileImage}`;
-    console.log('🔧 Base URL after cleanup:', baseUrl);
-    console.log('✅ Using legacy file URL:', finalUrl);
-    return finalUrl;
+    return `${baseUrl}${user.profileImage}`;
   };
 
   const imageUrl = getImageUrl();
-  console.log('🖼️ Final image URL:', imageUrl);
 
   return (
     <Box
