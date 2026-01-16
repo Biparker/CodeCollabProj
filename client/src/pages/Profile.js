@@ -32,6 +32,11 @@ const Profile = () => {
     isLoading: profileLoading,
     error: profileError
   } = useMyProfile();
+  
+  // Debug logging
+  console.log('📋 Profile page - profile data:', profile);
+  console.log('📋 Profile page - profileImage:', profile?.profileImage);
+  
   const updateProfileMutation = useUpdateProfile();
   const uploadAvatarMutation = useUploadAvatar();
   const deleteAvatarMutation = useDeleteAvatar();
