@@ -93,8 +93,13 @@ const Avatar = ({
     }
 
     // Legacy: old file path format (e.g., /uploads/avatar-xxx.png)
-    const baseUrl = apiUrl.replace('/api', '');
+    // Extract base URL by removing /api suffix if present
+    let baseUrl = apiUrl;
+    if (apiUrl.endsWith('/api')) {
+      baseUrl = apiUrl.substring(0, apiUrl.length - 4);
+    }
     const finalUrl = `${baseUrl}${user.profileImage}`;
+    console.log('🔧 Base URL after cleanup:', baseUrl);
     console.log('✅ Using legacy file URL:', finalUrl);
     return finalUrl;
   };
