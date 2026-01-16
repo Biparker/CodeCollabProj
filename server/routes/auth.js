@@ -104,8 +104,8 @@ router.post('/request-password-reset', requestPasswordResetValidation, requestPa
 router.get('/verify-password-reset/:token', verifyPasswordResetToken);
 router.post('/reset-password', resetPasswordValidation, resetPassword);
 
-// Diagnostic endpoint to check uploads directory (temporary)
-router.get('/debug-uploads', auth, async (req, res) => {
+// Diagnostic endpoint to check uploads directory (temporary - no auth required)
+router.get('/debug-uploads', async (req, res) => {
   try {
     const fs = require('fs');
     const path = require('path');
