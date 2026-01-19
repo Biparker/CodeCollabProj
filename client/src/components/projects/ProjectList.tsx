@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, type ChangeEvent } from 'react';
 import {
   Container,
   Grid,
@@ -17,55 +17,67 @@ import {
   InputAdornment,
   CircularProgress,
   Alert,
+  type SelectChangeEvent,
 } from '@mui/material';
 import { Search as SearchIcon } from '@mui/icons-material';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import { useProjects, useProjectSearch } from '../../hooks/projects';
+import type { ProjectFilters } from '../../services/projectsService';
+import type { Project, ProjectStatus } from '../../types';
 
-const ProjectList = () => {
+// Extended Project type for API responses
+interface ProjectApiResponse extends Omit<Project, 'id'> {
+  _id: string;
+}
+
+const ProjectList: React.FC = () => {
   const navigate = useNavigate();
-  
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [skillFilter, setSkillFilter] = useState('');
+
+  const [searchQuery, setSearchQuery] = useState<string>('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [skillFilter, setSkillFilter] = useState<string>('');
 
   // Build filters object for API call
-  const filters = useMemo(() => {
-    const filterObj = {};
+  const filters = useMemo((): ProjectFilters => {
+    const filterObj: ProjectFilters = {};
     if (statusFilter !== 'all') filterObj.status = statusFilter;
-    if (skillFilter) filterObj.requiredSkills = skillFilter;
+    if (skillFilter) filterObj.technologies = skillFilter;
     return filterObj;
   }, [statusFilter, skillFilter]);
 
   // TanStack Query hooks
-  const { 
-    data: projects = [], 
-    isLoading, 
+  const {
+    data: projects = [],
+    isLoading,
     error,
-    refetch 
-  } = useProjects(filters);
-  
-  const { 
-    data: searchResults = [], 
-    isLoading: isSearching 
-  } = useProjectSearch(searchQuery, {
-    enabled: searchQuery.length > 2, // Only search if query is 3+ characters
-  });
+    refetch,
+  } = useProjects(filters) as {
+    data: ProjectApiResponse[];
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => void;
+  };
 
-  const handleSearch = (e) => {
+  // useProjectSearch already handles enabled internally based on query length
+  const { data: searchResults = [], isLoading: isSearching } = useProjectSearch(searchQuery) as {
+    data: ProjectApiResponse[];
+    isLoading: boolean;
+  };
+
+  const handleSearch = (e: ChangeEvent<HTMLInputElement>): void => {
     setSearchQuery(e.target.value);
   };
 
-  const handleStatusFilter = (e) => {
+  const handleStatusFilter = (e: SelectChangeEvent<string>): void => {
     setStatusFilter(e.target.value);
   };
 
-  const handleSkillFilter = (e) => {
+  const handleSkillFilter = (e: SelectChangeEvent<string>): void => {
     setSkillFilter(e.target.value);
   };
 
   // Determine which projects to display
-  const displayProjects = searchQuery.length > 2 ? searchResults : projects;
+  const displayProjects: ProjectApiResponse[] = searchQuery.length > 2 ? searchResults : projects;
 
   if (isLoading) {
     return (
@@ -78,11 +90,14 @@ const ProjectList = () => {
   if (error) {
     return (
       <Container sx={{ mt: 4 }}>
-        <Alert severity="error" action={
-          <Button color="inherit" size="small" onClick={() => refetch()}>
-            Retry
-          </Button>
-        }>
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" onClick={() => refetch()}>
+              Retry
+            </Button>
+          }
+        >
           Failed to load projects: {error.message}
         </Alert>
       </Container>
@@ -107,17 +122,17 @@ const ProjectList = () => {
                   </InputAdornment>
                 ),
               }}
-              helperText={searchQuery.length > 0 && searchQuery.length <= 2 ? "Type at least 3 characters to search" : ""}
+              helperText={
+                searchQuery.length > 0 && searchQuery.length <= 2
+                  ? 'Type at least 3 characters to search'
+                  : ''
+              }
             />
           </Grid>
           <Grid item xs={12} md={3}>
             <FormControl fullWidth>
               <InputLabel>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Status"
-                onChange={handleStatusFilter}
-              >
+              <Select value={statusFilter} label="Status" onChange={handleStatusFilter}>
                 <MenuItem value="all">All</MenuItem>
                 <MenuItem value="ideation">Ideation</MenuItem>
                 <MenuItem value="in_progress">In Progress</MenuItem>
@@ -128,11 +143,7 @@ const ProjectList = () => {
           <Grid item xs={12} md={3}>
             <FormControl fullWidth>
               <InputLabel>Required Skill</InputLabel>
-              <Select
-                value={skillFilter}
-                label="Required Skill"
-                onChange={handleSkillFilter}
-              >
+              <Select value={skillFilter} label="Required Skill" onChange={handleSkillFilter}>
                 <MenuItem value="">All Skills</MenuItem>
                 <MenuItem value="javascript">JavaScript</MenuItem>
                 <MenuItem value="python">Python</MenuItem>
@@ -169,15 +180,16 @@ const ProjectList = () => {
                     {project.description}
                   </Typography>
                   <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                    {project.requiredSkills && project.requiredSkills.map((skill) => (
-                      <Chip
-                        key={skill}
-                        label={skill}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    ))}
+                    {project.requiredSkills &&
+                      project.requiredSkills.map((skill) => (
+                        <Chip
+                          key={skill}
+                          label={skill}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                      ))}
                   </Box>
                   <Box sx={{ mt: 2 }}>
                     <Chip
@@ -186,8 +198,8 @@ const ProjectList = () => {
                         project.status === 'completed'
                           ? 'success'
                           : project.status === 'in_progress'
-                          ? 'primary'
-                          : 'default'
+                            ? 'primary'
+                            : 'default'
                       }
                     />
                   </Box>
@@ -208,7 +220,9 @@ const ProjectList = () => {
         ) : (
           <Grid item xs={12}>
             <Typography align="center">
-              {searchQuery.length > 2 ? 'No projects found matching your search' : 'No projects found'}
+              {searchQuery.length > 2
+                ? 'No projects found matching your search'
+                : 'No projects found'}
             </Typography>
           </Grid>
         )}
@@ -217,4 +231,4 @@ const ProjectList = () => {
   );
 };
 
-export default ProjectList; 
+export default ProjectList;

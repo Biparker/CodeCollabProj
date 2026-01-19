@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, type ChangeEvent, type FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Container,
@@ -17,30 +17,90 @@ import {
   Grid,
   Alert,
   CircularProgress,
+  type SelectChangeEvent,
 } from '@mui/material';
 import { Add as AddIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { useAuth } from '../../hooks/auth';
 import { useProject, useCreateProject, useUpdateProject } from '../../hooks/projects';
+import type {
+  ProjectStatus,
+  IncentiveType,
+  ProjectResource,
+  ProjectIncentives,
+  Project,
+  User,
+  UserSummary,
+} from '../../types';
 
-const ProjectForm = () => {
+// Extended Project type for API responses
+interface ProjectApiResponse extends Omit<Project, 'id' | 'owner' | 'resources'> {
+  _id: string;
+  owner?: User | UserSummary | { _id: string; username?: string };
+  resources?: (ProjectResource & { _id?: string })[];
+}
+
+// Type for the useProject hook return
+interface UseProjectResult {
+  data: ProjectApiResponse | undefined;
+  isLoading: boolean;
+  error: Error | null;
+}
+
+// Local resource type with optional name/url for form handling
+interface ResourceFormItem {
+  name: string;
+  url: string;
+}
+
+// Form data interface
+interface FormData {
+  title: string;
+  description: string;
+  technologies: string[];
+  requiredSkills: string[];
+  tags: string[];
+  githubUrl: string;
+  liveUrl: string;
+  resources: ResourceFormItem[];
+  status: ProjectStatus;
+  incentives: {
+    enabled: boolean;
+    type: IncentiveType;
+    description: string;
+    amount: number;
+    currency: string;
+    equityPercentage: number;
+    customReward: string;
+  };
+}
+
+// Form errors interface
+interface FormErrors {
+  title?: string;
+  description?: string;
+  requiredSkills?: string;
+  [key: string]: string | undefined;
+}
+
+const ProjectForm: React.FC = () => {
   const navigate = useNavigate();
-  const { projectId } = useParams();
-  
+  const { projectId } = useParams<{ projectId: string }>();
+
   // Auth state
   const { user, isAuthenticated } = useAuth();
-  
-  // Project data for editing
-  const { 
-    data: currentProject, 
-    isLoading: loading, 
-    error: projectError 
-  } = useProject(projectId, { enabled: !!projectId });
-  
+
+  // Project data for editing - useProject handles enabled internally based on projectId
+  const {
+    data: currentProject,
+    isLoading: loading,
+    error: projectError,
+  } = useProject(projectId) as UseProjectResult;
+
   // Mutations
   const createProjectMutation = useCreateProject();
   const updateProjectMutation = useUpdateProject();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<FormData>({
     title: '',
     description: '',
     technologies: [],
@@ -57,24 +117,31 @@ const ProjectForm = () => {
       amount: 0,
       currency: 'USD',
       equityPercentage: 0,
-      customReward: ''
-    }
+      customReward: '',
+    },
   });
 
-  const [formErrors, setFormErrors] = useState({});
+  const [formErrors, setFormErrors] = useState<FormErrors>({});
 
   // Helper function for handling submission errors
-  const handleSubmissionError = (error) => {
+  const handleSubmissionError = (
+    error: Error & {
+      response?: { data?: { message?: string }; status?: number };
+      status?: number;
+      data?: unknown;
+      message?: string;
+    }
+  ): void => {
     console.error('❌ Error saving project:', error);
     console.error('❌ Error details:', {
       message: error.message,
       status: error.status,
-      data: error.data
+      data: error.data,
     });
-    
+
     // Better error handling with more specific messages
     let errorMessage = 'Error saving project. Please try again.';
-    
+
     if (error?.response?.data?.message) {
       errorMessage = `Error saving project: ${error.response.data.message}`;
     } else if (error?.message) {
@@ -87,14 +154,14 @@ const ProjectForm = () => {
       errorMessage = 'Project not found.';
     } else if (error?.response?.status === 422) {
       errorMessage = 'Invalid data. Please check your input.';
-    } else if (error?.response?.status >= 500) {
+    } else if (error?.response?.status && error.response.status >= 500) {
       errorMessage = 'Server error. Please try again later.';
     }
-    
+
     alert(errorMessage);
   };
 
-  const commonSkills = [
+  const commonSkills: string[] = [
     'JavaScript',
     'Python',
     'Java',
@@ -124,24 +191,24 @@ const ProjectForm = () => {
         githubUrl: currentProject.githubUrl || '',
         liveUrl: currentProject.liveUrl || '',
         resources: currentProject.resources?.length
-          ? currentProject.resources
+          ? currentProject.resources.map((r) => ({ name: r.name, url: r.url }))
           : [{ name: '', url: '' }],
         status: currentProject.status || 'ideation',
-        incentives: currentProject.incentives || {
-          enabled: false,
-          type: 'recognition',
-          description: '',
-          amount: 0,
-          currency: 'USD',
-          equityPercentage: 0,
-          customReward: ''
-        }
+        incentives: {
+          enabled: currentProject.incentives?.enabled ?? false,
+          type: currentProject.incentives?.type ?? 'recognition',
+          description: currentProject.incentives?.description ?? '',
+          amount: currentProject.incentives?.amount ?? 0,
+          currency: currentProject.incentives?.currency ?? 'USD',
+          equityPercentage: currentProject.incentives?.equityPercentage ?? 0,
+          customReward: currentProject.incentives?.customReward ?? '',
+        },
       });
     }
   }, [currentProject, projectId]);
 
-  const validateForm = () => {
-    const errors = {};
+  const validateForm = (): boolean => {
+    const errors: FormErrors = {};
     if (!formData.title) {
       errors.title = 'Title is required';
     } else if (formData.title.length < 3) {
@@ -169,15 +236,17 @@ const ProjectForm = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent<string>
+  ): void => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: value,
+      [name as string]: value,
     });
   };
 
-  const handleSkillsChange = (event, newValue) => {
+  const handleSkillsChange = (_event: React.SyntheticEvent, newValue: string[]): void => {
     console.log('🔧 Skills changed:', newValue);
     setFormData({
       ...formData,
@@ -185,14 +254,14 @@ const ProjectForm = () => {
     });
   };
 
-  const handleTagsChange = (event, newValue) => {
+  const handleTagsChange = (_event: React.SyntheticEvent, newValue: string[]): void => {
     setFormData({
       ...formData,
       tags: newValue,
     });
   };
 
-  const handleResourceChange = (index, field, value) => {
+  const handleResourceChange = (index: number, field: 'name' | 'url', value: string): void => {
     const newResources = [...formData.resources];
     newResources[index] = {
       ...newResources[index],
@@ -204,14 +273,14 @@ const ProjectForm = () => {
     });
   };
 
-  const addResource = () => {
+  const addResource = (): void => {
     setFormData({
       ...formData,
       resources: [...formData.resources, { name: '', url: '' }],
     });
   };
 
-  const removeResource = (index) => {
+  const removeResource = (index: number): void => {
     const newResources = formData.resources.filter((_, i) => i !== index);
     setFormData({
       ...formData,
@@ -219,12 +288,12 @@ const ProjectForm = () => {
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     console.log('📝 Form submission started');
     console.log('📋 Form data:', formData);
     console.log('🔍 Project ID:', projectId);
-    
+
     if (validateForm()) {
       console.log('✅ Form validation passed');
       const filteredResources = formData.resources.filter(
@@ -245,7 +314,7 @@ const ProjectForm = () => {
         requiredSkills: typeof projectData.requiredSkills,
         technologies: typeof projectData.technologies,
         tags: typeof projectData.tags,
-        resources: typeof projectData.resources
+        resources: typeof projectData.resources,
       });
 
       if (projectId) {
@@ -259,25 +328,26 @@ const ProjectForm = () => {
               navigate('/projects');
             },
             onError: (error) => {
-              handleSubmissionError(error);
+              handleSubmissionError(
+                error as Error & { response?: { data?: { message?: string }; status?: number } }
+              );
             },
           }
         );
       } else {
         console.log('➕ Creating new project:', projectData);
-        createProjectMutation.mutate(
-          projectData,
-          {
-            onSuccess: (result) => {
-              console.log('✅ Project created successfully:', result);
-              console.log('🚀 Navigating to projects page');
-              navigate('/projects');
-            },
-            onError: (error) => {
-              handleSubmissionError(error);
-            },
-          }
-        );
+        createProjectMutation.mutate(projectData, {
+          onSuccess: (result) => {
+            console.log('✅ Project created successfully:', result);
+            console.log('🚀 Navigating to projects page');
+            navigate('/projects');
+          },
+          onError: (error) => {
+            handleSubmissionError(
+              error as Error & { response?: { data?: { message?: string }; status?: number } }
+            );
+          },
+        });
       }
     } else {
       console.log('❌ Form validation failed:', formErrors);
@@ -306,7 +376,14 @@ const ProjectForm = () => {
   if (projectId && loading) {
     return (
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '300px',
+          }}
+        >
           <CircularProgress />
           <Typography variant="h6" sx={{ ml: 2 }}>
             Loading project data...
@@ -318,13 +395,14 @@ const ProjectForm = () => {
 
   // Error state for editing
   if (projectId && projectError) {
+    const errorObj = projectError as Error & { response?: { data?: { message?: string } } };
     return (
       <Container maxWidth="md" sx={{ mt: 4, mb: 4 }}>
         <Alert severity="error" sx={{ mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             Error Loading Project
           </Typography>
-          {projectError?.response?.data?.message || projectError?.message || 'Failed to load project data'}
+          {errorObj?.response?.data?.message || errorObj?.message || 'Failed to load project data'}
         </Alert>
         <Button variant="contained" onClick={() => navigate('/projects')}>
           Back to Projects
@@ -342,11 +420,16 @@ const ProjectForm = () => {
 
         {(createProjectMutation.error || updateProjectMutation.error) && (
           <Alert severity="error" sx={{ mb: 3 }}>
-            {createProjectMutation.error?.response?.data?.message || 
-             updateProjectMutation.error?.response?.data?.message ||
-             createProjectMutation.error?.message || 
-             updateProjectMutation.error?.message ||
-             'Error saving project. Please try again.'}
+            {(createProjectMutation.error as Error & { response?: { data?: { message?: string } } })
+              ?.response?.data?.message ||
+              (
+                updateProjectMutation.error as Error & {
+                  response?: { data?: { message?: string } };
+                }
+              )?.response?.data?.message ||
+              createProjectMutation.error?.message ||
+              updateProjectMutation.error?.message ||
+              'Error saving project. Please try again.'}
           </Alert>
         )}
 
@@ -408,7 +491,7 @@ const ProjectForm = () => {
                 freeSolo
                 options={commonSkills}
                 value={formData.technologies}
-                onChange={(event, newValue) => {
+                onChange={(_event, newValue) => {
                   setFormData({
                     ...formData,
                     technologies: newValue,
@@ -424,11 +507,7 @@ const ProjectForm = () => {
                 )}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
-                    <Chip
-                      label={option}
-                      {...getTagProps({ index })}
-                      key={option}
-                    />
+                    <Chip label={option} {...getTagProps({ index })} key={option} />
                   ))
                 }
               />
@@ -452,11 +531,7 @@ const ProjectForm = () => {
                 )}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
-                    <Chip
-                      label={option}
-                      {...getTagProps({ index })}
-                      key={option}
-                    />
+                    <Chip label={option} {...getTagProps({ index })} key={option} />
                   ))
                 }
               />
@@ -466,19 +541,13 @@ const ProjectForm = () => {
               <Autocomplete
                 multiple
                 freeSolo
-                options={[]}
+                options={[] as string[]}
                 value={formData.tags}
                 onChange={handleTagsChange}
-                renderInput={(params) => (
-                  <TextField {...params} label="Tags (optional)" />
-                )}
+                renderInput={(params) => <TextField {...params} label="Tags (optional)" />}
                 renderTags={(value, getTagProps) =>
                   value.map((option, index) => (
-                    <Chip
-                      label={option}
-                      {...getTagProps({ index })}
-                      key={option}
-                    />
+                    <Chip label={option} {...getTagProps({ index })} key={option} />
                   ))
                 }
               />
@@ -509,9 +578,7 @@ const ProjectForm = () => {
                   <TextField
                     label="Resource Name"
                     value={resource.name}
-                    onChange={(e) =>
-                      handleResourceChange(index, 'name', e.target.value)
-                    }
+                    onChange={(e) => handleResourceChange(index, 'name', e.target.value)}
                     error={!!formErrors[`resource${index}Name`]}
                     helperText={formErrors[`resource${index}Name`]}
                     sx={{ flex: 1 }}
@@ -519,9 +586,7 @@ const ProjectForm = () => {
                   <TextField
                     label="Resource URL"
                     value={resource.url}
-                    onChange={(e) =>
-                      handleResourceChange(index, 'url', e.target.value)
-                    }
+                    onChange={(e) => handleResourceChange(index, 'url', e.target.value)}
                     error={!!formErrors[`resource${index}Url`]}
                     helperText={formErrors[`resource${index}Url`]}
                     sx={{ flex: 2 }}
@@ -534,11 +599,7 @@ const ProjectForm = () => {
                   </IconButton>
                 </Box>
               ))}
-              <Button
-                startIcon={<AddIcon />}
-                onClick={addResource}
-                sx={{ mt: 1 }}
-              >
+              <Button startIcon={<AddIcon />} onClick={addResource} sx={{ mt: 1 }}>
                 Add Resource
               </Button>
             </Grid>
@@ -549,21 +610,22 @@ const ProjectForm = () => {
                 Project Incentives (Optional)
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Indicate if you will offer incentives to contributors. Specific details can be discussed privately.
+                Indicate if you will offer incentives to contributors. Specific details can be
+                discussed privately.
               </Typography>
-              
+
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <FormControl>
                   <InputLabel>Offer Incentives to Contributors</InputLabel>
                   <Select
                     value={formData.incentives.enabled ? 'yes' : 'no'}
-                    onChange={(e) => {
+                    onChange={(e: SelectChangeEvent<string>) => {
                       setFormData({
                         ...formData,
                         incentives: {
                           ...formData.incentives,
-                          enabled: e.target.value === 'yes'
-                        }
+                          enabled: e.target.value === 'yes',
+                        },
                       });
                     }}
                     label="Offer Incentives to Contributors"
@@ -577,8 +639,9 @@ const ProjectForm = () => {
               {formData.incentives.enabled && (
                 <Box sx={{ p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
                   <Typography variant="body2" color="info.contrastText">
-                    💡 <strong>Note:</strong> This will show potential contributors that incentives are available. 
-                    Specific details about rewards will be discussed privately with accepted collaborators.
+                    💡 <strong>Note:</strong> This will show potential contributors that incentives
+                    are available. Specific details about rewards will be discussed privately with
+                    accepted collaborators.
                   </Typography>
                 </Box>
               )}
@@ -586,10 +649,7 @@ const ProjectForm = () => {
 
             <Grid item xs={12}>
               <Box sx={{ display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => navigate('/projects')}
-                >
+                <Button variant="outlined" onClick={() => navigate('/projects')}>
                   Cancel
                 </Button>
                 <Button
@@ -598,11 +658,11 @@ const ProjectForm = () => {
                   color="primary"
                   disabled={createProjectMutation.isPending || updateProjectMutation.isPending}
                 >
-                  {(createProjectMutation.isPending || updateProjectMutation.isPending)
+                  {createProjectMutation.isPending || updateProjectMutation.isPending
                     ? 'Saving...'
                     : projectId
-                    ? 'Update Project'
-                    : 'Create Project'}
+                      ? 'Update Project'
+                      : 'Create Project'}
                 </Button>
               </Box>
             </Grid>
@@ -613,4 +673,4 @@ const ProjectForm = () => {
   );
 };
 
-export default ProjectForm; 
+export default ProjectForm;

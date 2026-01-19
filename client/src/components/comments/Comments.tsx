@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, type FormEvent, type ChangeEvent } from 'react';
 import {
   Box,
   Typography,
@@ -15,23 +15,47 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import {
-  Edit as EditIcon,
-  Delete as DeleteIcon,
-  Send as SendIcon,
-} from '@mui/icons-material';
+import { Edit as EditIcon, Delete as DeleteIcon, Send as SendIcon } from '@mui/icons-material';
 import { useAuth } from '../../hooks/auth';
-import { useComments, useCreateComment, useUpdateComment, useDeleteComment } from '../../hooks/comments';
+import {
+  useComments,
+  useCreateComment,
+  useUpdateComment,
+  useDeleteComment,
+} from '../../hooks/comments';
+import type { User, UserSummary, Comment } from '../../types';
 
-const Comments = ({ projectId }) => {
+// Props interface
+interface CommentsProps {
+  projectId: string;
+}
+
+// Extended Comment type for API responses with author data
+interface CommentApiResponse extends Omit<Comment, 'id' | 'userId'> {
+  _id: string;
+  author: {
+    _id: string;
+    name: string;
+    avatar?: string;
+  };
+  content: string;
+  createdAt: string;
+}
+
+const Comments: React.FC<CommentsProps> = ({ projectId }) => {
   // Auth and data fetching
   const { user } = useAuth();
-  const { 
-    data: comments = [], 
-    isLoading: loading, 
+  const {
+    data: comments = [],
+    isLoading: loading,
     error,
-    refetch: refetchComments 
-  } = useComments(projectId);
+    refetch: refetchComments,
+  } = useComments(projectId) as {
+    data: CommentApiResponse[];
+    isLoading: boolean;
+    error: Error | null;
+    refetch: () => void;
+  };
 
   // Mutations
   const createCommentMutation = useCreateComment();
@@ -39,73 +63,88 @@ const Comments = ({ projectId }) => {
   const deleteCommentMutation = useDeleteComment();
 
   // Local state
-  const [newComment, setNewComment] = useState('');
-  const [editingComment, setEditingComment] = useState(null);
-  const [editContent, setEditContent] = useState('');
+  const [newComment, setNewComment] = useState<string>('');
+  const [editingComment, setEditingComment] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState<string>('');
 
-  const handleAddComment = (e) => {
+  const handleAddComment = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
     if (newComment.trim()) {
-      createCommentMutation.mutate({ 
-        projectId, 
-        content: newComment 
-      }, {
-        onSuccess: (data) => {
-          console.log('✅ Comment added successfully:', data);
-          setNewComment('');
-        },
-        onError: (error) => {
-          console.error('❌ Failed to add comment:', error);
-        },
-      });
-    }
-  };
-
-  const handleUpdateComment = (commentId) => {
-    if (editContent.trim()) {
-      updateCommentMutation.mutate({
-        commentId,
-        commentData: {
+      createCommentMutation.mutate(
+        {
           projectId,
-          content: editContent,
+          content: newComment,
+        },
+        {
+          onSuccess: (data) => {
+            console.log('✅ Comment added successfully:', data);
+            setNewComment('');
+          },
+          onError: (error) => {
+            console.error('❌ Failed to add comment:', error);
+          },
         }
-      }, {
-        onSuccess: (data) => {
-          console.log('✅ Comment updated successfully:', data);
-          setEditingComment(null);
-          setEditContent('');
-        },
-        onError: (error) => {
-          console.error('❌ Failed to update comment:', error);
-        },
-      });
+      );
     }
   };
 
-  const handleDeleteComment = (commentId) => {
+  const handleUpdateComment = (commentId: string): void => {
+    if (editContent.trim()) {
+      updateCommentMutation.mutate(
+        {
+          commentId,
+          commentData: {
+            projectId,
+            content: editContent,
+          },
+        },
+        {
+          onSuccess: (data) => {
+            console.log('✅ Comment updated successfully:', data);
+            setEditingComment(null);
+            setEditContent('');
+          },
+          onError: (error) => {
+            console.error('❌ Failed to update comment:', error);
+          },
+        }
+      );
+    }
+  };
+
+  const handleDeleteComment = (commentId: string): void => {
     if (window.confirm('Are you sure you want to delete this comment?')) {
-      deleteCommentMutation.mutate({ 
-        projectId, 
-        commentId 
-      }, {
-        onSuccess: (data) => {
-          console.log('✅ Comment deleted successfully:', data);
+      deleteCommentMutation.mutate(
+        {
+          projectId,
+          commentId,
         },
-        onError: (error) => {
-          console.error('❌ Failed to delete comment:', error);
-        },
-      });
+        {
+          onSuccess: (data) => {
+            console.log('✅ Comment deleted successfully:', data);
+          },
+          onError: (error) => {
+            console.error('❌ Failed to delete comment:', error);
+          },
+        }
+      );
     }
   };
 
-  const startEditing = (comment) => {
+  const startEditing = (comment: CommentApiResponse): void => {
     setEditingComment(comment._id);
     setEditContent(comment.content);
   };
 
-  const cancelEditing = () => {
+  const cancelEditing = (): void => {
     setEditingComment(null);
     setEditContent('');
+  };
+
+  // Get the current user's ID, handling both 'id' and '_id' formats
+  const getCurrentUserId = (): string | undefined => {
+    if (!user) return undefined;
+    return user.id || (user as unknown as { _id?: string })._id;
   };
 
   if (loading) {
@@ -122,6 +161,7 @@ const Comments = ({ projectId }) => {
   }
 
   if (error) {
+    const errorObj = error as Error & { response?: { data?: { message?: string } } };
     return (
       <Box sx={{ mt: 4 }}>
         <Typography variant="h6" gutterBottom>
@@ -131,7 +171,7 @@ const Comments = ({ projectId }) => {
           <Typography variant="h6" gutterBottom>
             Error Loading Comments
           </Typography>
-          {error?.response?.data?.message || error?.message || 'Failed to load comments'}
+          {errorObj?.response?.data?.message || errorObj?.message || 'Failed to load comments'}
         </Alert>
         <Button variant="contained" onClick={refetchComments}>
           Try Again
@@ -139,6 +179,8 @@ const Comments = ({ projectId }) => {
       </Box>
     );
   }
+
+  const currentUserId = getCurrentUserId();
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -155,7 +197,7 @@ const Comments = ({ projectId }) => {
             rows={2}
             placeholder="Add a comment..."
             value={newComment}
-            onChange={(e) => setNewComment(e.target.value)}
+            onChange={(e: ChangeEvent<HTMLInputElement>) => setNewComment(e.target.value)}
             sx={{ mb: 1 }}
           />
           <Button
@@ -183,23 +225,17 @@ const Comments = ({ projectId }) => {
             >
               <Box sx={{ display: 'flex', width: '100%', mb: 1 }}>
                 <ListItemAvatar>
-                  <Avatar src={comment.author.avatar}>
-                    {comment.author.name[0]}
-                  </Avatar>
+                  <Avatar src={comment.author.avatar}>{comment.author.name[0]}</Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={
-                    <Typography variant="subtitle1">
-                      {comment.author.name}
-                    </Typography>
-                  }
+                  primary={<Typography variant="subtitle1">{comment.author.name}</Typography>}
                   secondary={
                     <Typography variant="caption" color="text.secondary">
                       {new Date(comment.createdAt).toLocaleString()}
                     </Typography>
                   }
                 />
-                {user && user._id === comment.author._id && (
+                {user && currentUserId === comment.author._id && (
                   <Box>
                     <IconButton
                       size="small"
@@ -226,7 +262,7 @@ const Comments = ({ projectId }) => {
                     multiline
                     rows={2}
                     value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setEditContent(e.target.value)}
                     sx={{ mb: 1 }}
                   />
                   <Box sx={{ display: 'flex', gap: 1 }}>
@@ -238,20 +274,13 @@ const Comments = ({ projectId }) => {
                     >
                       {updateCommentMutation.isPending ? 'Saving...' : 'Save'}
                     </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      onClick={cancelEditing}
-                    >
+                    <Button variant="outlined" size="small" onClick={cancelEditing}>
                       Cancel
                     </Button>
                   </Box>
                 </Box>
               ) : (
-                <Typography
-                  variant="body1"
-                  sx={{ ml: 7, whiteSpace: 'pre-wrap' }}
-                >
+                <Typography variant="body1" sx={{ ml: 7, whiteSpace: 'pre-wrap' }}>
                   {comment.content}
                 </Typography>
               )}
@@ -264,4 +293,4 @@ const Comments = ({ projectId }) => {
   );
 };
 
-export default Comments; 
+export default Comments;
