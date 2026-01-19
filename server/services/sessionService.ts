@@ -1,22 +1,76 @@
-const jwt = require('jsonwebtoken');
-const crypto = require('crypto');
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { Types } from 'mongoose';
+import { SessionDocument, IDeviceInfo, UserDocument, SessionRevokedReason } from '../types/models';
+
 const Session = require('../models/Session');
 const logger = require('../utils/logger');
+
+/**
+ * Device info input for session creation
+ */
+interface DeviceInfoInput {
+  userAgent?: string;
+  ip?: string;
+}
+
+/**
+ * Session creation result
+ */
+interface SessionCreationResult {
+  accessToken: string;
+  refreshToken: string;
+  sessionId: Types.ObjectId;
+  expiresIn: number;
+  refreshExpiresIn: number;
+}
+
+/**
+ * Session refresh result
+ */
+interface SessionRefreshResult {
+  accessToken: string;
+  expiresIn: number;
+}
+
+/**
+ * Session validation result
+ */
+interface SessionValidationResult {
+  user: UserDocument;
+  sessionId: Types.ObjectId;
+  token: string;
+}
+
+/**
+ * JWT payload structure
+ */
+interface JwtPayload {
+  userId: string;
+  type: 'access';
+}
 
 /**
  * Enhanced session management service with security features
  */
 class SessionService {
+  private maxConcurrentSessions: number;
+  private sessionTimeoutMinutes: number;
+  private refreshTokenExpireDays: number;
+
   constructor() {
-    this.maxConcurrentSessions = parseInt(process.env.MAX_CONCURRENT_SESSIONS) || 3;
-    this.sessionTimeoutMinutes = parseInt(process.env.SESSION_TIMEOUT_MINUTES) || 30;
+    this.maxConcurrentSessions = parseInt(process.env.MAX_CONCURRENT_SESSIONS || '3', 10);
+    this.sessionTimeoutMinutes = parseInt(process.env.SESSION_TIMEOUT_MINUTES || '30', 10);
     this.refreshTokenExpireDays = 7; // Refresh tokens last 7 days
   }
 
   /**
    * Create a new session with both access and refresh tokens
    */
-  async createSession(userId, deviceInfo = {}) {
+  async createSession(
+    userId: Types.ObjectId | string,
+    deviceInfo: DeviceInfoInput = {}
+  ): Promise<SessionCreationResult> {
     try {
       // Check and enforce concurrent session limit
       await this.enforceConcurrentSessionLimit(userId);
@@ -37,9 +91,9 @@ class SessionService {
           userAgent: deviceInfo.userAgent,
           ip: deviceInfo.ip,
           platform: this.extractPlatform(deviceInfo.userAgent),
-          browser: this.extractBrowser(deviceInfo.userAgent)
-        },
-        expiresAt
+          browser: this.extractBrowser(deviceInfo.userAgent),
+        } as IDeviceInfo,
+        expiresAt,
       });
 
       await session.save();
@@ -48,7 +102,7 @@ class SessionService {
         userId,
         sessionId: session._id,
         ip: deviceInfo.ip,
-        userAgent: deviceInfo.userAgent
+        userAgent: deviceInfo.userAgent,
       });
 
       return {
@@ -56,10 +110,11 @@ class SessionService {
         refreshToken,
         sessionId: session._id,
         expiresIn: 15 * 60, // 15 minutes in seconds
-        refreshExpiresIn: this.refreshTokenExpireDays * 24 * 60 * 60 // 7 days in seconds
+        refreshExpiresIn: this.refreshTokenExpireDays * 24 * 60 * 60, // 7 days in seconds
       };
     } catch (error) {
-      logger.error('Session creation failed', { userId, error: error.message });
+      const err = error as Error;
+      logger.error('Session creation failed', { userId, error: err.message });
       throw error;
     }
   }
@@ -67,25 +122,28 @@ class SessionService {
   /**
    * Refresh an access token using refresh token
    */
-  async refreshSession(refreshToken, deviceInfo = {}) {
+  async refreshSession(
+    refreshToken: string,
+    deviceInfo: DeviceInfoInput = {}
+  ): Promise<SessionRefreshResult> {
     try {
-      const session = await Session.findOne({ 
-        refreshToken, 
+      const session: SessionDocument | null = await Session.findOne({
+        refreshToken,
         isActive: true,
-        expiresAt: { $gt: new Date() }
+        expiresAt: { $gt: new Date() },
       });
 
       if (!session) {
         logger.securityEvent('INVALID_REFRESH_TOKEN', {
           refreshToken: refreshToken.substring(0, 10) + '...',
-          ip: deviceInfo.ip
+          ip: deviceInfo.ip,
         });
         throw new Error('Invalid or expired refresh token');
       }
 
       // Update last activity
       session.lastActivity = new Date();
-      
+
       // Generate new access token
       const newAccessToken = this.generateAccessToken(session.userId);
       session.token = newAccessToken;
@@ -95,15 +153,16 @@ class SessionService {
       logger.sessionEvent('refreshed', {
         userId: session.userId,
         sessionId: session._id,
-        ip: deviceInfo.ip
+        ip: deviceInfo.ip,
       });
 
       return {
         accessToken: newAccessToken,
-        expiresIn: 15 * 60 // 15 minutes in seconds
+        expiresIn: 15 * 60, // 15 minutes in seconds
       };
     } catch (error) {
-      logger.error('Session refresh failed', { error: error.message });
+      const err = error as Error;
+      logger.error('Session refresh failed', { error: err.message });
       throw error;
     }
   }
@@ -111,21 +170,21 @@ class SessionService {
   /**
    * Validate and get session info from access token
    */
-  async validateSession(accessToken) {
+  async validateSession(accessToken: string): Promise<SessionValidationResult | null> {
     try {
-      const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
-      
-      const session = await Session.findOne({
+      const decoded = jwt.verify(accessToken, process.env.JWT_SECRET as string) as JwtPayload;
+
+      const session: SessionDocument | null = await Session.findOne({
         token: accessToken,
         userId: decoded.userId,
         isActive: true,
-        expiresAt: { $gt: new Date() }
+        expiresAt: { $gt: new Date() },
       }).populate('userId');
 
       if (!session) {
         logger.securityEvent('INVALID_ACCESS_TOKEN', {
           userId: decoded.userId,
-          token: accessToken.substring(0, 10) + '...'
+          token: accessToken.substring(0, 10) + '...',
         });
         return null;
       }
@@ -135,12 +194,13 @@ class SessionService {
       await session.save();
 
       return {
-        user: session.userId,
-        sessionId: session._id,
-        token: accessToken
+        user: session.userId as unknown as UserDocument,
+        sessionId: session._id as Types.ObjectId,
+        token: accessToken,
       };
     } catch (error) {
-      if (error.name === 'TokenExpiredError') {
+      const err = error as Error & { name?: string };
+      if (err.name === 'TokenExpiredError') {
         logger.sessionEvent('token_expired', { token: accessToken.substring(0, 10) + '...' });
       }
       return null;
@@ -150,20 +210,24 @@ class SessionService {
   /**
    * Revoke a specific session
    */
-  async revokeSession(sessionId, reason = 'logout') {
+  async revokeSession(
+    sessionId: Types.ObjectId | string,
+    reason: SessionRevokedReason = 'logout'
+  ): Promise<void> {
     try {
-      const session = await Session.findById(sessionId);
+      const session: SessionDocument | null = await Session.findById(sessionId);
       if (session) {
         await session.revoke(reason);
-        
+
         logger.sessionEvent('revoked', {
           userId: session.userId,
           sessionId,
-          reason
+          reason,
         });
       }
     } catch (error) {
-      logger.error('Session revocation failed', { sessionId, error: error.message });
+      const err = error as Error;
+      logger.error('Session revocation failed', { sessionId, error: err.message });
       throw error;
     }
   }
@@ -171,19 +235,23 @@ class SessionService {
   /**
    * Revoke all sessions for a user (useful for password changes)
    */
-  async revokeAllUserSessions(userId, reason = 'security') {
+  async revokeAllUserSessions(
+    userId: Types.ObjectId | string,
+    reason: string = 'security'
+  ): Promise<number> {
     try {
       const result = await Session.revokeAllUserSessions(userId, reason);
-      
+
       logger.sessionEvent('all_revoked', {
         userId,
         reason,
-        count: result.modifiedCount
+        count: result.modifiedCount,
       });
 
       return result.modifiedCount;
     } catch (error) {
-      logger.error('Bulk session revocation failed', { userId, error: error.message });
+      const err = error as Error;
+      logger.error('Bulk session revocation failed', { userId, error: err.message });
       throw error;
     }
   }
@@ -191,15 +259,18 @@ class SessionService {
   /**
    * Get active sessions for a user
    */
-  async getUserSessions(userId) {
+  async getUserSessions(userId: Types.ObjectId | string): Promise<SessionDocument[]> {
     try {
-      return await Session.find({ 
-        userId, 
+      return await Session.find({
+        userId,
         isActive: true,
-        expiresAt: { $gt: new Date() }
-      }).select('-token -refreshToken').sort({ lastActivity: -1 });
+        expiresAt: { $gt: new Date() },
+      })
+        .select('-token -refreshToken')
+        .sort({ lastActivity: -1 });
     } catch (error) {
-      logger.error('Failed to get user sessions', { userId, error: error.message });
+      const err = error as Error;
+      logger.error('Failed to get user sessions', { userId, error: err.message });
       throw error;
     }
   }
@@ -207,23 +278,23 @@ class SessionService {
   /**
    * Enforce concurrent session limit
    */
-  async enforceConcurrentSessionLimit(userId) {
-    const activeSessionCount = await Session.getActiveSessionCount(userId);
-    
+  async enforceConcurrentSessionLimit(userId: Types.ObjectId | string): Promise<void> {
+    const activeSessionCount: number = await Session.getActiveSessionCount(userId);
+
     if (activeSessionCount >= this.maxConcurrentSessions) {
       // Revoke oldest session
-      const oldestSession = await Session.findOne({
+      const oldestSession: SessionDocument | null = await Session.findOne({
         userId,
-        isActive: true
+        isActive: true,
       }).sort({ lastActivity: 1 });
 
       if (oldestSession) {
         await oldestSession.revoke('concurrent_limit');
-        
+
         logger.sessionEvent('limit_enforced', {
           userId,
           revokedSessionId: oldestSession._id,
-          activeCount: activeSessionCount
+          activeCount: activeSessionCount,
         });
       }
     }
@@ -232,13 +303,14 @@ class SessionService {
   /**
    * Clean up expired sessions (should be run periodically)
    */
-  async cleanupExpiredSessions() {
+  async cleanupExpiredSessions(): Promise<number> {
     try {
-      const deletedCount = await Session.cleanExpiredSessions();
+      const deletedCount: number = await Session.cleanExpiredSessions();
       logger.info('Cleaned up expired sessions', { deletedCount });
       return deletedCount;
     } catch (error) {
-      logger.error('Session cleanup failed', { error: error.message });
+      const err = error as Error;
+      logger.error('Session cleanup failed', { error: err.message });
       throw error;
     }
   }
@@ -246,25 +318,23 @@ class SessionService {
   /**
    * Generate secure access token
    */
-  generateAccessToken(userId) {
-    return jwt.sign(
-      { userId, type: 'access' }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: '15m' }
-    );
+  generateAccessToken(userId: Types.ObjectId | string): string {
+    return jwt.sign({ userId, type: 'access' }, process.env.JWT_SECRET as string, {
+      expiresIn: '15m',
+    });
   }
 
   /**
    * Generate secure refresh token
    */
-  generateRefreshToken() {
+  generateRefreshToken(): string {
     return crypto.randomBytes(64).toString('hex');
   }
 
   /**
    * Extract platform from user agent
    */
-  extractPlatform(userAgent = '') {
+  extractPlatform(userAgent: string = ''): string {
     if (/android/i.test(userAgent)) return 'Android';
     if (/iphone|ipad/i.test(userAgent)) return 'iOS';
     if (/windows/i.test(userAgent)) return 'Windows';
@@ -276,7 +346,7 @@ class SessionService {
   /**
    * Extract browser from user agent
    */
-  extractBrowser(userAgent = '') {
+  extractBrowser(userAgent: string = ''): string {
     if (/chrome/i.test(userAgent)) return 'Chrome';
     if (/firefox/i.test(userAgent)) return 'Firefox';
     if (/safari/i.test(userAgent)) return 'Safari';
