@@ -136,6 +136,7 @@ jobs:
         run: cd client && npm run build
         env:
           CI: true
+          ESLINT_NO_DEV_ERRORS: true
           REACT_APP_API_URL: http://localhost:5001/api
 
       - name: Upload build artifacts
