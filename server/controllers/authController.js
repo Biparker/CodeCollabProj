@@ -55,7 +55,25 @@ const register = async (req, res) => {
         userAgent: req.get('User-Agent'),
         method: 'register'
       });
-      
+
+      // Set httpOnly cookies for secure token storage
+      res.cookie('accessToken', sessionData.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+        path: '/'
+      });
+
+      res.cookie('refreshToken', sessionData.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/api/auth'
+      });
+
+      // Still return tokens in response body for backward compatibility during transition
       return res.status(201).json({
         message: 'Account created successfully. You are automatically logged in.',
         accessToken: sessionData.accessToken,
