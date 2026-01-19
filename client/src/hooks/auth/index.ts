@@ -1,11 +1,19 @@
 // Central export for all auth hooks
 export { useAuth } from './useAuth';
+export type { UseAuthReturn } from './useAuth';
+
 export { useLogin } from './useLogin';
+
 export { useLogout, useLogoutAll } from './useLogout';
+
 export { useChangePassword } from './useChangePassword';
+
 export { useSessions } from './useSessions';
+export type { UseSessionsReturn } from './useSessions';
+
 export { useRegister } from './useRegister';
-export { 
+
+export {
   useRequestPasswordReset,
   useVerifyPasswordResetToken,
   usePasswordResetTokenQuery,
