@@ -146,8 +146,8 @@ const ChangePassword: React.FC = () => {
             <div className="ml-3">
               <h3 className="text-sm font-medium text-yellow-800">Security Notice</h3>
               <div className="mt-2 text-sm text-yellow-700">
-                Changing your password will log you out of all devices. You'll need to log in again
-                on all your devices.
+                Changing your password will log you out of all devices. You&apos;ll need to log in
+                again on all your devices.
               </div>
             </div>
           </div>
