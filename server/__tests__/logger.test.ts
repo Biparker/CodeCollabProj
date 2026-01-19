@@ -1,68 +1,89 @@
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import * as os from 'os';
 
-// Mock fs and console before requiring the logger
-jest.mock('fs');
-jest.mock('console', () => ({
-  log: jest.fn()
+// Define interface for the logger module
+interface SecurityLogger {
+  logLevel: string;
+  error: (message: string, meta?: Record<string, unknown>) => void;
+  warn: (message: string, meta?: Record<string, unknown>) => void;
+  info: (message: string, meta?: Record<string, unknown>) => void;
+  debug: (message: string, meta?: Record<string, unknown>) => void;
+  authAttempt: (success: boolean, details?: Record<string, unknown>) => void;
+  suspiciousActivity: (activity: string, details?: Record<string, unknown>) => void;
+  securityEvent: (event: string, details?: Record<string, unknown>) => void;
+}
+
+// Mock fs module before any imports
+const mockExistsSync = jest.fn();
+const mockMkdirSync = jest.fn();
+const mockAppendFileSync = jest.fn();
+
+jest.mock('fs', () => ({
+  existsSync: mockExistsSync,
+  mkdirSync: mockMkdirSync,
+  appendFileSync: mockAppendFileSync,
 }));
 
 describe('SecurityLogger', () => {
-  let logger;
+  let logger: SecurityLogger;
+  let consoleSpy: jest.SpyInstance;
   const originalEnv = process.env;
-  const mockLogDir = path.join(__dirname, '../logs');
-  
+
   beforeEach(() => {
     // Clear all mocks
     jest.clearAllMocks();
-    
+    mockExistsSync.mockClear();
+    mockMkdirSync.mockClear();
+    mockAppendFileSync.mockClear();
+
+    // Spy on console.log before loading the module
+    consoleSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
     // Reset environment
     process.env = { ...originalEnv };
-    
+
     // Mock fs methods
-    fs.existsSync.mockReturnValue(true);
-    fs.mkdirSync.mockImplementation(() => {});
-    fs.appendFileSync.mockImplementation(() => {});
-    
+    mockExistsSync.mockReturnValue(true);
+    mockMkdirSync.mockImplementation(() => undefined);
+    mockAppendFileSync.mockImplementation(() => {});
+
     // Clear module cache and re-require logger to get fresh instance
-    delete require.cache[require.resolve('../utils/logger')];
-    logger = require('../utils/logger');
+    jest.resetModules();
+    logger = require('../utils/logger') as SecurityLogger;
   });
 
   afterEach(() => {
     process.env = originalEnv;
+    consoleSpy.mockRestore();
   });
 
   describe('Initialization', () => {
     test('should create log directory if it does not exist', () => {
-      fs.existsSync.mockReturnValue(false);
-      
+      mockExistsSync.mockReturnValue(false);
+
       // Re-require to trigger directory creation
-      delete require.cache[require.resolve('../utils/logger')];
+      jest.resetModules();
       require('../utils/logger');
-      
-      expect(fs.mkdirSync).toHaveBeenCalledWith(
-        expect.stringContaining('logs'),
-        { recursive: true }
-      );
+
+      expect(mockMkdirSync).toHaveBeenCalledWith(expect.stringContaining('logs'), {
+        recursive: true,
+      });
     });
 
     test('should set default log level to info', () => {
       delete process.env.LOG_LEVEL;
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      const testLogger = require('../utils/logger');
-      
+
+      jest.resetModules();
+      const testLogger = require('../utils/logger') as SecurityLogger;
+
       expect(testLogger.logLevel).toBe('info');
     });
 
     test('should respect LOG_LEVEL environment variable', () => {
       process.env.LOG_LEVEL = 'debug';
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      const testLogger = require('../utils/logger');
-      
+
+      jest.resetModules();
+      const testLogger = require('../utils/logger') as SecurityLogger;
+
       expect(testLogger.logLevel).toBe('debug');
     });
   });
@@ -70,35 +91,41 @@ describe('SecurityLogger', () => {
   describe('Log Level Filtering', () => {
     test('should filter out debug messages when log level is info', () => {
       process.env.LOG_LEVEL = 'info';
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      const testLogger = require('../utils/logger');
-      
+
+      jest.resetModules();
+      const testLogger = require('../utils/logger') as SecurityLogger;
+      consoleSpy.mockClear();
+      mockAppendFileSync.mockClear();
+
       testLogger.debug('Debug message');
-      expect(console.log).not.toHaveBeenCalled();
-      expect(fs.appendFileSync).not.toHaveBeenCalled();
+      expect(consoleSpy).not.toHaveBeenCalled();
+      expect(mockAppendFileSync).not.toHaveBeenCalled();
     });
 
     test('should allow info messages when log level is info', () => {
       process.env.LOG_LEVEL = 'info';
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      const testLogger = require('../utils/logger');
-      
+
+      jest.resetModules();
+      const testLogger = require('../utils/logger') as SecurityLogger;
+      consoleSpy.mockClear();
+      mockAppendFileSync.mockClear();
+
       testLogger.info('Info message');
-      expect(console.log).toHaveBeenCalled();
-      expect(fs.appendFileSync).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockAppendFileSync).toHaveBeenCalled();
     });
 
     test('should allow error messages at any level', () => {
       process.env.LOG_LEVEL = 'error';
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      const testLogger = require('../utils/logger');
-      
+
+      jest.resetModules();
+      const testLogger = require('../utils/logger') as SecurityLogger;
+      consoleSpy.mockClear();
+      mockAppendFileSync.mockClear();
+
       testLogger.error('Error message');
-      expect(console.log).toHaveBeenCalled();
-      expect(fs.appendFileSync).toHaveBeenCalled();
+      expect(consoleSpy).toHaveBeenCalled();
+      expect(mockAppendFileSync).toHaveBeenCalled();
     });
   });
 
@@ -106,39 +133,39 @@ describe('SecurityLogger', () => {
     test('should format log entries with correct structure', () => {
       const testMessage = 'Test message';
       const testMeta = { userId: 123, action: 'test' };
-      
+
       logger.info(testMessage, testMeta);
-      
-      expect(console.log).toHaveBeenCalled();
-      const logCall = console.log.mock.calls[0][0];
-      const logEntry = JSON.parse(logCall);
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const logCall = consoleSpy.mock.calls[0][0] as string;
+      const logEntry = JSON.parse(logCall) as Record<string, unknown>;
+
       expect(logEntry).toMatchObject({
         level: 'INFO',
         message: testMessage,
         userId: 123,
         action: 'test',
         pid: process.pid,
-        hostname: os.hostname()
+        hostname: os.hostname(),
       });
-      
+
       expect(logEntry.timestamp).toBeDefined();
     });
 
     test('should handle empty meta object', () => {
       const testMessage = 'Test message without meta';
-      
+
       logger.info(testMessage);
-      
-      expect(console.log).toHaveBeenCalled();
-      const logCall = console.log.mock.calls[0][0];
-      const logEntry = JSON.parse(logCall);
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const logCall = consoleSpy.mock.calls[0][0] as string;
+      const logEntry = JSON.parse(logCall) as Record<string, unknown>;
+
       expect(logEntry).toMatchObject({
         level: 'INFO',
         message: testMessage,
         pid: process.pid,
-        hostname: os.hostname()
+        hostname: os.hostname(),
       });
     });
   });
@@ -146,10 +173,10 @@ describe('SecurityLogger', () => {
   describe('File Writing', () => {
     test('should write to daily app log file', () => {
       const today = new Date().toISOString().split('T')[0];
-      
+
       logger.info('Test message');
-      
-      expect(fs.appendFileSync).toHaveBeenCalledWith(
+
+      expect(mockAppendFileSync).toHaveBeenCalledWith(
         expect.stringContaining(`app-${today}.log`),
         expect.stringContaining('Test message')
       );
@@ -157,20 +184,20 @@ describe('SecurityLogger', () => {
 
     test('should write errors to both app log and error log', () => {
       const today = new Date().toISOString().split('T')[0];
-      
+
       logger.error('Error message');
-      
+
       // Should be called twice - once for app log, once for error log
-      expect(fs.appendFileSync).toHaveBeenCalledTimes(2);
-      
+      expect(mockAppendFileSync).toHaveBeenCalledTimes(2);
+
       // Check app log
-      expect(fs.appendFileSync).toHaveBeenCalledWith(
+      expect(mockAppendFileSync).toHaveBeenCalledWith(
         expect.stringContaining(`app-${today}.log`),
         expect.stringContaining('Error message')
       );
-      
+
       // Check error log
-      expect(fs.appendFileSync).toHaveBeenCalledWith(
+      expect(mockAppendFileSync).toHaveBeenCalledWith(
         expect.stringContaining(`error-${today}.log`),
         expect.stringContaining('Error message')
       );
@@ -180,25 +207,27 @@ describe('SecurityLogger', () => {
   describe('Security Logging', () => {
     beforeEach(() => {
       process.env.ENABLE_SECURITY_LOGGING = 'true';
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      logger = require('../utils/logger');
+
+      jest.resetModules();
+      logger = require('../utils/logger') as SecurityLogger;
+      consoleSpy.mockClear();
+      mockAppendFileSync.mockClear();
     });
 
     test('should log authentication attempts', () => {
-      const authDetails = { 
-        userId: 123, 
+      const authDetails = {
+        userId: 123,
         email: 'test@example.com',
-        ip: '192.168.1.1' 
+        ip: '192.168.1.1',
       };
-      
+
       logger.authAttempt(true, authDetails);
-      
-      expect(console.log).toHaveBeenCalled();
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+
       // Should write to both regular log and security log
       const today = new Date().toISOString().split('T')[0];
-      expect(fs.appendFileSync).toHaveBeenCalledWith(
+      expect(mockAppendFileSync).toHaveBeenCalledWith(
         expect.stringContaining(`security-${today}.log`),
         expect.stringContaining('AUTH_SUCCESS')
       );
@@ -208,15 +237,15 @@ describe('SecurityLogger', () => {
       const activity = 'Multiple failed login attempts';
       const details = {
         ip: '192.168.1.100',
-        attempts: 5
+        attempts: 5,
       };
-      
+
       logger.suspiciousActivity(activity, details);
-      
-      expect(console.log).toHaveBeenCalled();
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+
       const today = new Date().toISOString().split('T')[0];
-      expect(fs.appendFileSync).toHaveBeenCalledWith(
+      expect(mockAppendFileSync).toHaveBeenCalledWith(
         expect.stringContaining(`security-${today}.log`),
         expect.stringContaining('SUSPICIOUS_ACTIVITY')
       );
@@ -224,16 +253,18 @@ describe('SecurityLogger', () => {
 
     test('should not log security events when disabled', () => {
       process.env.ENABLE_SECURITY_LOGGING = 'false';
-      
-      delete require.cache[require.resolve('../utils/logger')];
-      const testLogger = require('../utils/logger');
-      
+
+      jest.resetModules();
+      const testLogger = require('../utils/logger') as SecurityLogger;
+      consoleSpy.mockClear();
+      mockAppendFileSync.mockClear();
+
       const today = new Date().toISOString().split('T')[0];
-      
+
       testLogger.securityEvent('TEST_EVENT', { test: true });
-      
+
       // Should not write to security log when disabled
-      expect(fs.appendFileSync).not.toHaveBeenCalledWith(
+      expect(mockAppendFileSync).not.toHaveBeenCalledWith(
         expect.stringContaining(`security-${today}.log`),
         expect.anything()
       );
@@ -244,13 +275,13 @@ describe('SecurityLogger', () => {
     test('should log error messages', () => {
       const errorMessage = 'Test error';
       const errorMeta = { code: 500 };
-      
+
       logger.error(errorMessage, errorMeta);
-      
-      expect(console.log).toHaveBeenCalled();
-      const logCall = console.log.mock.calls[0][0];
-      const logEntry = JSON.parse(logCall);
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const logCall = consoleSpy.mock.calls[0][0] as string;
+      const logEntry = JSON.parse(logCall) as Record<string, unknown>;
+
       expect(logEntry.level).toBe('ERROR');
       expect(logEntry.message).toBe(errorMessage);
       expect(logEntry.code).toBe(500);
@@ -258,26 +289,26 @@ describe('SecurityLogger', () => {
 
     test('should log warning messages', () => {
       const warnMessage = 'Test warning';
-      
+
       logger.warn(warnMessage);
-      
-      expect(console.log).toHaveBeenCalled();
-      const logCall = console.log.mock.calls[0][0];
-      const logEntry = JSON.parse(logCall);
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const logCall = consoleSpy.mock.calls[0][0] as string;
+      const logEntry = JSON.parse(logCall) as Record<string, unknown>;
+
       expect(logEntry.level).toBe('WARN');
       expect(logEntry.message).toBe(warnMessage);
     });
 
     test('should log info messages', () => {
       const infoMessage = 'Test info';
-      
+
       logger.info(infoMessage);
-      
-      expect(console.log).toHaveBeenCalled();
-      const logCall = console.log.mock.calls[0][0];
-      const logEntry = JSON.parse(logCall);
-      
+
+      expect(consoleSpy).toHaveBeenCalled();
+      const logCall = consoleSpy.mock.calls[0][0] as string;
+      const logEntry = JSON.parse(logCall) as Record<string, unknown>;
+
       expect(logEntry.level).toBe('INFO');
       expect(logEntry.message).toBe(infoMessage);
     });
@@ -286,18 +317,18 @@ describe('SecurityLogger', () => {
   describe('Edge Cases', () => {
     test('should handle logging with null meta', () => {
       expect(() => {
-        logger.info('Test message', null);
+        logger.info('Test message', null as unknown as Record<string, unknown>);
       }).not.toThrow();
-      
-      expect(console.log).toHaveBeenCalled();
+
+      expect(consoleSpy).toHaveBeenCalled();
     });
 
     test('should handle logging with undefined meta', () => {
       expect(() => {
         logger.info('Test message', undefined);
       }).not.toThrow();
-      
-      expect(console.log).toHaveBeenCalled();
+
+      expect(consoleSpy).toHaveBeenCalled();
     });
   });
 });

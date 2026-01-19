@@ -2,7 +2,18 @@
  * Password validator tests
  */
 
-const { validatePassword, passwordValidator } = require('../../utils/passwordValidator');
+interface PasswordValidationResult {
+  isValid: boolean;
+  errors: string[];
+}
+
+interface PasswordValidatorModule {
+  validatePassword: (password: string | null | undefined) => PasswordValidationResult;
+  passwordValidator: (value: string) => boolean;
+}
+
+const { validatePassword, passwordValidator } =
+  require('../../utils/passwordValidator') as PasswordValidatorModule;
 
 describe('Password Validator', () => {
   describe('validatePassword', () => {
@@ -42,4 +53,3 @@ describe('Password Validator', () => {
     });
   });
 });
-
