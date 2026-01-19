@@ -180,7 +180,7 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Seed test database
-        run: cd server && npm run seed
+        run: cd server && npx tsx seed.js
         env:
           MONGODB_URI: mongodb://localhost:27017/codecollab_test
           JWT_SECRET: e2e-test-secret-at-least-32-characters
