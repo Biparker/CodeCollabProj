@@ -8,34 +8,50 @@ import {
   Button,
   Divider,
   IconButton,
-  Alert
+  Alert,
 } from '@mui/material';
 import {
   ArrowBack as ArrowBackIcon,
   Reply as ReplyIcon,
   Delete as DeleteIcon,
-  MarkEmailRead as MarkEmailReadIcon
+  MarkEmailRead as MarkEmailReadIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useMessage, useMarkMessageAsRead } from '../../hooks/users/useMessaging';
+import type { UserSummary } from '../../types';
 
-const MessageThread = ({ 
-  messageId, 
-  onBack, 
-  onReply, 
+// Message type to handle API response with _id
+interface MessageWithId {
+  _id: string;
+  id?: string;
+  subject: string;
+  content: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  sender?: UserSummary & { _id?: string };
+  recipient?: UserSummary & { _id?: string };
+}
+
+interface MessageThreadProps {
+  messageId?: string;
+  onBack?: () => void;
+  onReply?: (message: MessageWithId) => void;
+  onDelete?: (messageId: string) => void;
+  message?: MessageWithId;
+}
+
+const MessageThread: React.FC<MessageThreadProps> = ({
+  messageId,
+  onBack,
+  onReply,
   onDelete,
-  message: propMessage 
+  message: propMessage,
 }) => {
   // Fetch message if not provided as prop
-  const { 
-    data: fetchedMessage, 
-    isLoading, 
-    error 
-  } = useMessage(messageId, {
-    enabled: !propMessage && !!messageId
-  });
+  const { data: fetchedMessage, isLoading, error } = useMessage(messageId || '');
 
-  const message = propMessage || fetchedMessage;
+  const message = propMessage || (fetchedMessage as MessageWithId | undefined);
 
   // Mark as read mutation
   const markAsReadMutation = useMarkMessageAsRead();
@@ -45,7 +61,8 @@ const MessageThread = ({
     if (message && !message.isRead) {
       markAsReadMutation.mutate(message._id);
     }
-  }, [message, markAsReadMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [message?._id, message?.isRead]);
 
   if (isLoading) {
     return (
@@ -58,7 +75,7 @@ const MessageThread = ({
   if (error) {
     return (
       <Alert severity="error" sx={{ m: 2 }}>
-        Failed to load message: {error.message}
+        Failed to load message: {(error as Error).message}
       </Alert>
     );
   }
@@ -71,6 +88,8 @@ const MessageThread = ({
     );
   }
 
+  const sender = message.sender as UserSummary | undefined;
+
   return (
     <Box>
       {/* Header */}
@@ -82,26 +101,15 @@ const MessageThread = ({
                 <ArrowBackIcon />
               </IconButton>
             )}
-            <Typography variant="h6">
-              Message Details
-            </Typography>
+            <Typography variant="h6">Message Details</Typography>
           </Box>
-          
+
           <Box display="flex" alignItems="center" gap={1}>
             {!message.isRead && (
-              <Chip 
-                label="Unread" 
-                size="small" 
-                color="primary"
-                icon={<MarkEmailReadIcon />}
-              />
+              <Chip label="Unread" size="small" color="primary" icon={<MarkEmailReadIcon />} />
             )}
             {onReply && (
-              <Button
-                size="small"
-                startIcon={<ReplyIcon />}
-                onClick={() => onReply(message)}
-              >
+              <Button size="small" startIcon={<ReplyIcon />} onClick={() => onReply(message)}>
                 Reply
               </Button>
             )}
@@ -120,17 +128,17 @@ const MessageThread = ({
         {/* Message metadata */}
         <Box display="flex" alignItems="center" gap={2} mb={2}>
           <Avatar sx={{ width: 40, height: 40 }}>
-            {(message.sender?.firstName?.[0] || message.sender?.username?.[0] || 'U').toUpperCase()}
+            {(sender?.firstName?.[0] || sender?.username?.[0] || 'U').toUpperCase()}
           </Avatar>
           <Box flexGrow={1}>
             <Typography variant="subtitle2">
-              From: {message.sender?.firstName && message.sender?.lastName
-                ? `${message.sender.firstName} ${message.sender.lastName}`
-                : message.sender?.username || 'Unknown User'
-              }
+              From:{' '}
+              {sender?.firstName && sender?.lastName
+                ? `${sender.firstName} ${sender.lastName}`
+                : sender?.username || 'Unknown User'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {message.sender?.email}
+              {sender?.email}
             </Typography>
           </Box>
           <Box textAlign="right">
@@ -153,12 +161,12 @@ const MessageThread = ({
 
       {/* Message content */}
       <Paper sx={{ p: 3 }}>
-        <Typography 
-          variant="body1" 
-          sx={{ 
+        <Typography
+          variant="body1"
+          sx={{
             whiteSpace: 'pre-wrap',
             lineHeight: 1.6,
-            minHeight: '200px'
+            minHeight: '200px',
           }}
         >
           {message.content}
@@ -168,10 +176,9 @@ const MessageThread = ({
       {/* Footer info */}
       <Box sx={{ mt: 2, p: 2, backgroundColor: 'grey.50', borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          {message.isRead 
+          {message.isRead
             ? `Read ${message.readAt ? format(new Date(message.readAt), 'PPp') : 'recently'}`
-            : 'Unread'
-          }
+            : 'Unread'}
         </Typography>
       </Box>
     </Box>

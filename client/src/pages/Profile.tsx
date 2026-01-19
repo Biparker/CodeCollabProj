@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, ChangeEvent, FormEvent, KeyboardEvent } from 'react';
 import {
   Container,
   Typography,
@@ -18,26 +18,43 @@ import {
   Divider,
   CircularProgress,
   IconButton,
+  SelectChangeEvent,
 } from '@mui/material';
 import { Add, Delete, Save, PhotoCamera, Close } from '@mui/icons-material';
 import { useAuth } from '../hooks/auth';
 import { useMyProfile, useUpdateProfile, useUploadAvatar, useDeleteAvatar } from '../hooks/users';
 import Avatar from '../components/common/Avatar';
+import type { User, PortfolioLink, SocialLinks, ExperienceLevel, Availability } from '../types';
 
-const Profile = () => {
+interface ProfileFormData {
+  firstName: string;
+  lastName: string;
+  bio: string;
+  skills: string[];
+  experience: ExperienceLevel;
+  location: string;
+  timezone: string;
+  availability: Availability;
+  portfolioLinks: PortfolioLink[];
+  socialLinks: SocialLinks;
+  isProfilePublic: boolean;
+}
+
+interface UserWithId extends Omit<User, 'id'> {
+  _id?: string;
+  profileImage?: string;
+}
+
+const Profile: React.FC = () => {
   // Auth and profile data
   const { user, isAuthenticated } = useAuth();
-  const {
-    data: profile,
-    isLoading: profileLoading,
-    error: profileError
-  } = useMyProfile();
+  const { data: profile, isLoading: profileLoading, error: profileError } = useMyProfile();
   const updateProfileMutation = useUpdateProfile();
   const uploadAvatarMutation = useUploadAvatar();
   const deleteAvatarMutation = useDeleteAvatar();
-  const fileInputRef = useRef(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ProfileFormData>({
     firstName: '',
     lastName: '',
     bio: '',
@@ -51,99 +68,102 @@ const Profile = () => {
       github: '',
       linkedin: '',
       twitter: '',
-      website: ''
+      website: '',
     },
-    isProfilePublic: true
+    isProfilePublic: true,
   });
 
   const [newSkill, setNewSkill] = useState('');
-  const [newPortfolioLink, setNewPortfolioLink] = useState({ name: '', url: '' });
+  const [newPortfolioLink, setNewPortfolioLink] = useState<PortfolioLink>({ name: '', url: '' });
   const [validationError, setValidationError] = useState('');
 
-  // TanStack Query will automatically fetch profile data
+  const typedProfile = profile as UserWithId | undefined;
 
   useEffect(() => {
-    if (profile) {
+    if (typedProfile) {
       setFormData({
-        firstName: profile.firstName || '',
-        lastName: profile.lastName || '',
-        bio: profile.bio || '',
-        skills: profile.skills || [],
-        experience: profile.experience || 'beginner',
-        location: profile.location || '',
-        timezone: profile.timezone || '',
-        availability: profile.availability || 'flexible',
-        portfolioLinks: profile.portfolioLinks || [],
+        firstName: typedProfile.firstName || '',
+        lastName: typedProfile.lastName || '',
+        bio: typedProfile.bio || '',
+        skills: typedProfile.skills || [],
+        experience: typedProfile.experience || 'beginner',
+        location: typedProfile.location || '',
+        timezone: typedProfile.timezone || '',
+        availability: typedProfile.availability || 'flexible',
+        portfolioLinks: typedProfile.portfolioLinks || [],
         socialLinks: {
-          github: profile.socialLinks?.github || '',
-          linkedin: profile.socialLinks?.linkedin || '',
-          twitter: profile.socialLinks?.twitter || '',
-          website: profile.socialLinks?.website || ''
+          github: typedProfile.socialLinks?.github || '',
+          linkedin: typedProfile.socialLinks?.linkedin || '',
+          twitter: typedProfile.socialLinks?.twitter || '',
+          website: typedProfile.socialLinks?.website || '',
         },
-        isProfilePublic: profile.isProfilePublic !== undefined ? profile.isProfilePublic : true
+        isProfilePublic:
+          typedProfile.isProfilePublic !== undefined ? typedProfile.isProfilePublic : true,
       });
     }
-  }, [profile]);
+  }, [typedProfile]);
 
-  const handleChange = (e) => {
+  const handleChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement> | SelectChangeEvent
+  ): void => {
     const { name, value } = e.target;
     if (name.includes('.')) {
       const [parent, child] = name.split('.');
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
         [parent]: {
-          ...prev[parent],
-          [child]: value
-        }
+          ...(prev[parent as keyof ProfileFormData] as object),
+          [child]: value,
+        },
       }));
     } else {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        [name]: value
+        [name]: value,
       }));
     }
     setValidationError('');
   };
 
-  const handleAddSkill = () => {
+  const handleAddSkill = (): void => {
     if (newSkill.trim() && !formData.skills.includes(newSkill.trim())) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        skills: [...prev.skills, newSkill.trim()]
+        skills: [...prev.skills, newSkill.trim()],
       }));
       setNewSkill('');
     }
   };
 
-  const handleRemoveSkill = (skillToRemove) => {
-    setFormData(prev => ({
+  const handleRemoveSkill = (skillToRemove: string): void => {
+    setFormData((prev) => ({
       ...prev,
-      skills: prev.skills.filter(skill => skill !== skillToRemove)
+      skills: prev.skills.filter((skill) => skill !== skillToRemove),
     }));
   };
 
-  const handleAddPortfolioLink = () => {
+  const handleAddPortfolioLink = (): void => {
     if (newPortfolioLink.name.trim() && newPortfolioLink.url.trim()) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        portfolioLinks: [...prev.portfolioLinks, { ...newPortfolioLink }]
+        portfolioLinks: [...prev.portfolioLinks, { ...newPortfolioLink }],
       }));
       setNewPortfolioLink({ name: '', url: '' });
     }
   };
 
-  const handleRemovePortfolioLink = (index) => {
-    setFormData(prev => ({
+  const handleRemovePortfolioLink = (index: number): void => {
+    setFormData((prev) => ({
       ...prev,
-      portfolioLinks: prev.portfolioLinks.filter((_, i) => i !== index)
+      portfolioLinks: prev.portfolioLinks.filter((_, i) => i !== index),
     }));
   };
 
-  const handleAvatarClick = () => {
+  const handleAvatarClick = (): void => {
     fileInputRef.current?.click();
   };
 
-  const handleAvatarChange = async (event) => {
+  const handleAvatarChange = async (event: ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.target.files?.[0];
     if (file) {
       // Validate file type
@@ -165,10 +185,8 @@ const Profile = () => {
         onSuccess: (data) => {
           console.log('✅ Avatar uploaded:', data);
           setValidationError('');
-          // Cache will auto-update via the mutation hook
-          // No page reload needed!
         },
-        onError: (error) => {
+        onError: (error: Error & { response?: { data?: { message?: string } } }) => {
           console.error('❌ Avatar upload failed:', error);
           setValidationError(error?.response?.data?.message || 'Failed to upload avatar');
         },
@@ -179,18 +197,18 @@ const Profile = () => {
     event.target.value = '';
   };
 
-  const handleRemoveAvatar = () => {
+  const handleRemoveAvatar = (): void => {
     deleteAvatarMutation.mutate(undefined, {
       onSuccess: () => {
         setValidationError('');
       },
-      onError: (error) => {
+      onError: (error: Error & { response?: { data?: { message?: string } } }) => {
         setValidationError(error?.response?.data?.message || 'Failed to remove avatar');
       },
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
 
     if (!formData.firstName.trim()) {
@@ -208,10 +226,14 @@ const Profile = () => {
         console.log('✅ Profile updated successfully:', data);
         setValidationError('');
       },
-      onError: (error) => {
+      onError: (
+        error: Error & {
+          response?: { data?: { message?: string; errors?: Array<{ msg: string }> } };
+        }
+      ) => {
         console.error('❌ Profile update failed:', error);
         if (error?.response?.data?.errors && Array.isArray(error.response.data.errors)) {
-          const errorMessages = error.response.data.errors.map(err => err.msg).join(', ');
+          const errorMessages = error.response.data.errors.map((err) => err.msg).join(', ');
           setValidationError(`Validation errors: ${errorMessages}`);
         } else if (error?.response?.data?.message) {
           setValidationError(error.response.data.message);
@@ -246,7 +268,15 @@ const Profile = () => {
   if (profileLoading) {
     return (
       <Container maxWidth="md">
-        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Box
+          sx={{
+            mt: 4,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '300px',
+          }}
+        >
           <CircularProgress />
           <Typography variant="h6" sx={{ ml: 2 }}>
             Loading profile...
@@ -266,18 +296,23 @@ const Profile = () => {
           <Typography variant="body1" color="text.secondary" align="center" sx={{ mb: 4 }}>
             Manage your profile information and visibility
           </Typography>
-          
+
           {(profileError || updateProfileMutation.error || validationError) && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {profileError?.response?.data?.message || 
-               profileError?.message || 
-               updateProfileMutation.error?.response?.data?.message || 
-               updateProfileMutation.error?.message || 
-               validationError || 
-               'An error occurred'}
+              {(profileError as Error & { response?: { data?: { message?: string } } })?.response
+                ?.data?.message ||
+                (profileError as Error)?.message ||
+                (
+                  updateProfileMutation.error as Error & {
+                    response?: { data?: { message?: string } };
+                  }
+                )?.response?.data?.message ||
+                (updateProfileMutation.error as Error)?.message ||
+                validationError ||
+                'An error occurred'}
             </Alert>
           )}
-          
+
           <Box component="form" onSubmit={handleSubmit}>
             <Grid container spacing={3}>
               {/* Profile Picture */}
@@ -285,7 +320,7 @@ const Profile = () => {
                 <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', mb: 3 }}>
                   <Box sx={{ position: 'relative', mb: 2 }}>
                     <Avatar
-                      user={profile}
+                      user={typedProfile}
                       size="xxl"
                       onClick={handleAvatarClick}
                       sx={{ cursor: 'pointer' }}
@@ -319,18 +354,30 @@ const Profile = () => {
                       size="small"
                       onClick={handleAvatarClick}
                       disabled={uploadAvatarMutation.isPending}
-                      startIcon={uploadAvatarMutation.isPending ? <CircularProgress size={16} /> : <PhotoCamera />}
+                      startIcon={
+                        uploadAvatarMutation.isPending ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <PhotoCamera />
+                        )
+                      }
                     >
                       {uploadAvatarMutation.isPending ? 'Uploading...' : 'Change Photo'}
                     </Button>
-                    {profile?.profileImage && (
+                    {typedProfile?.profileImage && (
                       <Button
                         variant="outlined"
                         size="small"
                         color="error"
                         onClick={handleRemoveAvatar}
                         disabled={deleteAvatarMutation.isPending}
-                        startIcon={deleteAvatarMutation.isPending ? <CircularProgress size={16} /> : <Close />}
+                        startIcon={
+                          deleteAvatarMutation.isPending ? (
+                            <CircularProgress size={16} />
+                          ) : (
+                            <Close />
+                          )
+                        }
                       >
                         {deleteAvatarMutation.isPending ? 'Removing...' : 'Remove'}
                       </Button>
@@ -348,7 +395,7 @@ const Profile = () => {
                   Basic Information
                 </Typography>
               </Grid>
-              
+
               <Grid item xs={12} sm={6}>
                 <TextField
                   required
@@ -397,8 +444,10 @@ const Profile = () => {
                     size="small"
                     placeholder="Add a skill (e.g., React, Python)"
                     value={newSkill}
-                    onChange={(e) => setNewSkill(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddSkill())}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) => setNewSkill(e.target.value)}
+                    onKeyPress={(e: KeyboardEvent<HTMLInputElement>) =>
+                      e.key === 'Enter' && (e.preventDefault(), handleAddSkill())
+                    }
                     disabled={updateProfileMutation.isPending}
                   />
                   <Button
@@ -431,6 +480,7 @@ const Profile = () => {
                     value={formData.experience}
                     onChange={handleChange}
                     disabled={updateProfileMutation.isPending}
+                    label="Experience Level"
                   >
                     <MenuItem value="beginner">Beginner</MenuItem>
                     <MenuItem value="intermediate">Intermediate</MenuItem>
@@ -448,6 +498,7 @@ const Profile = () => {
                     value={formData.availability}
                     onChange={handleChange}
                     disabled={updateProfileMutation.isPending}
+                    label="Availability"
                   >
                     <MenuItem value="full-time">Full-time</MenuItem>
                     <MenuItem value="part-time">Part-time</MenuItem>
@@ -548,20 +599,28 @@ const Profile = () => {
                     size="small"
                     placeholder="Project name"
                     value={newPortfolioLink.name}
-                    onChange={(e) => setNewPortfolioLink(prev => ({ ...prev, name: e.target.value }))}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setNewPortfolioLink((prev) => ({ ...prev, name: e.target.value }))
+                    }
                     disabled={updateProfileMutation.isPending}
                   />
                   <TextField
                     size="small"
                     placeholder="Project URL"
                     value={newPortfolioLink.url}
-                    onChange={(e) => setNewPortfolioLink(prev => ({ ...prev, url: e.target.value }))}
+                    onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                      setNewPortfolioLink((prev) => ({ ...prev, url: e.target.value }))
+                    }
                     disabled={updateProfileMutation.isPending}
                   />
                   <Button
                     variant="outlined"
                     onClick={handleAddPortfolioLink}
-                    disabled={!newPortfolioLink.name.trim() || !newPortfolioLink.url.trim() || updateProfileMutation.isPending}
+                    disabled={
+                      !newPortfolioLink.name.trim() ||
+                      !newPortfolioLink.url.trim() ||
+                      updateProfileMutation.isPending
+                    }
                     startIcon={<Add />}
                   >
                     Add
@@ -592,7 +651,9 @@ const Profile = () => {
                   control={
                     <Switch
                       checked={formData.isProfilePublic}
-                      onChange={(e) => setFormData(prev => ({ ...prev, isProfilePublic: e.target.checked }))}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setFormData((prev) => ({ ...prev, isProfilePublic: e.target.checked }))
+                      }
                       disabled={updateProfileMutation.isPending}
                     />
                   }
@@ -622,4 +683,4 @@ const Profile = () => {
   );
 };
 
-export default Profile; 
+export default Profile;

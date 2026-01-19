@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, FormEvent, ChangeEvent } from 'react';
 import {
   Container,
   Typography,
@@ -17,98 +17,138 @@ import {
   Select,
   MenuItem,
   Avatar,
-  IconButton,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  CircularProgress,
+  SelectChangeEvent,
 } from '@mui/material';
 import { Search, Message, Visibility, FilterList } from '@mui/icons-material';
 import { useAuth } from '../hooks/auth';
 import { useUserSearch, useSendMessage } from '../hooks/users';
+import type { User, ExperienceLevel, Availability } from '../types';
 
-const MemberSearch = () => {
+interface SearchParams {
+  query: string;
+  skills: string;
+  experience: string;
+  availability: string;
+  location: string;
+  [key: string]: string | undefined;
+}
+
+interface MessageData {
+  subject: string;
+  content: string;
+}
+
+interface SelectOption {
+  value: string;
+  label: string;
+}
+
+// Extended User type with _id
+interface UserWithId extends Omit<User, 'id'> {
+  _id: string;
+  id?: string;
+}
+
+const MemberSearch: React.FC = () => {
   // Auth and messaging
   const { user } = useAuth();
   const sendMessageMutation = useSendMessage();
 
-  const [searchParams, setSearchParams] = useState({
+  const [searchParams, setSearchParams] = useState<SearchParams>({
     query: '',
     skills: '',
     experience: '',
     availability: '',
-    location: ''
+    location: '',
   });
 
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedUser, setSelectedUser] = useState(null);
+  const [selectedUser, setSelectedUser] = useState<UserWithId | null>(null);
   const [messageDialog, setMessageDialog] = useState(false);
-  const [messageData, setMessageData] = useState({
+  const [messageData, setMessageData] = useState<MessageData>({
     subject: '',
-    content: ''
+    content: '',
   });
 
-  // Use the search hook conditionally based on whether we have a query
-  const hasSearchQuery = Boolean(searchParams.query || searchParams.skills || searchParams.experience || searchParams.availability || searchParams.location);
-  
-  const { 
-    data: searchResults = [], 
-    isLoading: searchLoading, 
+  // Use the search hook - convert local SearchParams to UserSearchParams format
+  // The hook enables itself based on the 'search' field
+  const hasSearchQuery = Boolean(
+    searchParams.query ||
+    searchParams.skills ||
+    searchParams.experience ||
+    searchParams.availability ||
+    searchParams.location
+  );
+
+  const {
+    data: searchResults = [],
+    isLoading: searchLoading,
     error: searchError,
-    refetch: performSearch 
-  } = useUserSearch(searchParams, { 
-    enabled: hasSearchQuery // Only search when we have parameters
+    refetch: performSearch,
+  } = useUserSearch({
+    search: searchParams.query || undefined,
+    skills: searchParams.skills || undefined,
+    experience: searchParams.experience || undefined,
+    availability: searchParams.availability || undefined,
   });
 
-  const handleSearch = (e) => {
+  const handleSearch = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-    // The search will automatically trigger due to the TanStack Query dependency
-    // Force a refetch to ensure latest data
     performSearch();
   };
 
-  const handleSendMessage = async () => {
-    sendMessageMutation.mutate({
-      recipientId: selectedUser._id,
-      subject: messageData.subject,
-      content: messageData.content
-    }, {
-      onSuccess: (data) => {
-        console.log('✅ Message sent successfully:', data);
-        setMessageDialog(false);
-        setMessageData({ subject: '', content: '' });
-        setSelectedUser(null);
+  const handleSendMessage = async (): Promise<void> => {
+    if (!selectedUser) return;
+
+    sendMessageMutation.mutate(
+      {
+        recipient: selectedUser._id,
+        subject: messageData.subject,
+        content: messageData.content,
       },
-      onError: (error) => {
-        console.error('❌ Failed to send message:', error);
-      },
-    });
+      {
+        onSuccess: (data) => {
+          console.log('✅ Message sent successfully:', data);
+          setMessageDialog(false);
+          setMessageData({ subject: '', content: '' });
+          setSelectedUser(null);
+        },
+        onError: (error) => {
+          console.error('❌ Failed to send message:', error);
+        },
+      }
+    );
   };
 
-  const handleViewProfile = (user) => {
+  const handleViewProfile = (user: UserWithId): void => {
     setSelectedUser(user);
   };
 
-  const handleMessageUser = (user) => {
+  const handleMessageUser = (user: UserWithId): void => {
     setSelectedUser(user);
     setMessageDialog(true);
   };
 
-  const experienceLevels = [
+  const experienceLevels: SelectOption[] = [
     { value: 'beginner', label: 'Beginner' },
     { value: 'intermediate', label: 'Intermediate' },
     { value: 'advanced', label: 'Advanced' },
-    { value: 'expert', label: 'Expert' }
+    { value: 'expert', label: 'Expert' },
   ];
 
-  const availabilityOptions = [
+  const availabilityOptions: SelectOption[] = [
     { value: 'full-time', label: 'Full-time' },
     { value: 'part-time', label: 'Part-time' },
     { value: 'weekends', label: 'Weekends' },
     { value: 'evenings', label: 'Evenings' },
-    { value: 'flexible', label: 'Flexible' }
+    { value: 'flexible', label: 'Flexible' },
   ];
+
+  const typedResults = searchResults as UserWithId[];
 
   return (
     <Container maxWidth="lg">
@@ -130,18 +170,22 @@ const MemberSearch = () => {
                   label="Search by name, skills, or bio"
                   name="query"
                   value={searchParams.query}
-                  onChange={(e) => setSearchParams(prev => ({ ...prev, query: e.target.value }))}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setSearchParams((prev) => ({ ...prev, query: e.target.value }))
+                  }
                   placeholder="e.g., React, Python, Full Stack"
                 />
               </Grid>
-              
+
               <Grid item xs={12} md={3}>
                 <TextField
                   fullWidth
                   label="Skills (comma-separated)"
                   name="skills"
                   value={searchParams.skills}
-                  onChange={(e) => setSearchParams(prev => ({ ...prev, skills: e.target.value }))}
+                  onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                    setSearchParams((prev) => ({ ...prev, skills: e.target.value }))
+                  }
                   placeholder="React, Node.js, MongoDB"
                 />
               </Grid>
@@ -180,10 +224,13 @@ const MemberSearch = () => {
                       <Select
                         name="experience"
                         value={searchParams.experience}
-                        onChange={(e) => setSearchParams(prev => ({ ...prev, experience: e.target.value }))}
+                        onChange={(e: SelectChangeEvent) =>
+                          setSearchParams((prev) => ({ ...prev, experience: e.target.value }))
+                        }
+                        label="Experience Level"
                       >
                         <MenuItem value="">Any Experience</MenuItem>
-                        {experienceLevels.map(level => (
+                        {experienceLevels.map((level) => (
                           <MenuItem key={level.value} value={level.value}>
                             {level.label}
                           </MenuItem>
@@ -198,10 +245,13 @@ const MemberSearch = () => {
                       <Select
                         name="availability"
                         value={searchParams.availability}
-                        onChange={(e) => setSearchParams(prev => ({ ...prev, availability: e.target.value }))}
+                        onChange={(e: SelectChangeEvent) =>
+                          setSearchParams((prev) => ({ ...prev, availability: e.target.value }))
+                        }
+                        label="Availability"
                       >
                         <MenuItem value="">Any Availability</MenuItem>
-                        {availabilityOptions.map(option => (
+                        {availabilityOptions.map((option) => (
                           <MenuItem key={option.value} value={option.value}>
                             {option.label}
                           </MenuItem>
@@ -216,7 +266,9 @@ const MemberSearch = () => {
                       label="Location"
                       name="location"
                       value={searchParams.location}
-                      onChange={(e) => setSearchParams(prev => ({ ...prev, location: e.target.value }))}
+                      onChange={(e: ChangeEvent<HTMLInputElement>) =>
+                        setSearchParams((prev) => ({ ...prev, location: e.target.value }))
+                      }
                       placeholder="City, Country"
                     />
                   </Grid>
@@ -229,14 +281,17 @@ const MemberSearch = () => {
         {/* Error Display */}
         {searchError && (
           <Alert severity="error" sx={{ mb: 3 }}>
-            {searchError?.response?.data?.message || searchError?.message || 'Search failed'}
+            {(searchError as Error & { response?: { data?: { message?: string } } })?.response?.data
+              ?.message ||
+              (searchError as Error)?.message ||
+              'Search failed'}
           </Alert>
         )}
 
         {/* Search Results */}
-        {searchResults.length > 0 && (
+        {typedResults.length > 0 && (
           <Grid container spacing={3}>
-            {searchResults.map((member) => (
+            {typedResults.map((member) => (
               <Grid item xs={12} md={6} lg={4} key={member._id}>
                 <Card elevation={2}>
                   <CardContent>
@@ -246,10 +301,9 @@ const MemberSearch = () => {
                       </Avatar>
                       <Box>
                         <Typography variant="h6">
-                          {member.firstName && member.lastName 
+                          {member.firstName && member.lastName
                             ? `${member.firstName} ${member.lastName}`
-                            : member.username
-                          }
+                            : member.username}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
                           @{member.username}
@@ -281,18 +335,18 @@ const MemberSearch = () => {
 
                     <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
                       {member.experience && (
-                        <Chip 
-                          label={member.experience} 
-                          size="small" 
-                          color="primary" 
+                        <Chip
+                          label={member.experience}
+                          size="small"
+                          color="primary"
                           variant="outlined"
                         />
                       )}
                       {member.availability && (
-                        <Chip 
-                          label={member.availability} 
-                          size="small" 
-                          color="secondary" 
+                        <Chip
+                          label={member.availability}
+                          size="small"
+                          color="secondary"
                           variant="outlined"
                         />
                       )}
@@ -313,7 +367,7 @@ const MemberSearch = () => {
                     >
                       View Profile
                     </Button>
-                    {member._id !== user?._id && (
+                    {member._id !== (user as UserWithId | null)?._id && (
                       <Button
                         size="small"
                         startIcon={<Message />}
@@ -329,7 +383,7 @@ const MemberSearch = () => {
           </Grid>
         )}
 
-        {searchResults.length === 0 && !searchLoading && hasSearchQuery && (
+        {typedResults.length === 0 && !searchLoading && hasSearchQuery && (
           <Box sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="h6" color="text.secondary">
               No members found matching your criteria
@@ -344,17 +398,19 @@ const MemberSearch = () => {
       {/* Message Dialog */}
       <Dialog open={messageDialog} onClose={() => setMessageDialog(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          Send Message to {selectedUser?.firstName && selectedUser?.lastName 
+          Send Message to{' '}
+          {selectedUser?.firstName && selectedUser?.lastName
             ? `${selectedUser.firstName} ${selectedUser.lastName}`
-            : selectedUser?.username
-          }
+            : selectedUser?.username}
         </DialogTitle>
         <DialogContent>
           <TextField
             fullWidth
             label="Subject"
             value={messageData.subject}
-            onChange={(e) => setMessageData(prev => ({ ...prev, subject: e.target.value }))}
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
+              setMessageData((prev) => ({ ...prev, subject: e.target.value }))
+            }
             sx={{ mb: 2, mt: 1 }}
           />
           <TextField
@@ -363,15 +419,21 @@ const MemberSearch = () => {
             multiline
             rows={4}
             value={messageData.content}
-            onChange={(e) => setMessageData(prev => ({ ...prev, content: e.target.value }))}
+            onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+              setMessageData((prev) => ({ ...prev, content: e.target.value }))
+            }
           />
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setMessageDialog(false)}>Cancel</Button>
-          <Button 
+          <Button
             onClick={handleSendMessage}
             variant="contained"
-            disabled={!messageData.subject.trim() || !messageData.content.trim() || sendMessageMutation.isPending}
+            disabled={
+              !messageData.subject.trim() ||
+              !messageData.content.trim() ||
+              sendMessageMutation.isPending
+            }
           >
             {sendMessageMutation.isPending ? 'Sending...' : 'Send Message'}
           </Button>
@@ -381,4 +443,4 @@ const MemberSearch = () => {
   );
 };
 
-export default MemberSearch; 
+export default MemberSearch;

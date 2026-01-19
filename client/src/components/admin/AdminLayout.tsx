@@ -1,16 +1,15 @@
 import React from 'react';
-import { 
-  Box, 
-  Drawer, 
-  List, 
-  ListItem, 
-  ListItemIcon, 
-  ListItemText, 
-  AppBar, 
-  Toolbar, 
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemIcon,
+  ListItemText,
+  AppBar,
+  Toolbar,
   Typography,
   Divider,
-  Badge
 } from '@mui/material';
 import {
   Dashboard as DashboardIcon,
@@ -18,7 +17,7 @@ import {
   Security as SecurityIcon,
   Settings as SettingsIcon,
   Analytics as AnalyticsIcon,
-  ExitToApp as ExitIcon
+  ExitToApp as ExitIcon,
 } from '@mui/icons-material';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth';
@@ -26,48 +25,55 @@ import logger from '../../utils/logger';
 
 const drawerWidth = 240;
 
-const AdminLayout = () => {
+interface MenuItem {
+  text: string;
+  icon: React.ReactNode;
+  path: string;
+  exact?: boolean;
+}
+
+const AdminLayout: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, logout } = useAuth();
 
-  const menuItems = [
-    { 
-      text: 'Dashboard', 
-      icon: <DashboardIcon />, 
+  const menuItems: MenuItem[] = [
+    {
+      text: 'Dashboard',
+      icon: <DashboardIcon />,
       path: '/admin',
-      exact: true
+      exact: true,
     },
-    { 
-      text: 'User Management', 
-      icon: <PeopleIcon />, 
-      path: '/admin/users'
+    {
+      text: 'User Management',
+      icon: <PeopleIcon />,
+      path: '/admin/users',
     },
-    { 
-      text: 'System Logs', 
-      icon: <SecurityIcon />, 
-      path: '/admin/logs'
+    {
+      text: 'System Logs',
+      icon: <SecurityIcon />,
+      path: '/admin/logs',
     },
-    { 
-      text: 'Analytics', 
-      icon: <AnalyticsIcon />, 
-      path: '/admin/analytics'
+    {
+      text: 'Analytics',
+      icon: <AnalyticsIcon />,
+      path: '/admin/analytics',
     },
-    { 
-      text: 'Settings', 
-      icon: <SettingsIcon />, 
-      path: '/admin/settings'
-    }
+    {
+      text: 'Settings',
+      icon: <SettingsIcon />,
+      path: '/admin/settings',
+    },
   ];
 
-  const isActiveRoute = (item) => {
+  const isActiveRoute = (item: MenuItem): boolean => {
     if (item.exact) {
       return location.pathname === item.path;
     }
     return location.pathname.startsWith(item.path);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = async (): Promise<void> => {
     try {
       await logout();
       navigate('/login');
@@ -76,7 +82,7 @@ const AdminLayout = () => {
     }
   };
 
-  const handleBackToApp = () => {
+  const handleBackToApp = (): void => {
     navigate('/dashboard');
   };
 
@@ -88,7 +94,7 @@ const AdminLayout = () => {
         sx={{
           width: `calc(100% - ${drawerWidth}px)`,
           ml: `${drawerWidth}px`,
-          bgcolor: 'error.main'
+          bgcolor: 'error.main',
         }}
       >
         <Toolbar>
@@ -120,7 +126,7 @@ const AdminLayout = () => {
           </Typography>
         </Toolbar>
         <Divider />
-        
+
         <List>
           {menuItems.map((item) => (
             <ListItem
@@ -134,22 +140,24 @@ const AdminLayout = () => {
                   color: 'white',
                   '&:hover': {
                     backgroundColor: 'error.main',
-                  }
-                }
+                  },
+                },
               }}
             >
-              <ListItemIcon sx={{ 
-                color: isActiveRoute(item) ? 'white' : 'inherit' 
-              }}>
+              <ListItemIcon
+                sx={{
+                  color: isActiveRoute(item) ? 'white' : 'inherit',
+                }}
+              >
                 {item.icon}
               </ListItemIcon>
               <ListItemText primary={item.text} />
             </ListItem>
           ))}
         </List>
-        
+
         <Divider />
-        
+
         <List>
           <ListItem button onClick={handleBackToApp}>
             <ListItemIcon>
@@ -157,7 +165,7 @@ const AdminLayout = () => {
             </ListItemIcon>
             <ListItemText primary="Back to App" />
           </ListItem>
-          
+
           <ListItem button onClick={handleLogout}>
             <ListItemIcon>
               <ExitIcon />
@@ -174,7 +182,7 @@ const AdminLayout = () => {
           flexGrow: 1,
           bgcolor: 'background.default',
           minHeight: '100vh',
-          mt: 8 // Account for AppBar height
+          mt: 8, // Account for AppBar height
         }}
       >
         <Outlet />

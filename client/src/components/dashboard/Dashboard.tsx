@@ -19,21 +19,51 @@ import { Add as AddIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/auth';
 import { useHandleCollaborationRequest } from '../../hooks/projects';
+import type { Project, User, CollaboratorStatus } from '../../types';
 
-const Dashboard = () => {
+// Extended types for API response format
+interface ProjectWithId extends Omit<Project, 'id'> {
+  _id: string;
+  id?: string;
+}
+
+interface CollaborationRequest {
+  _id: string;
+  user: {
+    _id: string;
+    username: string;
+  };
+  project: {
+    _id: string;
+    title: string;
+  };
+  status: CollaboratorStatus;
+}
+
+interface UserWithCollaborations extends Omit<User, 'id'> {
+  _id?: string;
+  projects?: ProjectWithId[];
+  collaborationRequests?: CollaborationRequest[];
+}
+
+const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
   const handleCollaborationMutation = useHandleCollaborationRequest();
 
-  const handleCreateProject = () => {
+  const handleCreateProject = (): void => {
     navigate('/projects/create');
   };
 
-  const handleViewProject = (projectId) => {
+  const handleViewProject = (projectId: string): void => {
     navigate(`/projects/${projectId}`);
   };
 
-  const handleCollaborationRequest = (projectId, userId, status) => {
+  const handleCollaborationRequest = (
+    projectId: string,
+    userId: string,
+    status: 'accepted' | 'rejected'
+  ): void => {
     handleCollaborationMutation.mutate(
       { projectId, userId, status },
       {
@@ -41,9 +71,13 @@ const Dashboard = () => {
           console.log('✅ Collaboration request handled:', result);
           // The user data should automatically refresh through TanStack Query
         },
-        onError: (error) => {
+        onError: (error: Error & { response?: { data?: { message?: string } } }) => {
           console.error('❌ Error handling collaboration request:', error);
-          alert(error?.response?.data?.message || error?.message || 'Failed to handle collaboration request');
+          alert(
+            error?.response?.data?.message ||
+              error?.message ||
+              'Failed to handle collaboration request'
+          );
         },
       }
     );
@@ -52,7 +86,14 @@ const Dashboard = () => {
   if (authLoading) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '300px' }}>
+        <Box
+          sx={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            minHeight: '300px',
+          }}
+        >
           <CircularProgress />
           <Typography variant="h6" sx={{ ml: 2 }}>
             Loading dashboard...
@@ -77,7 +118,8 @@ const Dashboard = () => {
       </Container>
     );
   }
-  
+
+  const userWithCollabs = user as UserWithCollaborations;
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
@@ -85,25 +127,20 @@ const Dashboard = () => {
         {/* My Projects Section */}
         <Grid item xs={12} md={8}>
           <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Box
+              sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}
+            >
               <Typography variant="h6">My Projects</Typography>
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleCreateProject}
-              >
+              <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateProject}>
                 Create Project
               </Button>
             </Box>
             <List>
-              {user.projects?.length > 0 ? (
-                user.projects.map((project) => (
+              {userWithCollabs.projects && userWithCollabs.projects.length > 0 ? (
+                userWithCollabs.projects.map((project) => (
                   <React.Fragment key={project._id}>
                     <ListItem button onClick={() => handleViewProject(project._id)}>
-                      <ListItemText
-                        primary={project.title}
-                        secondary={project.description}
-                      />
+                      <ListItemText primary={project.title} secondary={project.description} />
                       <ListItemSecondaryAction>
                         <Chip
                           label={project.status}
@@ -111,8 +148,8 @@ const Dashboard = () => {
                             project.status === 'completed'
                               ? 'success'
                               : project.status === 'in_progress'
-                              ? 'primary'
-                              : 'default'
+                                ? 'primary'
+                                : 'default'
                           }
                         />
                       </ListItemSecondaryAction>
@@ -136,8 +173,9 @@ const Dashboard = () => {
               Collaboration Requests
             </Typography>
             <List>
-              {user.collaborationRequests?.length > 0 ? (
-                user.collaborationRequests.map((request) => (
+              {userWithCollabs.collaborationRequests &&
+              userWithCollabs.collaborationRequests.length > 0 ? (
+                userWithCollabs.collaborationRequests.map((request) => (
                   <React.Fragment key={request._id}>
                     <ListItem>
                       <ListItemText
@@ -197,4 +235,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard; 
+export default Dashboard;

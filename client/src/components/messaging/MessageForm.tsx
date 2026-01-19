@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 import {
   Box,
   Button,
@@ -7,30 +7,52 @@ import {
   Paper,
   Autocomplete,
   Alert,
-  CircularProgress
+  CircularProgress,
 } from '@mui/material';
 import { Send as SendIcon } from '@mui/icons-material';
 import { useUsers } from '../../hooks/users';
 import { useSendMessage } from '../../hooks/users/useMessaging';
+import type { User, Message } from '../../types';
 
-const MessageForm = ({ 
-  recipientId = null, 
+interface MessageFormData {
+  recipientId: string;
+  subject: string;
+  content: string;
+}
+
+interface FormErrors {
+  recipientId?: string | null;
+  subject?: string | null;
+  content?: string | null;
+  submit?: string | null;
+}
+
+interface MessageFormProps {
+  recipientId?: string | null;
+  recipientUser?: User | null;
+  replyToMessage?: Message | null;
+  onSuccess?: () => void;
+  onCancel?: () => void;
+}
+
+const MessageForm: React.FC<MessageFormProps> = ({
+  recipientId = null,
   recipientUser = null,
   replyToMessage = null,
   onSuccess,
-  onCancel 
+  onCancel,
 }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<MessageFormData>({
     recipientId: recipientId || '',
     subject: replyToMessage ? `Re: ${replyToMessage.subject}` : '',
-    content: ''
+    content: '',
   });
-  const [selectedRecipient, setSelectedRecipient] = useState(recipientUser);
-  const [errors, setErrors] = useState({});
+  const [selectedRecipient, setSelectedRecipient] = useState<User | null>(recipientUser);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   // Fetch users for recipient selection
   const { data: users = [], isLoading: loadingUsers } = useUsers();
-  
+
   // Send message mutation
   const sendMessageMutation = useSendMessage({
     onSuccess: () => {
@@ -39,32 +61,33 @@ const MessageForm = ({
       setErrors({});
       if (onSuccess) onSuccess();
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       setErrors({ submit: error.message || 'Failed to send message' });
-    }
+    },
   });
 
-  const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+  const handleInputChange = (field: keyof MessageFormData, value: string): void => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
     // Clear field error when user starts typing
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
+    if (errors[field as keyof FormErrors]) {
+      setErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
-  const handleRecipientChange = (event, newValue) => {
+  const handleRecipientChange = (_event: React.SyntheticEvent, newValue: User | null): void => {
     setSelectedRecipient(newValue);
-    setFormData(prev => ({ 
-      ...prev, 
-      recipientId: newValue ? newValue._id : '' 
+    const userId = newValue ? (newValue as User & { _id?: string })._id || newValue.id || '' : '';
+    setFormData((prev) => ({
+      ...prev,
+      recipientId: userId,
     }));
     if (errors.recipientId) {
-      setErrors(prev => ({ ...prev, recipientId: null }));
+      setErrors((prev) => ({ ...prev, recipientId: null }));
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
 
     if (!formData.recipientId) {
       newErrors.recipientId = 'Please select a recipient';
@@ -86,17 +109,17 @@ const MessageForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>): void => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
 
     sendMessageMutation.mutate({
-      recipientId: formData.recipientId,
+      recipient: formData.recipientId,
       subject: formData.subject.trim(),
-      content: formData.content.trim()
+      content: formData.content.trim(),
     });
   };
 
@@ -111,7 +134,7 @@ const MessageForm = ({
         {!recipientId && (
           <Autocomplete
             options={users}
-            getOptionLabel={(option) => 
+            getOptionLabel={(option: User) =>
               `${option.username} (${option.firstName} ${option.lastName})`
             }
             value={selectedRecipient}
@@ -143,7 +166,9 @@ const MessageForm = ({
           fullWidth
           label="Subject"
           value={formData.subject}
-          onChange={(e) => handleInputChange('subject', e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) =>
+            handleInputChange('subject', e.target.value)
+          }
           error={!!errors.subject}
           helperText={errors.subject || `${formData.subject.length}/100 characters`}
           inputProps={{ maxLength: 100 }}
@@ -157,7 +182,9 @@ const MessageForm = ({
           multiline
           rows={6}
           value={formData.content}
-          onChange={(e) => handleInputChange('content', e.target.value)}
+          onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+            handleInputChange('content', e.target.value)
+          }
           error={!!errors.content}
           helperText={errors.content || `${formData.content.length}/1000 characters`}
           inputProps={{ maxLength: 1000 }}
@@ -174,19 +201,15 @@ const MessageForm = ({
         {/* Actions */}
         <Box display="flex" gap={2} justifyContent="flex-end">
           {onCancel && (
-            <Button 
-              variant="outlined" 
-              onClick={onCancel}
-              disabled={sendMessageMutation.isPending}
-            >
+            <Button variant="outlined" onClick={onCancel} disabled={sendMessageMutation.isPending}>
               Cancel
             </Button>
           )}
           <Button
             type="submit"
             variant="contained"
-            startIcon={sendMessageMutation.isPending ? 
-              <CircularProgress size={20} /> : <SendIcon />
+            startIcon={
+              sendMessageMutation.isPending ? <CircularProgress size={20} /> : <SendIcon />
             }
             disabled={sendMessageMutation.isPending}
           >

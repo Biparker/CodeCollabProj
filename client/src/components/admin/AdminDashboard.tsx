@@ -8,7 +8,7 @@ import {
   Alert,
   Card,
   CardContent,
-  Chip
+  Chip,
 } from '@mui/material';
 import {
   People as PeopleIcon,
@@ -16,11 +16,43 @@ import {
   Comment as CommentIcon,
   Security as SecurityIcon,
   TrendingUp as TrendingUpIcon,
-  AdminPanelSettings as AdminIcon
+  AdminPanelSettings as AdminIcon,
 } from '@mui/icons-material';
 import { useAdminDashboard } from '../../hooks/admin';
 
-const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
+interface StatCardProps {
+  title: string;
+  value: number | string;
+  icon: React.ReactNode;
+  color?: 'primary' | 'secondary' | 'success' | 'error' | 'warning' | 'info';
+  subtitle?: string;
+}
+
+interface AdminStats {
+  users?: {
+    total?: number;
+    newThisWeek?: number;
+    active?: number;
+    suspended?: number;
+    admins?: number;
+    moderators?: number;
+  };
+  content?: {
+    projects?: {
+      total?: number;
+      active?: number;
+      newThisWeek?: number;
+    };
+    comments?: {
+      total?: number;
+    };
+  };
+  system?: {
+    activeSessions?: number;
+  };
+}
+
+const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color = 'primary', subtitle }) => (
   <Card>
     <CardContent>
       <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -37,15 +69,13 @@ const StatCard = ({ title, value, icon, color = 'primary', subtitle }) => (
             </Typography>
           )}
         </Box>
-        <Box sx={{ color: `${color}.main` }}>
-          {icon}
-        </Box>
+        <Box sx={{ color: `${color}.main` }}>{icon}</Box>
       </Box>
     </CardContent>
   </Card>
 );
 
-const AdminDashboard = () => {
+const AdminDashboard: React.FC = () => {
   const { data: stats, isLoading, error, isError } = useAdminDashboard();
 
   if (isLoading) {
@@ -60,11 +90,13 @@ const AdminDashboard = () => {
     return (
       <Box p={3}>
         <Alert severity="error">
-          Failed to load dashboard data: {error?.message || 'Unknown error'}
+          Failed to load dashboard data: {(error as Error)?.message || 'Unknown error'}
         </Alert>
       </Box>
     );
   }
+
+  const typedStats = stats as AdminStats | undefined;
 
   return (
     <Box p={3}>
@@ -84,37 +116,37 @@ const AdminDashboard = () => {
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Users"
-            value={stats?.users?.total || 0}
+            value={typedStats?.users?.total || 0}
             icon={<PeopleIcon sx={{ fontSize: 40 }} />}
             color="primary"
-            subtitle={`${stats?.users?.newThisWeek || 0} new this week`}
+            subtitle={`${typedStats?.users?.newThisWeek || 0} new this week`}
           />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Users"
-            value={stats?.users?.active || 0}
+            value={typedStats?.users?.active || 0}
             icon={<TrendingUpIcon sx={{ fontSize: 40 }} />}
             color="success"
-            subtitle={`${stats?.users?.suspended || 0} suspended`}
+            subtitle={`${typedStats?.users?.suspended || 0} suspended`}
           />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Total Projects"
-            value={stats?.content?.projects?.total || 0}
+            value={typedStats?.content?.projects?.total || 0}
             icon={<ProjectIcon sx={{ fontSize: 40 }} />}
             color="info"
-            subtitle={`${stats?.content?.projects?.active || 0} active`}
+            subtitle={`${typedStats?.content?.projects?.active || 0} active`}
           />
         </Grid>
 
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             title="Active Sessions"
-            value={stats?.system?.activeSessions || 0}
+            value={typedStats?.system?.activeSessions || 0}
             icon={<SecurityIcon sx={{ fontSize: 40 }} />}
             color="warning"
           />
@@ -132,25 +164,29 @@ const AdminDashboard = () => {
                   <AdminIcon color="error" />
                   <Typography>Administrators</Typography>
                 </Box>
-                <Chip label={stats?.users?.admins || 0} color="error" />
+                <Chip label={typedStats?.users?.admins || 0} color="error" />
               </Box>
-              
+
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box display="flex" alignItems="center" gap={1}>
                   <SecurityIcon color="warning" />
                   <Typography>Moderators</Typography>
                 </Box>
-                <Chip label={stats?.users?.moderators || 0} color="warning" />
+                <Chip label={typedStats?.users?.moderators || 0} color="warning" />
               </Box>
-              
+
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box display="flex" alignItems="center" gap={1}>
                   <PeopleIcon color="primary" />
                   <Typography>Regular Users</Typography>
                 </Box>
-                <Chip 
-                  label={(stats?.users?.total || 0) - (stats?.users?.admins || 0) - (stats?.users?.moderators || 0)} 
-                  color="primary" 
+                <Chip
+                  label={
+                    (typedStats?.users?.total || 0) -
+                    (typedStats?.users?.admins || 0) -
+                    (typedStats?.users?.moderators || 0)
+                  }
+                  color="primary"
                 />
               </Box>
             </Box>
@@ -169,33 +205,33 @@ const AdminDashboard = () => {
                   <ProjectIcon color="info" />
                   <Typography>Total Projects</Typography>
                 </Box>
-                <Typography variant="h6">{stats?.content?.projects?.total || 0}</Typography>
+                <Typography variant="h6">{typedStats?.content?.projects?.total || 0}</Typography>
               </Box>
-              
+
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box display="flex" alignItems="center" gap={1}>
                   <TrendingUpIcon color="success" />
                   <Typography>Active Projects</Typography>
                 </Box>
-                <Typography variant="h6">{stats?.content?.projects?.active || 0}</Typography>
+                <Typography variant="h6">{typedStats?.content?.projects?.active || 0}</Typography>
               </Box>
-              
+
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Box display="flex" alignItems="center" gap={1}>
                   <CommentIcon color="primary" />
                   <Typography>Total Comments</Typography>
                 </Box>
-                <Typography variant="h6">{stats?.content?.comments?.total || 0}</Typography>
+                <Typography variant="h6">{typedStats?.content?.comments?.total || 0}</Typography>
               </Box>
-              
+
               <Box display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="body2" color="textSecondary">
                   New projects this week
                 </Typography>
-                <Chip 
-                  label={stats?.content?.projects?.newThisWeek || 0} 
-                  size="small" 
-                  color="info" 
+                <Chip
+                  label={typedStats?.content?.projects?.newThisWeek || 0}
+                  size="small"
+                  color="info"
                 />
               </Box>
             </Box>
@@ -209,19 +245,19 @@ const AdminDashboard = () => {
               Recent Activity Summary
             </Typography>
             <Box display="flex" gap={2} flexWrap="wrap">
-              <Chip 
-                label={`${stats?.users?.newThisWeek || 0} new users this week`}
+              <Chip
+                label={`${typedStats?.users?.newThisWeek || 0} new users this week`}
                 color="primary"
                 variant="outlined"
               />
-              <Chip 
-                label={`${stats?.content?.projects?.newThisWeek || 0} new projects this week`}
+              <Chip
+                label={`${typedStats?.content?.projects?.newThisWeek || 0} new projects this week`}
                 color="info"
                 variant="outlined"
               />
-              <Chip 
-                label={`${stats?.users?.suspended || 0} suspended accounts`}
-                color={stats?.users?.suspended > 0 ? "warning" : "default"}
+              <Chip
+                label={`${typedStats?.users?.suspended || 0} suspended accounts`}
+                color={(typedStats?.users?.suspended || 0) > 0 ? 'warning' : 'default'}
                 variant="outlined"
               />
             </Box>

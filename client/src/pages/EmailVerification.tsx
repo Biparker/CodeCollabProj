@@ -10,23 +10,28 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
-import axios from 'axios';
-import api from '../utils/api'; // Add this import
+import api from '../utils/api';
 
-const EmailVerification = () => {
-  const { token: paramToken } = useParams();
+type VerificationStatus = 'verifying' | 'success' | 'error';
+
+interface VerifyResponse {
+  message: string;
+}
+
+const EmailVerification: React.FC = () => {
+  const { token: paramToken } = useParams<{ token?: string }>();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'error'
+  const [status, setStatus] = useState<VerificationStatus>('verifying');
   const [message, setMessage] = useState('');
-  const hasVerified = useRef(false); // Track if verification has already been attempted
-  const verificationPromise = useRef(null); // Store the verification promise
+  const hasVerified = useRef(false);
+  const verificationPromise = useRef<Promise<VerifyResponse> | null>(null);
 
   // Get token from either URL params or query string
   const token = paramToken || searchParams.get('token');
 
   useEffect(() => {
-    const verifyEmail = async () => {
+    const verifyEmail = async (): Promise<VerifyResponse | undefined> => {
       if (!token) {
         setStatus('error');
         setMessage('No verification token provided');
@@ -49,28 +54,30 @@ const EmailVerification = () => {
       hasVerified.current = true;
 
       // Create and store the verification promise
-      verificationPromise.current = (async () => {
+      verificationPromise.current = (async (): Promise<VerifyResponse> => {
         try {
           console.log('Making verification request...');
-          const response = await api.get(`/auth/verify-email/${token}`);
+          const response = await api.get<VerifyResponse>(`/auth/verify-email/${token}`);
           console.log('Verification success:', response.data);
           setStatus('success');
           setMessage(response.data.message);
-          return response;
+          return response.data;
         } catch (error) {
           console.error('=== VERIFICATION ERROR DEBUG ===');
           console.error('Full error object:', error);
-          console.error('Error message:', error.message);
-          console.error('Error response exists?', !!error.response);
-          if (error.response) {
-            console.error('Error status:', error.response.status);
-            console.error('Error data:', error.response.data);
-            console.error('Error headers:', error.response.headers);
+          const axiosError = error as {
+            response?: { data?: { message?: string } };
+            message?: string;
+          };
+          console.error('Error message:', axiosError.message);
+          console.error('Error response exists?', !!axiosError.response);
+          if (axiosError.response) {
+            console.error('Error data:', axiosError.response.data);
           }
           console.error('Token being used:', token);
           console.error('=== END DEBUG ===');
           setStatus('error');
-          setMessage(error.response?.data?.message || 'Verification failed');
+          setMessage(axiosError.response?.data?.message || 'Verification failed');
           throw error;
         }
       })();
@@ -81,7 +88,7 @@ const EmailVerification = () => {
     verifyEmail();
   }, [token]);
 
-  const getContent = () => {
+  const getContent = (): React.ReactNode => {
     switch (status) {
       case 'verifying':
         return (
@@ -90,7 +97,7 @@ const EmailVerification = () => {
             <Typography variant="h6">Verifying your email...</Typography>
           </Box>
         );
-      
+
       case 'success':
         return (
           <Alert severity="success" sx={{ mb: 3 }}>
@@ -98,7 +105,7 @@ const EmailVerification = () => {
             {message}
           </Alert>
         );
-      
+
       case 'error':
         return (
           <Alert severity="error" sx={{ mb: 3 }}>
@@ -106,7 +113,7 @@ const EmailVerification = () => {
             {message}
           </Alert>
         );
-      
+
       default:
         return null;
     }
@@ -140,4 +147,4 @@ const EmailVerification = () => {
   );
 };
 
-export default EmailVerification; 
+export default EmailVerification;

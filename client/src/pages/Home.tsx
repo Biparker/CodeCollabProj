@@ -2,7 +2,7 @@ import React from 'react';
 import { Container, Typography, Box, Button, Grid, Card, CardContent } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
 
-const Home = () => {
+const Home: React.FC = () => {
   return (
     <Container maxWidth="lg">
       <Box sx={{ mt: 4, mb: 8 }}>
@@ -22,12 +22,7 @@ const Home = () => {
           >
             Browse Projects
           </Button>
-          <Button
-            variant="outlined"
-            size="large"
-            component={RouterLink}
-            to="/register"
-          >
+          <Button variant="outlined" size="large" component={RouterLink} to="/register">
             Get Started
           </Button>
         </Box>
@@ -41,7 +36,8 @@ const Home = () => {
                 Collaborate
               </Typography>
               <Typography variant="body1">
-                Work together with other developers on shared projects. Real-time collaboration made easy.
+                Work together with other developers on shared projects. Real-time collaboration made
+                easy.
               </Typography>
             </CardContent>
           </Card>
@@ -53,7 +49,8 @@ const Home = () => {
                 Learn
               </Typography>
               <Typography variant="body1">
-                Discover new technologies and best practices from the community. Share knowledge and grow together.
+                Discover new technologies and best practices from the community. Share knowledge and
+                grow together.
               </Typography>
             </CardContent>
           </Card>
@@ -65,7 +62,8 @@ const Home = () => {
                 Build
               </Typography>
               <Typography variant="body1">
-                Create amazing projects with the help of the community. Turn your ideas into reality.
+                Create amazing projects with the help of the community. Turn your ideas into
+                reality.
               </Typography>
             </CardContent>
           </Card>
@@ -75,4 +73,4 @@ const Home = () => {
   );
 };
 
-export default Home; 
+export default Home;

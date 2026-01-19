@@ -10,22 +10,44 @@ import {
   Typography,
   Paper,
   IconButton,
-  Divider
+  Divider,
 } from '@mui/material';
 import {
   Email as EmailIcon,
   MarkEmailRead as EmailOpenIcon,
   Delete as DeleteIcon,
-  Reply as ReplyIcon
+  Reply as ReplyIcon,
 } from '@mui/icons-material';
 import { formatDistanceToNow } from 'date-fns';
+import type { UserSummary } from '../../types';
 
-const MessageList = ({ 
-  messages = [], 
-  onMessageClick, 
+// Message type to handle API response with _id
+interface MessageWithId {
+  _id: string;
+  id?: string;
+  subject: string;
+  content: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  sender?: UserSummary & { _id?: string };
+  recipient?: UserSummary & { _id?: string };
+}
+
+interface MessageListProps {
+  messages?: MessageWithId[];
+  onMessageClick?: (message: MessageWithId) => void;
+  onDeleteMessage?: (messageId: string) => void;
+  onReplyMessage?: ((message: MessageWithId) => void) | null;
+  loading?: boolean;
+}
+
+const MessageList: React.FC<MessageListProps> = ({
+  messages = [],
+  onMessageClick,
   onDeleteMessage,
   onReplyMessage,
-  loading = false 
+  loading = false,
 }) => {
   if (loading) {
     return (
@@ -70,7 +92,7 @@ const MessageList = ({
                   {message.isRead ? <EmailOpenIcon /> : <EmailIcon />}
                 </Avatar>
               </ListItemAvatar>
-              
+
               <ListItemText
                 primary={
                   <Box display="flex" alignItems="center" gap={1}>
@@ -82,12 +104,7 @@ const MessageList = ({
                       {message.subject}
                     </Typography>
                     {!message.isRead && (
-                      <Chip 
-                        label="New" 
-                        size="small" 
-                        color="primary" 
-                        sx={{ height: 20 }}
-                      />
+                      <Chip label="New" size="small" color="primary" sx={{ height: 20 }} />
                     )}
                   </Box>
                 }
@@ -99,13 +116,16 @@ const MessageList = ({
                       color="text.primary"
                       fontWeight={message.isRead ? 'normal' : 'medium'}
                     >
-                      From: {message.sender?.username || message.sender?.firstName || 'Unknown'}
+                      From:{' '}
+                      {(message.sender as UserSummary)?.username ||
+                        (message.sender as UserSummary)?.firstName ||
+                        'Unknown'}
                     </Typography>
                     <Typography
                       component="div"
                       variant="body2"
                       color="text.secondary"
-                      sx={{ 
+                      sx={{
                         mt: 0.5,
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
@@ -121,12 +141,12 @@ const MessageList = ({
                   </Box>
                 }
               />
-              
+
               <Box display="flex" flexDirection="column" gap={1}>
                 {onReplyMessage && (
                   <IconButton
                     size="small"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       onReplyMessage(message);
                     }}
@@ -138,7 +158,7 @@ const MessageList = ({
                 {onDeleteMessage && (
                   <IconButton
                     size="small"
-                    onClick={(e) => {
+                    onClick={(e: React.MouseEvent) => {
                       e.stopPropagation();
                       onDeleteMessage(message._id);
                     }}

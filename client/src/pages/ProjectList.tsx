@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, ChangeEvent, MutableRefObject } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -15,23 +15,50 @@ import {
   Chip,
   Alert,
 } from '@mui/material';
-import { Search, Add, Code, People, CalendarToday } from '@mui/icons-material';
+import { Search, Add, People, CalendarToday } from '@mui/icons-material';
 import { useProjects } from '../hooks/projects';
 import { useAuth } from '../hooks/auth';
 import { ProjectListSkeleton } from '../components/common/Skeletons';
+import type { Project, User } from '../types';
 
-const ProjectList = () => {
+// API response types - standalone interfaces to handle _id fields
+interface ProjectWithId {
+  _id: string;
+  id?: string;
+  title: string;
+  description: string;
+  technologies?: string[];
+  image?: string;
+  createdAt: string;
+  owner?:
+    | {
+        _id: string;
+        username?: string;
+      }
+    | string
+    | null;
+  collaborators?: Array<{
+    _id?: string;
+    userId?: string;
+  }>;
+}
+
+interface UserWithId {
+  _id?: string;
+  id?: string;
+}
+
+const ProjectList: React.FC = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
-  const projectRefs = useRef({});
+  const projectRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  const typedUser = user as UserWithId | null;
 
   // TanStack Query hook
-  const { 
-    data: projects = [], 
-    isLoading, 
-    error,
-    refetch 
-  } = useProjects();
+  const { data: projects = [], isLoading, error, refetch } = useProjects();
+
+  const typedProjects = projects as unknown as ProjectWithId[];
 
   // Scroll to project card if hash is present
   useEffect(() => {
@@ -39,27 +66,33 @@ const ProjectList = () => {
       const id = window.location.hash.replace('#', '');
       setTimeout(() => {
         if (projectRefs.current[id]) {
-          projectRefs.current[id].scrollIntoView({ behavior: 'smooth', block: 'center' });
+          projectRefs.current[id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }, 200); // Wait for render
     }
   }, [projects]);
 
-  const filteredProjects = useMemo(() => 
-    projects.filter(project =>
-      project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (project.technologies && project.technologies.some(tech => 
-        tech.toLowerCase().includes(searchTerm.toLowerCase())
-      ))
-    ), [projects, searchTerm]
+  const filteredProjects = useMemo(
+    () =>
+      typedProjects.filter(
+        (project) =>
+          project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          project.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (project.technologies &&
+            project.technologies.some((tech) =>
+              tech.toLowerCase().includes(searchTerm.toLowerCase())
+            ))
+      ),
+    [typedProjects, searchTerm]
   );
 
   if (isLoading) {
     return (
       <Container maxWidth="lg">
         <Box sx={{ mt: 4, mb: 4 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Box
+            sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}
+          >
             <Typography variant="h4" component="h1">
               Projects
             </Typography>
@@ -74,15 +107,15 @@ const ProjectList = () => {
     return (
       <Container maxWidth="lg">
         <Box sx={{ mt: 4 }}>
-          <Alert 
-            severity="error" 
+          <Alert
+            severity="error"
             action={
               <Button color="inherit" size="small" onClick={() => refetch()}>
                 Retry
               </Button>
             }
           >
-            Failed to load projects: {error.message}
+            Failed to load projects: {(error as Error).message}
           </Alert>
         </Box>
       </Container>
@@ -111,7 +144,7 @@ const ProjectList = () => {
           variant="outlined"
           placeholder="Search projects..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -124,7 +157,16 @@ const ProjectList = () => {
 
         <Grid container spacing={3}>
           {filteredProjects.map((project) => (
-            <Grid item xs={12} sm={6} md={4} key={project._id} ref={el => projectRefs.current[project._id] = el}>
+            <Grid
+              item
+              xs={12}
+              sm={6}
+              md={4}
+              key={project._id}
+              ref={(el: HTMLDivElement | null) => {
+                projectRefs.current[project._id] = el;
+              }}
+            >
               <Card>
                 {project.image && (
                   <CardMedia
@@ -143,16 +185,14 @@ const ProjectList = () => {
                     {project.description}
                   </Typography>
                   <Box sx={{ mb: 2 }}>
-                    {project.technologies && project.technologies.map((tech) => (
-                      <Chip
-                        key={tech}
-                        label={tech}
-                        size="small"
-                        sx={{ mr: 1, mb: 1 }}
-                      />
-                    ))}
+                    {project.technologies &&
+                      project.technologies.map((tech) => (
+                        <Chip key={tech} label={tech} size="small" sx={{ mr: 1, mb: 1 }} />
+                      ))}
                   </Box>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.secondary' }}>
+                  <Box
+                    sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'text.secondary' }}
+                  >
                     <Box sx={{ display: 'flex', alignItems: 'center' }}>
                       <People sx={{ fontSize: 16, mr: 0.5 }} />
                       <Typography variant="body2">
@@ -171,11 +211,17 @@ const ProjectList = () => {
                   <Button size="small" component={RouterLink} to={`/projects/${project._id}`}>
                     View Details
                   </Button>
-                  {project.owner && project.owner._id === user?._id && (
-                    <Button size="small" component={RouterLink} to={`/projects/${project._id}/edit`}>
-                      Edit
-                    </Button>
-                  )}
+                  {project.owner &&
+                    typeof project.owner === 'object' &&
+                    project.owner._id === typedUser?._id && (
+                      <Button
+                        size="small"
+                        component={RouterLink}
+                        to={`/projects/${project._id}/edit`}
+                      >
+                        Edit
+                      </Button>
+                    )}
                 </CardActions>
               </Card>
             </Grid>
@@ -185,13 +231,12 @@ const ProjectList = () => {
         {filteredProjects.length === 0 && (
           <Box sx={{ textAlign: 'center', mt: 4 }}>
             <Typography variant="h6" color="text.secondary">
-              {projects.length === 0 ? 'No projects yet' : 'No projects found'}
+              {typedProjects.length === 0 ? 'No projects yet' : 'No projects found'}
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {projects.length === 0 
-                ? 'Be the first to create a project!' 
-                : 'Try adjusting your search terms or create a new project.'
-              }
+              {typedProjects.length === 0
+                ? 'Be the first to create a project!'
+                : 'Try adjusting your search terms or create a new project.'}
             </Typography>
           </Box>
         )}
@@ -200,4 +245,4 @@ const ProjectList = () => {
   );
 };
 
-export default ProjectList; 
+export default ProjectList;

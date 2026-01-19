@@ -11,39 +11,53 @@ import {
   DialogContent,
   IconButton,
   Alert,
-  Badge
+  Badge,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Close as CloseIcon,
   Inbox as InboxIcon,
-  Send as SendIcon
+  Send as SendIcon,
 } from '@mui/icons-material';
 import { useMessages, useDeleteMessage } from '../hooks/users/useMessaging';
 import MessageList from '../components/messaging/MessageList';
 import MessageForm from '../components/messaging/MessageForm';
 import MessageThread from '../components/messaging/MessageThread';
+import type { UserSummary, Message, User } from '../types';
 
-const Messages = () => {
+// Extended Message type to handle API response with _id
+interface MessageWithId {
+  _id: string;
+  id?: string;
+  subject: string;
+  content: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+  sender?: UserSummary & { _id?: string };
+  recipient?: UserSummary & { _id?: string };
+}
+
+const Messages: React.FC = () => {
   const [activeTab, setActiveTab] = useState(0);
-  const [selectedMessage, setSelectedMessage] = useState(null);
+  const [selectedMessage, setSelectedMessage] = useState<MessageWithId | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [showReply, setShowReply] = useState(false);
-  const [replyToMessage, setReplyToMessage] = useState(null);
+  const [replyToMessage, setReplyToMessage] = useState<MessageWithId | null>(null);
 
   // Fetch messages
-  const { 
-    data: inboxMessages = [], 
+  const {
+    data: inboxMessages = [],
     isLoading: loadingInbox,
     error: inboxError,
-    refetch: refetchInbox
+    refetch: refetchInbox,
   } = useMessages('inbox');
-  
-  const { 
-    data: sentMessages = [], 
+
+  const {
+    data: sentMessages = [],
     isLoading: loadingSent,
     error: sentError,
-    refetch: refetchSent
+    refetch: refetchSent,
   } = useMessages('sent');
 
   // Delete message mutation
@@ -54,71 +68,71 @@ const Messages = () => {
       if (selectedMessage) {
         setSelectedMessage(null);
       }
-    }
+    },
   });
 
-  const handleTabChange = (event, newValue) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number): void => {
     setActiveTab(newValue);
     setSelectedMessage(null);
   };
 
-  const handleMessageClick = (message) => {
+  const handleMessageClick = (message: MessageWithId): void => {
     setSelectedMessage(message);
   };
 
-  const handleBackToList = () => {
+  const handleBackToList = (): void => {
     setSelectedMessage(null);
   };
 
-  const handleComposeMessage = () => {
+  const handleComposeMessage = (): void => {
     setShowCompose(true);
   };
 
-  const handleCloseCompose = () => {
+  const handleCloseCompose = (): void => {
     setShowCompose(false);
   };
 
-  const handleComposeSuccess = () => {
+  const handleComposeSuccess = (): void => {
     setShowCompose(false);
     refetchSent();
   };
 
-  const handleReplyMessage = (message) => {
+  const handleReplyMessage = (message: MessageWithId): void => {
     setReplyToMessage(message);
     setShowReply(true);
   };
 
-  const handleCloseReply = () => {
+  const handleCloseReply = (): void => {
     setShowReply(false);
     setReplyToMessage(null);
   };
 
-  const handleReplySuccess = () => {
+  const handleReplySuccess = (): void => {
     setShowReply(false);
     setReplyToMessage(null);
     refetchSent();
   };
 
-  const handleDeleteMessage = (messageId) => {
+  const handleDeleteMessage = (messageId: string): void => {
     if (window.confirm('Are you sure you want to delete this message?')) {
       deleteMessageMutation.mutate(messageId);
     }
   };
 
-  const getCurrentMessages = () => {
-    return activeTab === 0 ? inboxMessages : sentMessages;
+  const getCurrentMessages = (): MessageWithId[] => {
+    return (activeTab === 0 ? inboxMessages : sentMessages) as MessageWithId[];
   };
 
-  const getCurrentLoading = () => {
+  const getCurrentLoading = (): boolean => {
     return activeTab === 0 ? loadingInbox : loadingSent;
   };
 
-  const getCurrentError = () => {
-    return activeTab === 0 ? inboxError : sentError;
+  const getCurrentError = (): Error | null => {
+    return (activeTab === 0 ? inboxError : sentError) as Error | null;
   };
 
-  const getUnreadCount = () => {
-    return inboxMessages.filter(msg => !msg.isRead).length;
+  const getUnreadCount = (): number => {
+    return (inboxMessages as MessageWithId[]).filter((msg) => !msg.isRead).length;
   };
 
   if (selectedMessage) {
@@ -141,11 +155,7 @@ const Messages = () => {
         <Typography variant="h4" component="h1">
           Messages
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleComposeMessage}
-        >
+        <Button variant="contained" startIcon={<AddIcon />} onClick={handleComposeMessage}>
           Compose Message
         </Button>
       </Box>
@@ -153,27 +163,23 @@ const Messages = () => {
       {/* Tabs */}
       <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
         <Tabs value={activeTab} onChange={handleTabChange}>
-          <Tab 
+          <Tab
             icon={
               <Badge badgeContent={getUnreadCount()} color="primary">
                 <InboxIcon />
               </Badge>
             }
-            label="Inbox" 
+            label="Inbox"
             iconPosition="start"
           />
-          <Tab 
-            icon={<SendIcon />} 
-            label="Sent" 
-            iconPosition="start"
-          />
+          <Tab icon={<SendIcon />} label="Sent" iconPosition="start" />
         </Tabs>
       </Box>
 
       {/* Error handling */}
       {getCurrentError() && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load messages: {getCurrentError().message}
+          Failed to load messages: {getCurrentError()?.message}
         </Alert>
       )}
 
@@ -187,12 +193,7 @@ const Messages = () => {
       />
 
       {/* Compose Message Dialog */}
-      <Dialog 
-        open={showCompose} 
-        onClose={handleCloseCompose}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={showCompose} onClose={handleCloseCompose} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box display="flex" justifyContent="between" alignItems="center">
             Compose New Message
@@ -202,20 +203,12 @@ const Messages = () => {
           </Box>
         </DialogTitle>
         <DialogContent>
-          <MessageForm
-            onSuccess={handleComposeSuccess}
-            onCancel={handleCloseCompose}
-          />
+          <MessageForm onSuccess={handleComposeSuccess} onCancel={handleCloseCompose} />
         </DialogContent>
       </Dialog>
 
       {/* Reply Message Dialog */}
-      <Dialog 
-        open={showReply} 
-        onClose={handleCloseReply}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={showReply} onClose={handleCloseReply} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box display="flex" justifyContent="between" alignItems="center">
             Reply to Message
@@ -226,9 +219,9 @@ const Messages = () => {
         </DialogTitle>
         <DialogContent>
           <MessageForm
-            replyToMessage={replyToMessage}
+            replyToMessage={replyToMessage as unknown as Message}
             recipientId={replyToMessage?.sender?._id}
-            recipientUser={replyToMessage?.sender}
+            recipientUser={replyToMessage?.sender as unknown as User}
             onSuccess={handleReplySuccess}
             onCancel={handleCloseReply}
           />
