@@ -58,4 +58,7 @@ server/uploads/
 
 # Temporary files
 *.tmp
-*.temp 
+*.temp
+
+# Claude orchestrator state
+.claude/orchestrator/
