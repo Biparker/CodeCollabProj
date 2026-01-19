@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node index.js",
+    "start:tsx": "tsx index.js",
     "dev": "tsx watch index.js",
     "dev:js": "nodemon index.js",
     "test": "jest",
