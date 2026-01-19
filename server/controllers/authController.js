@@ -440,9 +440,12 @@ const getCurrentUser = async (req, res) => {
 // Refresh token endpoint
 const refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
-    
-    if (!refreshToken) {
+    // Support both cookie-based and body-based refresh token for backward compatibility
+    const tokenFromCookie = req.cookies?.refreshToken;
+    const tokenFromBody = req.body?.refreshToken;
+    const token = tokenFromCookie || tokenFromBody;
+
+    if (!token) {
       return res.status(400).json({ message: 'Refresh token is required' });
     }
 
@@ -451,8 +454,18 @@ const refreshToken = async (req, res) => {
       ip: req.ip
     };
 
-    const sessionData = await sessionService.refreshSession(refreshToken, deviceInfo);
+    const sessionData = await sessionService.refreshSession(token, deviceInfo);
 
+    // Set new access token as httpOnly cookie
+    res.cookie('accessToken', sessionData.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/'
+    });
+
+    // Still return token in response body for backward compatibility
     res.json({
       accessToken: sessionData.accessToken,
       expiresIn: sessionData.expiresIn
