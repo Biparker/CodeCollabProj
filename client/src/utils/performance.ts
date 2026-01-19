@@ -107,7 +107,7 @@ export const createIntersectionObserver = (
  * @param href - Resource URL
  * @param as - Resource type
  */
-export const preloadResource = (href: string, as: string = 'fetch'): void => {
+export const preloadResource = (href: string, as = 'fetch'): void => {
   const link = document.createElement('link');
   link.rel = 'preload';
   link.href = href;
@@ -177,7 +177,7 @@ export const batchDOMUpdates = (updates: Array<() => void>): Promise<void> => {
  * @param width - Desired width
  * @returns Optimized image URL
  */
-export const optimizeImage = (src: string, width: number = 800): string => {
+export const optimizeImage = (src: string, width = 800): string => {
   // Add width parameter for responsive images
   return `${src}?w=${width}&q=80`;
 };
