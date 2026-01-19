@@ -1,13 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
-import { projectsService } from '../../services/projectsService';
+import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
+import { projectsService, ProjectFilters } from '../../services/projectsService';
 import { queryKeys } from '../../config/queryClient';
+import type { Project, ProjectStatus } from '../../types';
 
 /**
  * Hook for fetching all projects with optional filters
- * @param {Object} filters - Optional filters for projects
- * @param {Object} options - Additional query options
  */
-export const useProjects = (filters = {}, options = {}) => {
+export const useProjects = (
+  filters: ProjectFilters = {},
+  options: Omit<UseQueryOptions<Project[], Error>, 'queryKey' | 'queryFn'> = {}
+): UseQueryResult<Project[], Error> => {
   return useQuery({
     queryKey: queryKeys.projects.list(filters),
     queryFn: () => projectsService.getAll(filters),
@@ -19,10 +21,11 @@ export const useProjects = (filters = {}, options = {}) => {
 
 /**
  * Hook for searching projects
- * @param {string} searchQuery - Search query string
- * @param {Object} options - Additional query options
  */
-export const useProjectSearch = (searchQuery, options = {}) => {
+export const useProjectSearch = (
+  searchQuery: string,
+  options: Omit<UseQueryOptions<Project[], Error>, 'queryKey' | 'queryFn' | 'enabled'> = {}
+): UseQueryResult<Project[], Error> => {
   return useQuery({
     queryKey: queryKeys.projects.search(searchQuery),
     queryFn: () => projectsService.search(searchQuery),
@@ -35,13 +38,14 @@ export const useProjectSearch = (searchQuery, options = {}) => {
 
 /**
  * Hook for fetching user's projects
- * @param {string} userId - User ID to fetch projects for
- * @param {Object} options - Additional query options
  */
-export const useUserProjects = (userId, options = {}) => {
+export const useUserProjects = (
+  userId: string | undefined,
+  options: Omit<UseQueryOptions<Project[], Error>, 'queryKey' | 'queryFn' | 'enabled'> = {}
+): UseQueryResult<Project[], Error> => {
   return useQuery({
-    queryKey: [...queryKeys.projects.all, 'user', userId],
-    queryFn: () => projectsService.getUserProjects(userId),
+    queryKey: [...queryKeys.projects.all, 'user', userId ?? ''],
+    queryFn: () => projectsService.getUserProjects(userId!),
     enabled: !!userId,
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
@@ -51,13 +55,14 @@ export const useUserProjects = (userId, options = {}) => {
 
 /**
  * Hook for fetching projects by status
- * @param {string} status - Project status
- * @param {Object} options - Additional query options
  */
-export const useProjectsByStatus = (status, options = {}) => {
+export const useProjectsByStatus = (
+  status: ProjectStatus | string | undefined,
+  options: Omit<UseQueryOptions<Project[], Error>, 'queryKey' | 'queryFn' | 'enabled'> = {}
+): UseQueryResult<Project[], Error> => {
   return useQuery({
-    queryKey: [...queryKeys.projects.all, 'status', status],
-    queryFn: () => projectsService.getByStatus(status),
+    queryKey: [...queryKeys.projects.all, 'status', status ?? ''],
+    queryFn: () => projectsService.getByStatus(status!),
     enabled: !!status,
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
@@ -67,9 +72,10 @@ export const useProjectsByStatus = (status, options = {}) => {
 
 /**
  * Hook for fetching featured projects
- * @param {Object} options - Additional query options
  */
-export const useFeaturedProjects = (options = {}) => {
+export const useFeaturedProjects = (
+  options: Omit<UseQueryOptions<Project[], Error>, 'queryKey' | 'queryFn'> = {}
+): UseQueryResult<Project[], Error> => {
   return useQuery({
     queryKey: [...queryKeys.projects.all, 'featured'],
     queryFn: projectsService.getFeatured,

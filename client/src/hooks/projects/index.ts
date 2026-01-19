@@ -1,25 +1,21 @@
 // Central export for all project hooks
-export { 
-  useProjects, 
-  useProjectSearch, 
-  useUserProjects, 
-  useProjectsByStatus, 
-  useFeaturedProjects 
+export {
+  useProjects,
+  useProjectSearch,
+  useUserProjects,
+  useProjectsByStatus,
+  useFeaturedProjects,
 } from './useProjects';
 
 export { useProject } from './useProject';
 
-export { 
-  useCreateProject, 
-  useUpdateProject, 
-  useDeleteProject 
-} from './useProjectMutations';
+export { useCreateProject, useUpdateProject, useDeleteProject } from './useProjectMutations';
 
-export { 
-  useJoinProject, 
-  useLeaveProject, 
-  useRequestCollaboration, 
-  useHandleCollaborationRequest 
+export {
+  useJoinProject,
+  useLeaveProject,
+  useRequestCollaboration,
+  useHandleCollaborationRequest,
 } from './useCollaborationMutations';
 
 // Re-export defaults
