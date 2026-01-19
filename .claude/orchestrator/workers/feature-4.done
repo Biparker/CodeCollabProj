@@ -1,16 +1,51 @@
-Feature: Backend - Update logout and logoutAll endpoints to clear cookies
+## Feature 4: Migrate server models (Session, User, Project, Comment, Message)
 
-Summary:
-Updated the logout and logoutAll functions in server/controllers/authController.js to clear httpOnly cookies when users log out.
+### Summary
+Successfully migrated all 5 Mongoose models from JavaScript to TypeScript.
 
-Changes made:
-- Added res.clearCookie('accessToken', { path: '/' }) to logout function
-- Added res.clearCookie('refreshToken', { path: '/api/auth' }) to logout function
-- Added res.clearCookie('accessToken', { path: '/' }) to logoutAll function
-- Added res.clearCookie('refreshToken', { path: '/api/auth' }) to logoutAll function
+### Files Changed
+- `server/models/Session.js` → `server/models/Session.ts`
+- `server/models/User.js` → `server/models/User.ts`
+- `server/models/Project.js` → `server/models/Project.ts`
+- `server/models/Comment.js` → `server/models/Comment.ts`
+- `server/models/Message.js` → `server/models/Message.ts`
 
-The cookie paths match the paths where the cookies are set:
-- accessToken: path '/' (available throughout the app)
-- refreshToken: path '/api/auth' (only available to auth endpoints)
+### Implementation Details
 
-Commit: feat(auth): add cookie clearing on logout endpoints
+1. **Session.ts**:
+   - Uses `Schema<ISession, SessionModel, ISessionMethods>` pattern
+   - Instance method: `revoke()` with proper typing
+   - Static methods: `revokeAllUserSessions()`, `cleanExpiredSessions()`, `getActiveSessionCount()`
+
+2. **User.ts** (most complex):
+   - Uses `Schema<IUser, UserModel, IUserMethods>` pattern
+   - Pre-save hooks for password hashing and role-based permission assignment
+   - 16 instance methods with proper `this: HydratedDocument<IUser, IUserMethods>` typing
+   - Methods include: `comparePassword`, `generateEmailVerificationToken`, `generatePasswordResetToken`, `clearPasswordResetToken`, `hasRole`, `hasPermission`, `hasAnyPermission`, `addPermission`, `removePermission`, `setRole`, `getDefaultPermissionsForRole`, `isAdmin`, `isModerator`, `canManageUsers`, `suspend`, `unsuspend`, `isCurrentlySuspended`
+
+3. **Project.ts**:
+   - Uses `Schema<IProject, ProjectModel>` pattern
+   - Nested schemas for collaborators, resources, and incentives
+   - Text index for search functionality
+
+4. **Comment.ts**:
+   - Uses `Schema<IComment, CommentModel>` pattern
+   - Simple schema with projectId index
+
+5. **Message.ts**:
+   - Uses `Schema<IMessage, MessageModel>` pattern
+   - Compound indexes for efficient querying
+
+### TypeScript Patterns Used
+- `import mongoose, { Schema, HydratedDocument } from 'mongoose'`
+- Type imports from `../types/models`
+- Proper enum typing with `as TypeName[]` assertions
+- `HydratedDocument<IModel, IMethods>` for `this` context in methods
+- `CallbackError` for pre-save hook error handling
+
+### Verification
+- All files pass `npx tsc --noEmit`
+- CommonJS exports maintained for compatibility (`module.exports = Model`)
+
+### Commit
+`3afb4bd` - refactor(server): migrate Mongoose models from JS to TypeScript

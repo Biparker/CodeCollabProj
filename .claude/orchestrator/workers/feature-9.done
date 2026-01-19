@@ -1,55 +1,25 @@
-# Feature 9 Complete: Playwright Security Tests for Cookie-Based Auth
+## Feature 9: Migrate client hooks - auth domain
 
-## Summary
-Added comprehensive Playwright E2E security tests to verify that the httpOnly cookie-based authentication system works correctly and provides XSS protection.
+### Summary
+Successfully migrated all client-side auth hooks from JavaScript to TypeScript.
 
-## Files Created/Modified
-- `playwright.config.js` - Playwright configuration for E2E tests
-- `tests/e2e/cookie-auth-security.spec.js` - Security test suite
-- `package.json` - Added E2E test scripts
+### Files Changed
+1. `client/src/hooks/auth/useAuth.ts` - Main auth hook with typed UseAuthReturn interface
+2. `client/src/hooks/auth/useLogin.ts` - Login mutation with typed LoginCredentials/LoginResponse
+3. `client/src/hooks/auth/useRegister.ts` - Register mutation with typed RegisterData/RegisterResponse
+4. `client/src/hooks/auth/useLogout.ts` - Logout mutations (useLogout, useLogoutAll)
+5. `client/src/hooks/auth/useChangePassword.ts` - Password change mutation
+6. `client/src/hooks/auth/usePasswordReset.ts` - Password reset and email verification hooks
+7. `client/src/hooks/auth/useSessions.ts` - Session management hook with typed UseSessionsReturn
+8. `client/src/hooks/auth/index.ts` - Central exports for all auth hooks and types
 
-## Test Coverage
-The security test suite includes:
+### Key Changes
+- All hooks now use TanStack Query types (UseMutationResult, UseQueryResult, useQuery, useMutation)
+- Types imported from `client/src/types/` (User, Session, LoginCredentials, etc.)
+- Added interface definitions for hook return types (UseAuthReturn, UseSessionsReturn)
+- Added AxiosError interface for proper error typing throughout
+- TypeScript verification passed with `npx tsc --noEmit`
 
-### Login Flow Tests
-- Verifies httpOnly cookies are set on successful login
-- Ensures tokens are not accessible via JavaScript
-
-### Token Storage Security Tests
-- Confirms tokens are NOT stored in localStorage
-- Confirms tokens are NOT stored in sessionStorage
-
-### Cookie Attributes Tests
-- Validates accessToken cookie has httpOnly, SameSite, and correct Path
-- Validates refreshToken cookie has httpOnly, SameSite, and restricted Path (/api/auth)
-
-### Authentication Flow Tests
-- Verifies API requests use cookies automatically
-- Confirms unauthenticated requests are rejected
-
-### Token Refresh Tests
-- Tests token refresh using httpOnly cookies
-
-### Logout Tests
-- Verifies cookies are cleared on logout
-- Confirms protected routes reject requests after logout
-
-### XSS Protection Tests
-- Comprehensive check that tokens cannot be accessed via:
-  - document.cookie
-  - localStorage
-  - sessionStorage
-  - window object
-
-### CORS and Credentials Tests
-- Verifies credentials are included in cross-origin requests
-
-## Running Tests
-```bash
-npm run test:e2e              # Run all E2E tests
-npm run test:e2e:ui           # Run tests with UI
-npm run test:e2e:security     # Run only security tests
-```
-
-## Commit
-5dc37a2 - test(auth): add Playwright security tests for httpOnly cookie auth
+### Verification
+- TypeScript check passed with no errors
+- All imports and type annotations verified working

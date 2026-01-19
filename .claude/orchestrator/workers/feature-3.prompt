@@ -1,10 +1,10 @@
 You are a worker agent focused on implementing a single feature.
 
 ## Your Task
-Backend: Update auth middleware to read accessToken from req.cookies, with fallback to Authorization header for backward compatibility
+Phase 2: Migrate server utils and config (constants, logger, passwordValidator, envValidator, scheduledTasks, gridfs)
 
 ## Orchestration Context
-Migrate JWT token storage from localStorage to httpOnly cookies to eliminate XSS token theft vulnerability. This involves backend changes to set/read cookies and frontend changes to use credential-based requests.
+Migrate CodeCollabProj from JavaScript to TypeScript with gradual strictness. Phase 0 infrastructure is complete (tsconfig, eslint, prettier, husky, CI workflow). Now need to create types foundation and migrate all source files incrementally.
 
 ## Project Context Files
 ### From CLAUDE.md:
@@ -19,6 +19,7 @@ CodeCollabProj is a web application for computer club members to collaborate on 
 ## Development Commands
 
 ### Running the Application
+
 ```bash
 npm run dev           # Start both client (port 3000) and server (port 5001) concurrently
 npm run client        # Start only React dev server
@@ -27,6 +28,7 @@ npm run install-all   # Install dependencies for root, client, and server
 ```
 
 ### Testing
+
 ```bash
 # Server tests (Jest)
 cd server && npm test              # Run all server tests
@@ -38,11 +40,13 @@ cd client && npm test              # Run client tests in watch mode
 ```
 
 ### Database
+
 ```bash
 cd server && npm run seed          # Seed database with sample data
 ```
 
 ### Building for Production
+
 ```bash
 npm run build         # Build client for production
 ```
@@ -50,16 +54,19 @@ npm run build         # Build client for production
 ## Architecture
 
 ### Monorepo Structure
+
 - `/client` - React 18 frontend (Create React App)
 - `/server` - Express.js backend
 
 ### Backend Architecture (server/)
+
 - **MVC Pattern**: Controllers handle business logic, Models define MongoDB schemas, Routes define API endpoints
 - **Authentication**: JWT dual-token system (access + refresh tokens) with session management via `services/sessionService.js`
 - **RBAC**: Role-based access control via `middleware/rbac.js` with three roles: `user`, `moderator`, `admin`
 - **File Storage**: Avatar images stored in MongoDB GridFS (`utils/gridfs.js`)
 
 Key middleware chain in `index.js`:
+
 1. Helmet (security headers with CSP nonces)
 2. CORS (restrictive, configured for dev/prod)
 3. MongoDB sanitization (injection prevention)
@@ -67,11 +74,13 @@ Key middleware chain in `index.js`:
 5. Rate limiting (production only, with auth-specific limits)
 
 ### Frontend Architecture (client/src/)
+
 - **State Management**: TanStack Query (React Query v5) - no Redux
 - **Routing**: React Router v6 with PrivateRoute and AdminRoute guards
 - **UI**: Material-UI v5
 
 **Hooks Pattern** (`hooks/`): Custom hooks organized by domain (auth, projects, comments, users, admin). Each hook wraps TanStack Query:
+
 - `useAuth` - Authentication state and token management
 - `useProjects`, `useProject` - Project data fetching
 - `useComments`, `useCommentMutations` - Comment CRUD
@@ -80,6 +89,7 @@ Key middleware chain in `index.js`:
 **Services Pattern** (`services/`): API layer using Axios. Each service corresponds to a backend resource. Central export in `services/index.js`.
 
 ### Data Flow
+
 1. Components use domain hooks (e.g., `useProjects`)
 2. Hooks call services via TanStack Query
 3. Services make HTTP calls with token auth
@@ -89,12 +99,14 @@ Key middleware chain in `index.js`:
 ## Environment Setup
 
 Copy environment templates:
+
 ```bash
 cp server/example.env server/.env
 cp client/example.env client/.env
 ```
 
 Required server environment variables:
+
 - `MONGODB_URI` - MongoDB connection string
 - `JWT_SECRET` - Access token secret (min 32 chars)
 - `JWT_REFRESH_SECRET` - Refresh token secret
@@ -103,16 +115,19 @@ Required server environment variables:
 ## Key Patterns
 
 ### Adding a New API Endpoint
+
 1. Create/update route in `server/routes/`
 2. Create/update controller in `server/controllers/`
 3. Apply middleware: `auth` for authentication, `requireRole`/`requirePermission` from `rbac.js` for authorization
 
 ### Adding a New Frontend Feature
+
 1. Create service method in `client/src/services/`
 2. Create custom hook in `client/src/hooks/` using TanStack Query
 3. Build component using the hook
 
 ### Test Users
+
 Development accounts: `user1@example.com` through `user10@example.com` with password `password123`
 
 
@@ -147,14 +162,18 @@ git commit -m "feat(feature-name): implement the feature" -m "🤖 Committed by 
 
 
 ## Additional Context
-Update server/middleware/auth.js to read accessToken from cookies with fallback to Authorization header:
+Migrate server utils and config files from JavaScript to TypeScript. Rename files from .js to .ts and add proper types.
 
-// Try cookie first, then Authorization header
-let token = req.cookies?.accessToken;
-if (!token) {
-  token = req.header('Authorization')?.replace('Bearer ', '');
-}
+Files to migrate (in order):
+1. config/constants.js → constants.ts - Add 'as const' for literal types, export typed constants
+2. utils/logger.js → logger.ts - Type the logger functions and configuration
+3. utils/passwordValidator.js → passwordValidator.ts - Add types for validation functions
+4. utils/envValidator.js → envValidator.ts - Type environment validation
+5. utils/scheduledTasks.js → scheduledTasks.ts - Type scheduled task functions
+6. utils/gridfs.js → gridfs.ts - Type GridFS utility functions with MongoDB types
 
-This allows both cookie-based and header-based auth during the transition period.
+Use the types from server/types/models.ts and server/types/api.ts.
+Keep module.exports for CommonJS compatibility.
+Run 'npx tsc --noEmit' to verify no type errors after each file.
 
 Begin implementing the feature now.
