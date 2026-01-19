@@ -2,7 +2,14 @@
  * Validation utility tests
  */
 
-import { isValidEmail, validatePassword, validateUsername, isValidURL, validateForm } from '../../utils/validation';
+import {
+  isValidEmail,
+  validatePassword,
+  validateUsername,
+  isValidURL,
+  validateForm,
+  ValidationRules,
+} from '../../utils/validation';
 
 describe('Validation Utilities', () => {
   describe('isValidEmail', () => {
@@ -80,7 +87,9 @@ describe('Validation Utilities', () => {
     it('should reject usernames with invalid characters', () => {
       const result = validateUsername('user-name');
       expect(result.isValid).toBe(false);
-      expect(result.errors).toContain('Username can only contain letters, numbers, and underscores');
+      expect(result.errors).toContain(
+        'Username can only contain letters, numbers, and underscores'
+      );
     });
   });
 
@@ -99,17 +108,23 @@ describe('Validation Utilities', () => {
   });
 
   describe('validateForm', () => {
+    interface TestFormData {
+      email: string;
+      password: string;
+      username: string;
+    }
+
     it('should validate form with correct data', () => {
-      const formData = {
+      const formData: TestFormData = {
         email: 'test@example.com',
         password: 'StrongPass123!',
-        username: 'testuser'
+        username: 'testuser',
       };
 
-      const rules = {
+      const rules: ValidationRules<TestFormData> = {
         email: { type: 'email', required: true },
         password: { type: 'password', required: true },
-        username: { type: 'username', required: true }
+        username: { type: 'username', required: true },
       };
 
       const result = validateForm(formData, rules);
@@ -118,16 +133,16 @@ describe('Validation Utilities', () => {
     });
 
     it('should return errors for invalid form data', () => {
-      const formData = {
+      const formData: TestFormData = {
         email: 'invalid-email',
         password: 'weak',
-        username: 'ab'
+        username: 'ab',
       };
 
-      const rules = {
+      const rules: ValidationRules<TestFormData> = {
         email: { type: 'email', required: true },
         password: { type: 'password', required: true },
-        username: { type: 'username', required: true }
+        username: { type: 'username', required: true },
       };
 
       const result = validateForm(formData, rules);
@@ -136,4 +151,3 @@ describe('Validation Utilities', () => {
     });
   });
 });
-
