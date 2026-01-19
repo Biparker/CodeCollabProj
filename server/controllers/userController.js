@@ -4,11 +4,14 @@ const Message = require('../models/Message');
 // GridFS removed - now using filesystem storage
 // const { uploadToGridFS, downloadFromGridFS, deleteFromGridFS, getFileInfo } = require('../utils/gridfs');
 
+// Sensitive fields that should NEVER be returned in API responses
+const SENSITIVE_FIELDS = '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
+
 // Get all users (public profiles)
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ isProfilePublic: true })
-      .select('-password -email')
+      .select(`${SENSITIVE_FIELDS} -email`)
       .sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {
@@ -20,12 +23,12 @@ const getAllUsers = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
-      .select('-password');
-    
+      .select(`${SENSITIVE_FIELDS} -email`);
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user', error: error.message });
@@ -74,7 +77,7 @@ const updateProfile = async (req, res) => {
       userId,
       { $set: updateFields },
       { new: true }
-    ).select('-password');
+    ).select(SENSITIVE_FIELDS);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -131,7 +134,7 @@ const searchUsers = async (req, res) => {
     }
 
     const users = await User.find(searchCriteria)
-      .select('-password -email')
+      .select(`${SENSITIVE_FIELDS} -email`)
       .sort({ createdAt: -1 });
 
     res.json(users);
@@ -253,7 +256,7 @@ const deleteMessage = async (req, res) => {
 // Get user's own profile
 const getMyProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select(SENSITIVE_FIELDS);
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile', error: error.message });
@@ -300,7 +303,7 @@ const uploadAvatar = async (req, res) => {
       userId,
       { profileImage: avatarPath },
       { new: true, runValidators: true }
-    ).select('-password');
+    ).select(SENSITIVE_FIELDS);
 
     if (!user) {
       return res.status(500).json({ message: 'Failed to update user profile' });
@@ -352,7 +355,7 @@ const deleteAvatar = async (req, res) => {
       userId,
       { profileImage: null },
       { new: true }
-    ).select('-password');
+    ).select(SENSITIVE_FIELDS);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
