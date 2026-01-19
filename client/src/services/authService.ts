@@ -2,6 +2,67 @@ import api from '../utils/api';
 import tokenEncryption from '../utils/tokenEncryption';
 import { TOKEN_EXPIRATION } from '../config/constants';
 import logger from '../utils/logger';
+import type {
+  User,
+  LoginCredentials,
+  RegisterData,
+  LoginResponse,
+  RegisterResponse,
+  RefreshTokenResponse,
+  CookieAuthCheckResult,
+  PasswordChangeFormData,
+  PasswordResetRequestResponse,
+  VerifyPasswordResetTokenResponse,
+  EmailVerificationResponse,
+  Session,
+} from '../types';
+
+/**
+ * Password change data for the API (different from form data)
+ */
+interface PasswordChangeData {
+  currentPassword: string;
+  newPassword: string;
+}
+
+/**
+ * Password reset confirmation data
+ */
+interface PasswordResetData {
+  token: string;
+  password: string;
+}
+
+/**
+ * Auth service interface for external use
+ */
+export interface AuthServiceInterface {
+  // Async methods
+  register: (userData: RegisterData) => Promise<RegisterResponse>;
+  login: (userData: LoginCredentials) => Promise<LoginResponse>;
+  refreshToken: () => Promise<string>;
+  getCurrentUser: () => Promise<User>;
+  isAuthenticatedViaCookie: () => Promise<CookieAuthCheckResult>;
+  logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  changePassword: (passwordData: PasswordChangeData) => Promise<{ message: string }>;
+  getActiveSessions: () => Promise<Session[]>;
+  resendVerificationEmail: (email: string) => Promise<EmailVerificationResponse>;
+  requestPasswordReset: (email: string) => Promise<PasswordResetRequestResponse>;
+  verifyPasswordResetToken: (token: string) => Promise<VerifyPasswordResetTokenResponse>;
+  resetPassword: (data: PasswordResetData) => Promise<{ message: string }>;
+  verifyEmail: (token: string) => Promise<EmailVerificationResponse>;
+  // Sync methods (deprecated localStorage methods)
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  clearTokens: () => void;
+  getAccessToken: () => string | null;
+  getRefreshToken: () => string | null;
+  isTokenExpired: () => boolean;
+  isAuthenticated: () => boolean;
+  getValidToken: () => Promise<string | null>;
+  getTokenNoRefresh: () => string | null;
+  getToken: () => string | null;
+}
 
 /**
  * Enhanced authentication service with dual-token system
@@ -21,14 +82,14 @@ import logger from '../utils/logger';
  *   tokens from either cookies or Authorization header.
  */
 
-export const authService = {
+export const authService: AuthServiceInterface = {
   /**
    * User registration
    * Note: Backend now sets httpOnly cookies automatically on successful registration.
    * localStorage storage is deprecated but kept for backward compatibility.
    */
-  register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
+  register: async (userData: RegisterData): Promise<RegisterResponse> => {
+    const response = await api.post<RegisterResponse>('/auth/register', userData);
 
     // DEPRECATED: localStorage token storage
     // The backend now sets httpOnly cookies automatically.
@@ -46,8 +107,8 @@ export const authService = {
    * Note: Backend now sets httpOnly cookies automatically on successful login.
    * localStorage storage is deprecated but kept for backward compatibility.
    */
-  login: async (userData) => {
-    const response = await api.post('/auth/login', userData);
+  login: async (userData: LoginCredentials): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/login', userData);
 
     // DEPRECATED: localStorage token storage
     // The backend now sets httpOnly cookies automatically.
@@ -61,22 +122,26 @@ export const authService = {
   },
 
   // Refresh access token using refresh token
-  refreshToken: async () => {
+  refreshToken: async (): Promise<string> => {
     const refreshToken = authService.getRefreshToken();
     if (!refreshToken) {
       throw new Error('No refresh token available');
     }
 
     try {
-      const response = await api.post('/auth/refresh-token', { refreshToken });
-      
+      const response = await api.post<RefreshTokenResponse>('/auth/refresh-token', {
+        refreshToken,
+      });
+
       if (response.data.accessToken) {
         // Update access token using setTokens to encrypt it
-        const refreshToken = authService.getRefreshToken();
-        authService.setTokens(response.data.accessToken, refreshToken);
+        const currentRefreshToken = authService.getRefreshToken();
+        if (currentRefreshToken) {
+          authService.setTokens(response.data.accessToken, currentRefreshToken);
+        }
         return response.data.accessToken;
       }
-      
+
       throw new Error('Invalid refresh response');
     } catch (error) {
       // If refresh fails, clear all tokens and redirect to login
@@ -89,8 +154,8 @@ export const authService = {
    * Get current user from server
    * This endpoint validates the auth state via httpOnly cookies.
    */
-  getCurrentUser: async () => {
-    const response = await api.get('/auth/me');
+  getCurrentUser: async (): Promise<User> => {
+    const response = await api.get<User>('/auth/me');
     return response.data;
   },
 
@@ -98,28 +163,28 @@ export const authService = {
    * Check if user is authenticated via httpOnly cookie
    * This is the preferred method for checking auth state during the migration.
    * It validates authentication server-side rather than relying on localStorage.
-   * @returns {Promise<{authenticated: boolean, user: Object|null}>}
    */
-  isAuthenticatedViaCookie: async () => {
+  isAuthenticatedViaCookie: async (): Promise<CookieAuthCheckResult> => {
     try {
-      const response = await api.get('/auth/me');
+      const response = await api.get<User>('/auth/me');
       return {
         authenticated: true,
-        user: response.data
+        user: response.data,
       };
-    } catch (error) {
+    } catch (error: unknown) {
       // 401 means not authenticated, which is expected for unauthenticated users
-      if (error?.response?.status === 401) {
+      const axiosError = error as { response?: { status?: number }; message?: string };
+      if (axiosError?.response?.status === 401) {
         return {
           authenticated: false,
-          user: null
+          user: null,
         };
       }
       // For other errors (network, server issues), log and return not authenticated
-      logger.warn('Auth check failed:', error.message);
+      logger.warn('Auth check failed:', axiosError.message || 'Unknown error');
       return {
         authenticated: false,
-        user: null
+        user: null,
       };
     }
   },
@@ -129,12 +194,13 @@ export const authService = {
    * The server clears httpOnly cookies. localStorage is cleared as fallback
    * for backward compatibility during the migration period.
    */
-  logout: async () => {
+  logout: async (): Promise<void> => {
     try {
       // Call server logout endpoint to invalidate session and clear httpOnly cookies
       await api.post('/auth/logout');
-    } catch (error) {
-      logger.warn('Server logout failed:', error.message);
+    } catch (error: unknown) {
+      const axiosError = error as { message?: string };
+      logger.warn('Server logout failed:', axiosError.message || 'Unknown error');
     } finally {
       // DEPRECATED: Clear localStorage tokens as fallback
       // This is kept for backward compatibility during the migration period
@@ -147,11 +213,12 @@ export const authService = {
    * The server clears httpOnly cookies and invalidates all sessions.
    * localStorage is cleared as fallback for backward compatibility.
    */
-  logoutAll: async () => {
+  logoutAll: async (): Promise<void> => {
     try {
       await api.post('/auth/logout-all');
-    } catch (error) {
-      logger.warn('Server logout-all failed:', error.message);
+    } catch (error: unknown) {
+      const axiosError = error as { message?: string };
+      logger.warn('Server logout-all failed:', axiosError.message || 'Unknown error');
     } finally {
       // DEPRECATED: Clear localStorage tokens as fallback
       authService.clearTokens();
@@ -159,46 +226,55 @@ export const authService = {
   },
 
   // Change password (revokes all sessions)
-  changePassword: async (passwordData) => {
-    const response = await api.put('/auth/change-password', passwordData);
+  changePassword: async (passwordData: PasswordChangeData): Promise<{ message: string }> => {
+    const response = await api.put<{ message: string }>('/auth/change-password', passwordData);
     // Password change revokes all sessions, so clear tokens
     authService.clearTokens();
     return response.data;
   },
 
   // Get active sessions
-  getActiveSessions: async () => {
-    const response = await api.get('/auth/sessions');
+  getActiveSessions: async (): Promise<Session[]> => {
+    const response = await api.get<Session[]>('/auth/sessions');
     return response.data;
   },
 
   // Resend verification email
-  resendVerificationEmail: async (email) => {
-    const response = await api.post('/auth/resend-verification', { email });
+  resendVerificationEmail: async (email: string): Promise<EmailVerificationResponse> => {
+    const response = await api.post<EmailVerificationResponse>('/auth/resend-verification', {
+      email,
+    });
     return response.data;
   },
 
   // Request password reset
-  requestPasswordReset: async (email) => {
-    const response = await api.post('/auth/request-password-reset', { email });
+  requestPasswordReset: async (email: string): Promise<PasswordResetRequestResponse> => {
+    const response = await api.post<PasswordResetRequestResponse>('/auth/request-password-reset', {
+      email,
+    });
     return response.data;
   },
 
   // Verify password reset token
-  verifyPasswordResetToken: async (token) => {
-    const response = await api.get(`/auth/verify-password-reset/${token}`);
+  verifyPasswordResetToken: async (token: string): Promise<VerifyPasswordResetTokenResponse> => {
+    const response = await api.get<VerifyPasswordResetTokenResponse>(
+      `/auth/verify-password-reset/${token}`
+    );
     return response.data;
   },
 
   // Reset password
-  resetPassword: async ({ token, password }) => {
-    const response = await api.post('/auth/reset-password', { token, password });
+  resetPassword: async ({ token, password }: PasswordResetData): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/auth/reset-password', {
+      token,
+      password,
+    });
     return response.data;
   },
 
   // Verify email
-  verifyEmail: async (token) => {
-    const response = await api.get(`/auth/verify-email/${token}`);
+  verifyEmail: async (token: string): Promise<EmailVerificationResponse> => {
+    const response = await api.get<EmailVerificationResponse>(`/auth/verify-email/${token}`);
     return response.data;
   },
 
@@ -215,14 +291,16 @@ export const authService = {
    * automatically via Set-Cookie headers. This method is kept for backward
    * compatibility during the migration period.
    */
-  setTokens: (accessToken, refreshToken) => {
+  setTokens: (accessToken: string, refreshToken: string): void => {
     try {
       // Encrypt tokens before storing
       const encryptedAccessToken = tokenEncryption.encrypt(accessToken);
       const encryptedRefreshToken = tokenEncryption.encrypt(refreshToken);
 
-      localStorage.setItem('accessToken', encryptedAccessToken);
-      localStorage.setItem('refreshToken', encryptedRefreshToken);
+      if (encryptedAccessToken && encryptedRefreshToken) {
+        localStorage.setItem('accessToken', encryptedAccessToken);
+        localStorage.setItem('refreshToken', encryptedRefreshToken);
+      }
 
       // Set expiration tracking for access token
       const expirationTime = Date.now() + TOKEN_EXPIRATION.ACCESS_TOKEN;
@@ -242,7 +320,7 @@ export const authService = {
    * httpOnly cookies on logout. This method is kept for backward compatibility
    * during the migration period.
    */
-  clearTokens: () => {
+  clearTokens: (): void => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('tokenExpiration');
@@ -257,7 +335,7 @@ export const authService = {
    * via JavaScript. This method is kept for backward compatibility during
    * the migration period.
    */
-  getAccessToken: () => {
+  getAccessToken: (): string | null => {
     try {
       const encryptedToken = localStorage.getItem('accessToken') || localStorage.getItem('token');
       if (!encryptedToken) return null;
@@ -277,7 +355,7 @@ export const authService = {
    * via JavaScript. This method is kept for backward compatibility during
    * the migration period.
    */
-  getRefreshToken: () => {
+  getRefreshToken: (): string | null => {
     try {
       const encryptedToken = localStorage.getItem('refreshToken');
       if (!encryptedToken) return null;
@@ -296,12 +374,12 @@ export const authService = {
    * @deprecated Token expiration is now handled server-side via httpOnly cookies.
    * This method is kept for backward compatibility during the migration period.
    */
-  isTokenExpired: () => {
+  isTokenExpired: (): boolean => {
     const expiration = localStorage.getItem('tokenExpiration');
     if (!expiration) return true;
 
     // Consider expired if less than threshold remaining
-    return Date.now() > (parseInt(expiration) - TOKEN_EXPIRATION.TOKEN_REFRESH_THRESHOLD);
+    return Date.now() > parseInt(expiration) - TOKEN_EXPIRATION.TOKEN_REFRESH_THRESHOLD;
   },
 
   /**
@@ -309,7 +387,7 @@ export const authService = {
    * This method checks localStorage tokens which is less secure than server validation.
    * Kept for backward compatibility during the migration period.
    */
-  isAuthenticated: () => {
+  isAuthenticated: (): boolean => {
     const accessToken = authService.getAccessToken();
     const refreshToken = authService.getRefreshToken();
     return !!(accessToken && refreshToken);
@@ -320,7 +398,7 @@ export const authService = {
    * This method is kept for backward compatibility during the migration period.
    * The api.js interceptor still uses this for Authorization header fallback.
    */
-  getValidToken: async () => {
+  getValidToken: async (): Promise<string | null> => {
     const accessToken = authService.getAccessToken();
 
     if (!accessToken) {
@@ -352,7 +430,7 @@ export const authService = {
    * @deprecated Tokens are now stored in httpOnly cookies.
    * This method is kept for backward compatibility during the migration period.
    */
-  getTokenNoRefresh: () => {
+  getTokenNoRefresh: (): string | null => {
     const accessToken = authService.getAccessToken();
 
     // Return token even if expired - let the server handle expiration
@@ -364,7 +442,7 @@ export const authService = {
    * @deprecated Use isAuthenticatedViaCookie() for auth state checks.
    * This is a legacy alias for getAccessToken().
    */
-  getToken: () => {
+  getToken: (): string | null => {
     return authService.getAccessToken();
   },
 };

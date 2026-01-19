@@ -1,17 +1,50 @@
 import api from '../utils/api';
+import type { Comment } from '../types';
+
+/**
+ * Comment creation data
+ */
+export interface CreateCommentData {
+  projectId: string;
+  content: string;
+}
+
+/**
+ * Comment update data
+ */
+export interface UpdateCommentData {
+  projectId: string;
+  content: string;
+}
+
+/**
+ * Comment delete response
+ */
+export interface DeleteCommentResponse {
+  message: string;
+}
+
+/**
+ * Comments service interface
+ */
+export interface CommentsServiceInterface {
+  getByProjectId: (projectId: string) => Promise<Comment[]>;
+  create: (commentData: CreateCommentData) => Promise<Comment>;
+  update: (commentId: string, commentData: UpdateCommentData) => Promise<Comment>;
+  delete: (commentId: string, projectId: string) => Promise<DeleteCommentResponse>;
+}
 
 /**
  * Comments service functions
  * These functions handle all comment-related API calls
  */
-
-export const commentsService = {
+export const commentsService: CommentsServiceInterface = {
   // Get comments for a project
-  getByProjectId: async (projectId) => {
+  getByProjectId: async (projectId: string): Promise<Comment[]> => {
     try {
       console.log('📝 CommentsService.getByProjectId called for project:', projectId);
-      
-      const response = await api.get(`/projects/${projectId}/comments`);
+
+      const response = await api.get<Comment[]>(`/projects/${projectId}/comments`);
       console.log('📝 CommentsService.getByProjectId response:', response.data);
       return response.data;
     } catch (error) {
@@ -24,12 +57,12 @@ export const commentsService = {
   // Comments are fetched as part of project comments list
 
   // Create new comment
-  create: async (commentData) => {
+  create: async (commentData: CreateCommentData): Promise<Comment> => {
     try {
       console.log('📝 CommentsService.create called with data:', commentData);
-      
+
       const { projectId, ...data } = commentData;
-      const response = await api.post(`/projects/${projectId}/comments`, data);
+      const response = await api.post<Comment>(`/projects/${projectId}/comments`, data);
       console.log('📝 CommentsService.create response:', response.data);
       return response.data;
     } catch (error) {
@@ -39,12 +72,12 @@ export const commentsService = {
   },
 
   // Update comment
-  update: async (commentId, commentData) => {
+  update: async (commentId: string, commentData: UpdateCommentData): Promise<Comment> => {
     try {
       console.log('📝 CommentsService.update called:', { commentId, commentData });
-      
+
       const { projectId, ...data } = commentData;
-      const response = await api.put(`/projects/${projectId}/comments/${commentId}`, data);
+      const response = await api.put<Comment>(`/projects/${projectId}/comments/${commentId}`, data);
       console.log('📝 CommentsService.update response:', response.data);
       return response.data;
     } catch (error) {
@@ -54,11 +87,18 @@ export const commentsService = {
   },
 
   // Delete comment
-  delete: async (commentId, projectId) => {
+  delete: async (commentId: string, projectId: string): Promise<DeleteCommentResponse> => {
     try {
-      console.log('📝 CommentsService.delete called for comment:', commentId, 'project:', projectId);
-      
-      const response = await api.delete(`/projects/${projectId}/comments/${commentId}`);
+      console.log(
+        '📝 CommentsService.delete called for comment:',
+        commentId,
+        'project:',
+        projectId
+      );
+
+      const response = await api.delete<DeleteCommentResponse>(
+        `/projects/${projectId}/comments/${commentId}`
+      );
       console.log('📝 CommentsService.delete response:', response.data);
       return response.data;
     } catch (error) {
@@ -70,3 +110,5 @@ export const commentsService = {
   // Note: Like/unlike and reply features would need to be implemented on the backend first
   // The backend currently only supports basic CRUD operations for comments
 };
+
+export default commentsService;
