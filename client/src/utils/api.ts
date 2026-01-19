@@ -1,10 +1,44 @@
-import axios from 'axios';
+import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig, AxiosResponse } from 'axios';
 import logger from './logger';
 
-// We'll import authService after it's defined to avoid circular dependency
-let authService;
+/**
+ * Extended axios request config with retry flag
+ */
+interface ExtendedAxiosRequestConfig extends InternalAxiosRequestConfig {
+  _retry?: boolean;
+}
 
-const api = axios.create({
+/**
+ * Auth service interface for lazy loading
+ */
+interface AuthService {
+  getValidToken: () => Promise<string | null>;
+  getTokenNoRefresh: () => string | null;
+  refreshToken: () => Promise<string>;
+  clearTokens: () => void;
+}
+
+/**
+ * Queued promise handlers for token refresh
+ */
+interface QueuedPromise {
+  resolve: (token: string) => void;
+  reject: (error: Error) => void;
+}
+
+/**
+ * API error response data structure
+ */
+interface ApiErrorData {
+  error?: string;
+  needsVerification?: boolean;
+  retryAfter?: number;
+}
+
+// We'll import authService after it's defined to avoid circular dependency
+let authService: AuthService | null = null;
+
+const api: AxiosInstance = axios.create({
   baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001/api',
   headers: {
     'Content-Type': 'application/json',
@@ -15,60 +49,62 @@ const api = axios.create({
 
 // Track if we're currently refreshing to prevent multiple refresh calls
 let isRefreshing = false;
-let failedQueue = [];
+let failedQueue: QueuedPromise[] = [];
 
-const processQueue = (error, token = null) => {
-  failedQueue.forEach(prom => {
+const processQueue = (error: Error | null, token: string | null = null): void => {
+  failedQueue.forEach((prom) => {
     if (error) {
       prom.reject(error);
-    } else {
+    } else if (token) {
       prom.resolve(token);
     }
   });
-  
+
   failedQueue = [];
 };
 
 // Enhanced request interceptor with automatic token refresh
 api.interceptors.request.use(
-  async (config) => {
+  async (config: InternalAxiosRequestConfig): Promise<InternalAxiosRequestConfig> => {
     // Lazy load authService to avoid circular dependency
     if (!authService) {
       const authModule = await import('../services/authService');
-      authService = authModule.authService || authModule.default;
+      authService = (authModule.authService || authModule.default) as AuthService;
     }
 
     // For auth endpoints (login, register, refresh), don't add token
-    const isAuthEndpoint = config.url?.includes('/auth/login') || 
-                          config.url?.includes('/auth/register') || 
-                          config.url?.includes('/auth/refresh-token');
+    const isAuthEndpoint =
+      config.url?.includes('/auth/login') ||
+      config.url?.includes('/auth/register') ||
+      config.url?.includes('/auth/refresh-token');
 
     // Determine if this is a critical operation that needs fresh token
-    const isCriticalOperation = config.url?.includes('/auth/') || 
-                               config.url?.includes('/password') ||
-                               config.url?.includes('/session') ||
-                               config.method?.toLowerCase() === 'post' ||
-                               config.method?.toLowerCase() === 'put' ||
-                               config.method?.toLowerCase() === 'delete';
+    const isCriticalOperation =
+      config.url?.includes('/auth/') ||
+      config.url?.includes('/password') ||
+      config.url?.includes('/session') ||
+      config.method?.toLowerCase() === 'post' ||
+      config.method?.toLowerCase() === 'put' ||
+      config.method?.toLowerCase() === 'delete';
 
     if (!isAuthEndpoint) {
       try {
         // For most requests, use the lightweight token getter
         // Only use getValidToken() for critical operations that need guaranteed fresh tokens
-        const token = isCriticalOperation 
-          ? await authService.getValidToken()  // Expensive but ensures fresh token
-          : authService.getTokenNoRefresh();   // Lightweight, let server handle expiration
+        const token = isCriticalOperation
+          ? await authService.getValidToken() // Expensive but ensures fresh token
+          : authService.getTokenNoRefresh(); // Lightweight, let server handle expiration
 
-        if (token) {
-          config.headers = config.headers || {};
+        if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
       } catch (error) {
-        logger.warn('Failed to get token:', error.message);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.warn('Failed to get token:', errorMessage);
         // Continue with request without token
       }
     }
-    
+
     // Only log API requests in development mode and for important operations
     if (process.env.NODE_ENV === 'development' && isCriticalOperation) {
       logger.debug('🌐 API Request:', {
@@ -76,13 +112,13 @@ api.interceptors.request.use(
         url: config.url || 'unknown',
         hasToken: !!config.headers?.Authorization,
         isAuthEndpoint,
-        isCritical: isCriticalOperation
+        isCritical: isCriticalOperation,
       });
     }
-    
+
     return config;
   },
-  (error) => {
+  (error: AxiosError): Promise<never> => {
     logger.error('❌ Request interceptor error:', error);
     return Promise.reject(error);
   }
@@ -90,33 +126,34 @@ api.interceptors.request.use(
 
 // Enhanced response interceptor with automatic token refresh
 api.interceptors.response.use(
-  (response) => {
+  (response: AxiosResponse): AxiosResponse => {
     // Only log successful responses for critical operations in development
-    const isCriticalUrl = response?.config?.url?.includes('/auth/') || 
-                         response?.config?.url?.includes('/password') ||
-                         response?.config?.url?.includes('/session');
-    
+    const isCriticalUrl =
+      response?.config?.url?.includes('/auth/') ||
+      response?.config?.url?.includes('/password') ||
+      response?.config?.url?.includes('/session');
+
     if (process.env.NODE_ENV === 'development' && isCriticalUrl) {
       logger.debug('✅ API Response:', {
         status: response?.status || 'unknown',
-        url: response?.config?.url || 'unknown'
+        url: response?.config?.url || 'unknown',
       });
     }
-    
+
     return response;
   },
-  async (error) => {
-    const originalRequest = error.config;
-    
+  async (error: AxiosError<ApiErrorData>): Promise<AxiosResponse | never> => {
+    const originalRequest = error.config as ExtendedAxiosRequestConfig | undefined;
+
     // Enhanced error logging
     const errorInfo = {
       status: error?.response?.status,
       message: error?.response?.data?.error || error?.message || 'Unknown error',
       url: error?.config?.url,
       isNetworkError: !error?.response,
-      errorType: error?.code || 'unknown'
+      errorType: error?.code || 'unknown',
     };
-    
+
     logger.error('❌ API Error:', errorInfo);
 
     // Handle network errors (connection issues)
@@ -126,11 +163,11 @@ api.interceptors.response.use(
     }
 
     // Handle 401 Unauthorized errors with token refresh
-    if (error?.response?.status === 401 && !originalRequest._retry) {
+    if (error?.response?.status === 401 && originalRequest && !originalRequest._retry) {
       // Don't attempt refresh for auth endpoints or if already retrying
       const isAuthEndpoint = originalRequest.url?.includes('/auth/');
       const needsVerification = error?.response?.data?.needsVerification;
-      
+
       if (isAuthEndpoint || needsVerification) {
         // For auth endpoints or verification needed, don't retry
         if (needsVerification) {
@@ -143,7 +180,7 @@ api.interceptors.response.use(
       if (!authService) {
         try {
           const authModule = await import('../services/authService');
-          authService = authModule.authService || authModule.default;
+          authService = (authModule.authService || authModule.default) as AuthService;
         } catch (importError) {
           logger.error('Failed to import authService:', importError);
           return Promise.reject(error);
@@ -152,13 +189,16 @@ api.interceptors.response.use(
 
       if (isRefreshing) {
         // If already refreshing, queue this request
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        }).then(token => {
-          originalRequest.headers.Authorization = `Bearer ${token}`;
-          return api(originalRequest);
-        }).catch(err => {
-          return Promise.reject(err);
+        return new Promise<AxiosResponse>((resolve, reject) => {
+          failedQueue.push({
+            resolve: (token: string) => {
+              originalRequest.headers.Authorization = `Bearer ${token}`;
+              resolve(api(originalRequest));
+            },
+            reject: (err: Error) => {
+              reject(err);
+            },
+          });
         });
       }
 
@@ -168,21 +208,23 @@ api.interceptors.response.use(
       try {
         const newToken = await authService.refreshToken();
         processQueue(null, newToken);
-        
+
         // Retry original request with new token
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
         return api(originalRequest);
       } catch (refreshError) {
-        processQueue(refreshError, null);
-        
+        const refreshErr =
+          refreshError instanceof Error ? refreshError : new Error('Token refresh failed');
+        processQueue(refreshErr, null);
+
         logger.debug('🔐 Token refresh failed - clearing tokens and redirecting to login');
         authService.clearTokens();
-        
+
         // Redirect to login after a brief delay
         setTimeout(() => {
           window.location.href = '/login';
         }, 100);
-        
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -204,15 +246,17 @@ api.interceptors.response.use(
   }
 );
 
-// Debug function to help troubleshoot API configuration
-export const debugApiConfig = () => {
+/**
+ * Debug function to help troubleshoot API configuration
+ */
+export const debugApiConfig = (): void => {
   if (process.env.NODE_ENV === 'development') {
     logger.debug('🔍 API Debug Info:', {
       baseURL: api.defaults.baseURL,
       timeout: api.defaults.timeout,
-      headers: api.defaults.headers
+      headers: api.defaults.headers,
     });
   }
 };
 
-export default api; 
+export default api;

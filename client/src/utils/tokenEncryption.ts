@@ -9,6 +9,8 @@
  * In production, consider using a more robust encryption library
  */
 class TokenEncryption {
+  private encryptionKey: string;
+
   constructor() {
     this.encryptionKey = this.getOrCreateEncryptionKey();
   }
@@ -17,7 +19,7 @@ class TokenEncryption {
    * Get or create encryption key from sessionStorage
    * Falls back to a simple key if Web Crypto API is not available
    */
-  getOrCreateEncryptionKey() {
+  private getOrCreateEncryptionKey(): string {
     try {
       // Use sessionStorage for encryption key (cleared on tab close)
       let key = sessionStorage.getItem('encryption_key');
@@ -25,11 +27,11 @@ class TokenEncryption {
         // Generate a random key
         const array = new Uint8Array(32);
         crypto.getRandomValues(array);
-        key = Array.from(array, byte => byte.toString(16).padStart(2, '0')).join('');
+        key = Array.from(array, (byte) => byte.toString(16).padStart(2, '0')).join('');
         sessionStorage.setItem('encryption_key', key);
       }
       return key;
-    } catch (error) {
+    } catch {
       // Fallback if sessionStorage is not available
       return 'fallback_key_' + window.location.hostname;
     }
@@ -38,61 +40,65 @@ class TokenEncryption {
   /**
    * Simple XOR encryption (basic obfuscation)
    * Note: This is not cryptographically secure, but adds a layer of obfuscation
+   * @param text - Text to encrypt
+   * @returns Encrypted text or null if input is empty
    */
-  encrypt(text) {
+  encrypt(text: string | null | undefined): string | null {
     try {
       if (!text) return null;
-      
+
       // Use simple base64 encoding with key mixing for basic obfuscation
       const key = this.encryptionKey;
       let result = '';
-      
+
       for (let i = 0; i < text.length; i++) {
         const charCode = text.charCodeAt(i);
         const keyChar = key.charCodeAt(i % key.length);
         result += String.fromCharCode(charCode ^ keyChar);
       }
-      
+
       // Base64 encode the result
       return btoa(result);
-    } catch (error) {
+    } catch {
       // Fallback: return as-is if encryption fails
-      return text;
+      return text ?? null;
     }
   }
 
   /**
    * Decrypt token
+   * @param encryptedText - Encrypted text to decrypt
+   * @returns Decrypted text or null if input is empty
    */
-  decrypt(encryptedText) {
+  decrypt(encryptedText: string | null | undefined): string | null {
     try {
       if (!encryptedText) return null;
-      
+
       // Base64 decode first
       const decoded = atob(encryptedText);
       const key = this.encryptionKey;
       let result = '';
-      
+
       for (let i = 0; i < decoded.length; i++) {
         const charCode = decoded.charCodeAt(i);
         const keyChar = key.charCodeAt(i % key.length);
         result += String.fromCharCode(charCode ^ keyChar);
       }
-      
+
       return result;
-    } catch (error) {
+    } catch {
       // If decryption fails, try returning as-is (for backward compatibility)
-      return encryptedText;
+      return encryptedText ?? null;
     }
   }
 
   /**
    * Clear encryption key (on logout)
    */
-  clearKey() {
+  clearKey(): void {
     try {
       sessionStorage.removeItem('encryption_key');
-    } catch (error) {
+    } catch {
       // Ignore errors
     }
   }
@@ -102,4 +108,3 @@ class TokenEncryption {
 export const tokenEncryption = new TokenEncryption();
 
 export default tokenEncryption;
-
