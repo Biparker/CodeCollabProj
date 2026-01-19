@@ -1,5 +1,4 @@
-// @ts-check
-const { test, expect } = require('@playwright/test');
+import { test, expect, Page, APIRequestContext } from '@playwright/test';
 
 /**
  * Security tests for httpOnly cookie-based authentication
@@ -12,6 +11,18 @@ const TEST_USER = {
   email: 'user1@example.com',
   password: 'Password123!',
 };
+
+interface StorageData {
+  [key: string]: string | null;
+}
+
+interface SecurityCheckResult {
+  documentCookie: string;
+  localStorageKeys: string[];
+  sessionStorageKeys: string[];
+  windowAccessToken: string;
+  windowRefreshToken: string;
+}
 
 test.describe('Cookie-Based Authentication Security', () => {
   test.describe('Login Flow', () => {
@@ -76,8 +87,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       await page.waitForLoadState('networkidle');
 
       // Check localStorage for tokens (should NOT exist)
-      const localStorageData = await page.evaluate(() => {
-        const data = {};
+      const localStorageData = await page.evaluate((): StorageData => {
+        const data: StorageData = {};
         for (let i = 0; i < localStorage.length; i++) {
           const key = localStorage.key(i);
           if (key) {
@@ -107,8 +118,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       await page.waitForLoadState('networkidle');
 
       // Check sessionStorage for tokens (should NOT exist)
-      const sessionStorageData = await page.evaluate(() => {
-        const data = {};
+      const sessionStorageData = await page.evaluate((): StorageData => {
+        const data: StorageData = {};
         for (let i = 0; i < sessionStorage.length; i++) {
           const key = sessionStorage.key(i);
           if (key) {
@@ -149,13 +160,13 @@ test.describe('Cookie-Based Authentication Security', () => {
       expect(accessTokenCookie).toBeDefined();
 
       // Verify httpOnly is set
-      expect(accessTokenCookie.toLowerCase()).toContain('httponly');
+      expect(accessTokenCookie!.toLowerCase()).toContain('httponly');
 
       // Verify SameSite is set (lax or strict)
-      expect(accessTokenCookie.toLowerCase()).toMatch(/samesite=(lax|strict)/);
+      expect(accessTokenCookie!.toLowerCase()).toMatch(/samesite=(lax|strict)/);
 
       // Verify Path is set
-      expect(accessTokenCookie.toLowerCase()).toContain('path=/');
+      expect(accessTokenCookie!.toLowerCase()).toContain('path=/');
     });
 
     test('should set correct cookie attributes for refreshToken', async ({ request }) => {
@@ -180,13 +191,13 @@ test.describe('Cookie-Based Authentication Security', () => {
       expect(refreshTokenCookie).toBeDefined();
 
       // Verify httpOnly is set
-      expect(refreshTokenCookie.toLowerCase()).toContain('httponly');
+      expect(refreshTokenCookie!.toLowerCase()).toContain('httponly');
 
       // Verify SameSite is set
-      expect(refreshTokenCookie.toLowerCase()).toMatch(/samesite=(lax|strict)/);
+      expect(refreshTokenCookie!.toLowerCase()).toMatch(/samesite=(lax|strict)/);
 
       // refreshToken should have restricted path
-      expect(refreshTokenCookie.toLowerCase()).toContain('path=/api/auth');
+      expect(refreshTokenCookie!.toLowerCase()).toContain('path=/api/auth');
     });
   });
 
@@ -211,14 +222,18 @@ test.describe('Cookie-Based Authentication Security', () => {
       expect(userData.email).toBe(TEST_USER.email);
     });
 
-    test('should reject requests without valid cookies', async ({ request }) => {
+    test('should reject requests without valid cookies', async ({ playwright }) => {
       // Create a new request context without cookies
-      const newContext = await request.newContext();
+      const newContext = await playwright.request.newContext();
 
-      // Try to access protected endpoint without authentication
-      const response = await newContext.get(`${API_BASE_URL}/auth/me`);
+      try {
+        // Try to access protected endpoint without authentication
+        const response = await newContext.get(`${API_BASE_URL}/auth/me`);
 
-      expect(response.status()).toBe(401);
+        expect(response.status()).toBe(401);
+      } finally {
+        await newContext.dispose();
+      }
     });
   });
 
@@ -282,13 +297,13 @@ test.describe('Cookie-Based Authentication Security', () => {
       await page.waitForLoadState('networkidle');
 
       // Attempt to read tokens via various JavaScript methods
-      const securityCheck = await page.evaluate(() => {
-        const results = {
+      const securityCheck = await page.evaluate((): SecurityCheckResult => {
+        const results: SecurityCheckResult = {
           documentCookie: document.cookie,
           localStorageKeys: Object.keys(localStorage),
           sessionStorageKeys: Object.keys(sessionStorage),
-          windowAccessToken: typeof window.accessToken,
-          windowRefreshToken: typeof window.refreshToken,
+          windowAccessToken: typeof (window as unknown as Record<string, unknown>).accessToken,
+          windowRefreshToken: typeof (window as unknown as Record<string, unknown>).refreshToken,
         };
         return results;
       });
@@ -331,7 +346,11 @@ test.describe('Cookie-Based Authentication Security', () => {
   test.describe('CORS and Credentials', () => {
     test('should include credentials in cross-origin requests', async ({ page }) => {
       // Listen for API requests
-      const requests = [];
+      interface RequestInfo {
+        url: string;
+        headers: Record<string, string>;
+      }
+      const requests: RequestInfo[] = [];
       page.on('request', (request) => {
         if (request.url().includes('/api/')) {
           requests.push({
