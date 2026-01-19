@@ -5,23 +5,23 @@
 
 // Session configuration
 const SESSION_CONFIG = {
-  MAX_CONCURRENT_SESSIONS: parseInt(process.env.MAX_CONCURRENT_SESSIONS) || 3,
-  SESSION_TIMEOUT_MINUTES: parseInt(process.env.SESSION_TIMEOUT_MINUTES) || 30,
+  MAX_CONCURRENT_SESSIONS: parseInt(process.env.MAX_CONCURRENT_SESSIONS || '3', 10),
+  SESSION_TIMEOUT_MINUTES: parseInt(process.env.SESSION_TIMEOUT_MINUTES || '30', 10),
   REFRESH_TOKEN_EXPIRE_DAYS: 7,
   ACCESS_TOKEN_EXPIRY: '15m', // 15 minutes
-};
+} as const;
 
 // Rate limiting configuration
 const RATE_LIMITS = {
-  GENERAL_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-  GENERAL_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  GENERAL_WINDOW_MS: parseInt(process.env.RATE_LIMIT_WINDOW_MS || String(15 * 60 * 1000), 10), // 15 minutes
+  GENERAL_MAX_REQUESTS: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100', 10),
   AUTH_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-  AUTH_MAX_ATTEMPTS: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 50,
+  AUTH_MAX_ATTEMPTS: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '50', 10),
   ADMIN_WINDOW_MS: 5 * 60 * 1000, // 5 minutes
   ADMIN_MAX_REQUESTS: 200,
   PASSWORD_RESET_WINDOW_MS: 15 * 60 * 1000, // 15 minutes
   PASSWORD_RESET_MAX_ATTEMPTS: 5, // Limit password reset requests
-};
+} as const;
 
 // Password requirements
 const PASSWORD_REQUIREMENTS = {
@@ -30,7 +30,7 @@ const PASSWORD_REQUIREMENTS = {
   REQUIRE_LOWERCASE: true,
   REQUIRE_NUMBER: true,
   REQUIRE_SPECIAL: true,
-};
+} as const;
 
 // Security constants
 const SECURITY = {
@@ -38,7 +38,7 @@ const SECURITY = {
   PASSWORD_RESET_TOKEN_EXPIRY: 60 * 60 * 1000, // 1 hour
   EMAIL_VERIFICATION_TOKEN_EXPIRY: 24 * 60 * 60 * 1000, // 24 hours
   BCRYPT_SALT_ROUNDS: 10,
-};
+} as const;
 
 // Validation limits
 const VALIDATION_LIMITS = {
@@ -53,22 +53,40 @@ const VALIDATION_LIMITS = {
   COMMENT_MAX_LENGTH: 1000,
   MESSAGE_SUBJECT_MAX: 100,
   MESSAGE_CONTENT_MAX: 1000,
-};
+} as const;
 
 // Request body size limits
 const REQUEST_LIMITS = {
   JSON_BODY_SIZE: '10mb',
   URL_ENCODED_BODY_SIZE: '10mb',
-};
+} as const;
 
 // File upload configuration
 const FILE_UPLOAD = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB in bytes
   MAX_FILE_SIZE_MB: 5, // 5MB for display
   // Common image types for reference/documentation - actual validation accepts any image/* MIME type
-  COMMON_IMAGE_TYPES: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml', 'image/heic', 'image/avif'],
+  COMMON_IMAGE_TYPES: [
+    'image/jpeg',
+    'image/jpg',
+    'image/png',
+    'image/gif',
+    'image/webp',
+    'image/svg+xml',
+    'image/heic',
+    'image/avif',
+  ],
   COMMON_EXTENSIONS: ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg', '.heic', '.avif'],
-};
+} as const;
+
+// Export types for use in other files
+export type SessionConfig = typeof SESSION_CONFIG;
+export type RateLimits = typeof RATE_LIMITS;
+export type PasswordRequirements = typeof PASSWORD_REQUIREMENTS;
+export type SecurityConfig = typeof SECURITY;
+export type ValidationLimits = typeof VALIDATION_LIMITS;
+export type RequestLimits = typeof REQUEST_LIMITS;
+export type FileUploadConfig = typeof FILE_UPLOAD;
 
 module.exports = {
   SESSION_CONFIG,
@@ -79,4 +97,3 @@ module.exports = {
   REQUEST_LIMITS,
   FILE_UPLOAD,
 };
-
