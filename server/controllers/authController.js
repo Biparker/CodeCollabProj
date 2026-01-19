@@ -5,6 +5,9 @@ const sessionService = require('../services/sessionService');
 const logger = require('../utils/logger');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
+// Sensitive fields that should NEVER be returned in API responses
+const SENSITIVE_FIELDS = '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
+
 // Register new user
 const register = async (req, res) => {
   try {
@@ -394,7 +397,7 @@ const resetPassword = async (req, res) => {
 // Get current user
 const getCurrentUser = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select(SENSITIVE_FIELDS);
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user', error: error.message });
