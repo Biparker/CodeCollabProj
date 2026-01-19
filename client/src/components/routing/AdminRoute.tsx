@@ -55,7 +55,7 @@ const AdminRoute: React.FC<AdminRouteProps> = ({ children, requireRole = 'admin'
     return (
       <Box p={3}>
         <Alert severity="error">
-          Access denied. You don't have sufficient privileges to view this page.
+          Access denied. You don&apos;t have sufficient privileges to view this page.
           <br />
           Required role: {allowedRoles.join(' or ')}
           <br />

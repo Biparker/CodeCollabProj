@@ -242,10 +242,7 @@ export const adminService: AdminServiceInterface = {
     return response.data;
   },
 
-  deleteUser: async (
-    userId: string,
-    permanent: boolean = false
-  ): Promise<AdminOperationResponse> => {
+  deleteUser: async (userId: string, permanent = false): Promise<AdminOperationResponse> => {
     const response = await adminApi.delete<AdminOperationResponse>(
       `/admin/users/${userId}?permanent=${permanent}`
     );

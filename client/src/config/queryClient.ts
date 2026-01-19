@@ -120,11 +120,7 @@ export const queryKeys = {
     stats: (userId: string): readonly string[] => [...queryKeys.users.all, 'stats', userId],
     followers: (userId: string): readonly string[] => [...queryKeys.users.all, 'followers', userId],
     following: (userId: string): readonly string[] => [...queryKeys.users.all, 'following', userId],
-    messages: (type: string = 'inbox'): readonly string[] => [
-      ...queryKeys.users.all,
-      'messages',
-      type,
-    ],
+    messages: (type = 'inbox'): readonly string[] => [...queryKeys.users.all, 'messages', type],
     messageDetail: (messageId: string): readonly string[] => [
       ...queryKeys.users.all,
       'message',

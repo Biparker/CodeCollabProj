@@ -143,7 +143,7 @@ export const usersService: UsersServiceInterface = {
   },
 
   // Get messages
-  getMessages: async (type: string = 'inbox'): Promise<Message[]> => {
+  getMessages: async (type = 'inbox'): Promise<Message[]> => {
     const response = await api.get<Message[]>(`/users/messages?type=${type}`);
     return response.data;
   },

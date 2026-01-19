@@ -307,7 +307,7 @@ const ProjectDetail: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             Project Not Found
           </Typography>
-          The project you're looking for doesn't exist or has been removed.
+          The project you&apos;re looking for doesn&apos;t exist or has been removed.
         </Alert>
         <Button variant="contained" onClick={() => navigate('/projects')}>
           Back to Projects

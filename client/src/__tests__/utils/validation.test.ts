@@ -112,6 +112,7 @@ describe('Validation Utilities', () => {
       email: string;
       password: string;
       username: string;
+      [key: string]: unknown;
     }
 
     it('should validate form with correct data', () => {

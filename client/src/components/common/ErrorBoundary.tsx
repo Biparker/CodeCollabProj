@@ -59,7 +59,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
                 Something went wrong
               </Typography>
               <Typography variant="body1" sx={{ mb: 3, color: 'text.secondary' }}>
-                We're sorry, but something unexpected happened. Please try refreshing the page.
+                We&apos;re sorry, but something unexpected happened. Please try refreshing the page.
               </Typography>
 
               {process.env.NODE_ENV === 'development' && this.state.error && (

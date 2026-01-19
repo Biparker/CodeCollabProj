@@ -138,13 +138,13 @@ const Register: React.FC = () => {
           <Paper elevation={3} sx={{ p: 4 }}>
             <Alert severity="success" sx={{ mb: 3 }}>
               <AlertTitle>Registration Successful!</AlertTitle>
-              We've sent a verification email to <strong>{formData.email}</strong>. Please check
-              your inbox and click the verification link to activate your account.
+              We&apos;ve sent a verification email to <strong>{formData.email}</strong>. Please
+              check your inbox and click the verification link to activate your account.
             </Alert>
 
             <Typography variant="body1" sx={{ mb: 3 }}>
-              If you don't see the email, please check your spam folder. You can also request a new
-              verification email from the login page.
+              If you don&apos;t see the email, please check your spam folder. You can also request a
+              new verification email from the login page.
             </Typography>
 
             <Box sx={{ textAlign: 'center' }}>
