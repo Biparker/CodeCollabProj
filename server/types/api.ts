@@ -1,4 +1,4 @@
-import { IUser, UserRole, Permission } from './models';
+import { UserRole, Permission } from './models';
 
 // ============================================================================
 // Generic API Response Types
