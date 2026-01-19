@@ -176,6 +176,24 @@ const login = async (req, res) => {
       method: 'login'
     });
 
+    // Set httpOnly cookies for secure token storage
+    res.cookie('accessToken', sessionData.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/'
+    });
+
+    res.cookie('refreshToken', sessionData.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/api/auth'
+    });
+
+    // Still return tokens in response body for backward compatibility during transition
     res.json({
       accessToken: sessionData.accessToken,
       refreshToken: sessionData.refreshToken,
@@ -431,16 +449,20 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const sessionId = req.sessionId; // From auth middleware
-    
+
     if (sessionId) {
       await sessionService.revokeSession(sessionId, 'logout');
-      
+
       logger.sessionEvent('logout', {
         userId: req.user._id,
         sessionId,
         ip: req.ip
       });
     }
+
+    // Clear httpOnly cookies
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/api/auth' });
 
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
@@ -454,15 +476,19 @@ const logoutAll = async (req, res) => {
   try {
     const userId = req.user._id;
     const revokedCount = await sessionService.revokeAllUserSessions(userId, 'logout_all');
-    
+
     logger.sessionEvent('logout_all', {
       userId,
       revokedCount,
       ip: req.ip
     });
 
-    res.json({ 
-      message: `Logged out from ${revokedCount} devices successfully` 
+    // Clear httpOnly cookies
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/api/auth' });
+
+    res.json({
+      message: `Logged out from ${revokedCount} devices successfully`
     });
   } catch (error) {
     logger.error('Logout all error:', { error: error.message });
