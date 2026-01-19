@@ -23,7 +23,7 @@ import {
   useUpdateComment,
   useDeleteComment,
 } from '../../hooks/comments';
-import type { User, UserSummary, Comment } from '../../types';
+import type { Comment } from '../../types';
 
 // Props interface
 interface CommentsProps {

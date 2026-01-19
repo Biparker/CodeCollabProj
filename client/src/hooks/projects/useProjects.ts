@@ -45,7 +45,7 @@ export const useUserProjects = (
 ): UseQueryResult<Project[], Error> => {
   return useQuery({
     queryKey: [...queryKeys.projects.all, 'user', userId ?? ''],
-    queryFn: () => projectsService.getUserProjects(userId!),
+    queryFn: () => projectsService.getUserProjects(userId as string),
     enabled: !!userId,
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
@@ -62,7 +62,7 @@ export const useProjectsByStatus = (
 ): UseQueryResult<Project[], Error> => {
   return useQuery({
     queryKey: [...queryKeys.projects.all, 'status', status ?? ''],
-    queryFn: () => projectsService.getByStatus(status!),
+    queryFn: () => projectsService.getByStatus(status as string),
     enabled: !!status,
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes

@@ -1,7 +1,7 @@
 import { useQuery, UseQueryOptions, UseQueryResult } from '@tanstack/react-query';
 import { projectsService } from '../../services/projectsService';
 import { queryKeys } from '../../config/queryClient';
-import type { Project, ApiError } from '../../types';
+import type { Project } from '../../types';
 
 /**
  * Custom error type with status for retry logic
@@ -22,7 +22,7 @@ export const useProject = (
 ): UseQueryResult<Project, QueryErrorWithStatus> => {
   return useQuery({
     queryKey: queryKeys.projects.detail(projectId ?? ''),
-    queryFn: () => projectsService.getById(projectId!),
+    queryFn: () => projectsService.getById(projectId as string),
     enabled: !!projectId, // Only fetch if projectId exists
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes

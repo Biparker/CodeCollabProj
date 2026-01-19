@@ -52,7 +52,7 @@ interface UserWithId {
 
 const Dashboard: React.FC = () => {
   // Auth and project data
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
   const { data: projects = [], isLoading: loading, error, refetch } = useProjects();
 
   const typedUser = user as UserWithId | null;

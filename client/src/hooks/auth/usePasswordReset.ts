@@ -92,7 +92,7 @@ export const usePasswordResetTokenQuery = (
 ): UseQueryResult<VerifyPasswordResetTokenResponse, AxiosError> => {
   return useQuery({
     queryKey: queryKeys.auth.passwordResetToken(token || ''),
-    queryFn: () => authService.verifyPasswordResetToken(token!),
+    queryFn: () => authService.verifyPasswordResetToken(token as string),
     enabled: !!token, // Only run if token exists
     retry: false, // Don't retry on failure
     staleTime: 0, // Always fresh

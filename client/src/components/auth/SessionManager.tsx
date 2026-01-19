@@ -8,7 +8,7 @@ import type { Session } from '../../types';
  */
 const SessionManager: React.FC = () => {
   const {
-    sessions,
+    sessions: _sessions,
     sessionCount,
     isLoading,
     error,

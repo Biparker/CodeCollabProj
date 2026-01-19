@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FormEvent, MouseEvent } from 'react';
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 import { useChangePassword } from '../../hooks/auth/useChangePassword';
 import { useNavigate } from 'react-router-dom';
 

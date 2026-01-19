@@ -5,7 +5,6 @@ import {
   UseQueryOptions,
   UseQueryResult,
   UseMutationResult,
-  UseMutationOptions,
 } from '@tanstack/react-query';
 import { usersService, SendMessageData, MessageResponse } from '../../services/usersService';
 import { queryKeys, invalidateQueries } from '../../config/queryClient';
@@ -74,7 +73,7 @@ export const useMessage = (
 ): UseQueryResult<Message, Error> => {
   return useQuery({
     queryKey: queryKeys.users.messageDetail(messageId ?? ''),
-    queryFn: () => usersService.getMessageById(messageId!),
+    queryFn: () => usersService.getMessageById(messageId as string),
     enabled: !!messageId, // Only run if messageId exists
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes

@@ -26,7 +26,6 @@ import type {
   ProjectStatus,
   IncentiveType,
   ProjectResource,
-  ProjectIncentives,
   Project,
   User,
   UserSummary,
@@ -87,7 +86,7 @@ const ProjectForm: React.FC = () => {
   const { projectId } = useParams<{ projectId: string }>();
 
   // Auth state
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
 
   // Project data for editing - useProject handles enabled internally based on projectId
   const {

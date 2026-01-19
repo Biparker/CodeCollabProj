@@ -22,7 +22,7 @@ export const useComments = (
 ): UseQueryResult<Comment[], Error> => {
   return useQuery({
     queryKey: queryKeys.comments.list(projectId ?? ''),
-    queryFn: () => commentsService.getByProjectId(projectId!),
+    queryFn: () => commentsService.getByProjectId(projectId as string),
     enabled: !!projectId, // Only run if projectId exists
     staleTime: 2 * 60 * 1000, // Consider fresh for 2 minutes
     gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes

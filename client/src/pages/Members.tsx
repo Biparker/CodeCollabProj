@@ -24,7 +24,7 @@ import { useProjects } from '../hooks/projects';
 import MessageForm from '../components/messaging/MessageForm';
 import Avatar from '../components/common/Avatar';
 import { MembersTableSkeleton } from '../components/common/Skeletons';
-import type { User, Project, Collaborator } from '../types';
+import type { User } from '../types';
 
 // API response types - standalone interfaces to handle _id fields
 interface UserWithId {

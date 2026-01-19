@@ -110,7 +110,7 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (validateForm()) {
-      const { confirmPassword, ...registerData } = formData;
+      const { confirmPassword: _confirmPassword, ...registerData } = formData;
       registerMutation.mutate(registerData, {
         onSuccess: (data: RegisterResponse) => {
           setRegistrationSuccess(true);

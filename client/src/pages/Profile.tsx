@@ -47,7 +47,7 @@ interface UserWithId extends Omit<User, 'id'> {
 
 const Profile: React.FC = () => {
   // Auth and profile data
-  const { user, isAuthenticated } = useAuth();
+  const { isAuthenticated } = useAuth();
   const { data: profile, isLoading: profileLoading, error: profileError } = useMyProfile();
   const updateProfileMutation = useUpdateProfile();
   const uploadAvatarMutation = useUploadAvatar();

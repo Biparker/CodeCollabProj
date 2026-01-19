@@ -171,8 +171,8 @@ export const useDeleteProject = (): UseMutationResult<
         queryClient.setQueriesData<Project[]>(
           { queryKey: queryKeys.projects.lists() },
           (oldProjects) => {
-            if (!oldProjects) return [context.previousProject!];
-            return [context.previousProject!, ...oldProjects];
+            if (!oldProjects) return [context.previousProject as Project];
+            return [context.previousProject as Project, ...oldProjects];
           }
         );
       }

@@ -9,8 +9,6 @@ interface QueryError {
 }
 
 // Types for query key factories
-type QueryKeyBase = readonly string[];
-
 interface FiltersObject {
   [key: string]: unknown;
 }

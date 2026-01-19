@@ -79,7 +79,7 @@ const ProjectDetail: React.FC = () => {
   const navigate = useNavigate();
 
   // Auth state
-  const { user, isAuthenticated } = useAuth();
+  const { user } = useAuth();
 
   // Project data
   const {
@@ -194,7 +194,7 @@ const ProjectDetail: React.FC = () => {
       return;
     }
 
-    requestCollaborationMutation.mutate(projectId!, {
+    requestCollaborationMutation.mutate(projectId as string, {
       onSuccess: (result) => {
         console.log('✅ Collaboration request sent:', result);
         alert('Collaboration request sent successfully!');
@@ -215,7 +215,7 @@ const ProjectDetail: React.FC = () => {
     status: 'accepted' | 'rejected'
   ): Promise<void> => {
     handleCollaborationMutation.mutate(
-      { projectId: projectId!, userId, status },
+      { projectId: projectId as string, userId, status },
       {
         onSuccess: (result) => {
           console.log('✅ Collaboration request handled:', result);
@@ -239,7 +239,7 @@ const ProjectDetail: React.FC = () => {
     e.preventDefault();
     if (comment.trim()) {
       createCommentMutation.mutate(
-        { projectId: projectId!, content: comment },
+        { projectId: projectId as string, content: comment },
         {
           onSuccess: (result) => {
             console.log('✅ Comment created successfully:', result);

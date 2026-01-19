@@ -54,7 +54,7 @@ export const useUser = (
 ): UseQueryResult<User, Error> => {
   return useQuery({
     queryKey: queryKeys.users.detail(userId ?? ''),
-    queryFn: () => usersService.getById(userId!),
+    queryFn: () => usersService.getById(userId as string),
     enabled: !!userId, // Only run if userId exists
     staleTime: 5 * 60 * 1000, // Consider fresh for 5 minutes
     gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
@@ -92,7 +92,7 @@ export const useUserProjects = (
 ): UseQueryResult<Project[], Error> => {
   return useQuery({
     queryKey: queryKeys.users.projects(userId ?? ''),
-    queryFn: () => usersService.getUserProjects(userId!),
+    queryFn: () => usersService.getUserProjects(userId as string),
     enabled: !!userId, // Only run if userId exists
     staleTime: 3 * 60 * 1000, // Consider fresh for 3 minutes
     gcTime: 7 * 60 * 1000, // Keep in cache for 7 minutes
@@ -111,7 +111,7 @@ export const useUserStats = (
 ): UseQueryResult<UserStats, Error> => {
   return useQuery({
     queryKey: queryKeys.users.stats(userId ?? ''),
-    queryFn: () => usersService.getUserStats(userId!),
+    queryFn: () => usersService.getUserStats(userId as string),
     enabled: !!userId, // Only run if userId exists
     staleTime: 10 * 60 * 1000, // Consider fresh for 10 minutes
     gcTime: 15 * 60 * 1000, // Keep in cache for 15 minutes

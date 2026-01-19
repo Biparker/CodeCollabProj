@@ -29,12 +29,13 @@ import Messages from './pages/Messages';
 import ProjectDetail from './pages/ProjectDetail';
 import EmailVerification from './pages/EmailVerification';
 
-// Lazy load DevTools to prevent chunk loading issues
-const ReactQueryDevtools = React.lazy(() =>
-  import('@tanstack/react-query-devtools').then((d) => ({
-    default: d.ReactQueryDevtools,
-  }))
-);
+// React Query DevTools - lazy loaded and conditionally rendered in development only
+// Temporarily disabled to avoid chunk loading issues
+// const ReactQueryDevtools = React.lazy(() =>
+//   import('@tanstack/react-query-devtools').then((d) => ({
+//     default: d.ReactQueryDevtools,
+//   }))
+// );
 
 function About(): React.ReactElement {
   return (

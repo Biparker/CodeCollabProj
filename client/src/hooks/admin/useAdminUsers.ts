@@ -40,7 +40,7 @@ export const useAdminUsers = (
 export const useAdminUserDetails = (userId: string | undefined): UseQueryResult<User, Error> => {
   return useQuery({
     queryKey: ['admin', 'users', userId],
-    queryFn: () => adminService.getUserDetails(userId!),
+    queryFn: () => adminService.getUserDetails(userId as string),
     enabled: !!userId,
     staleTime: 60 * 1000, // 1 minute
   });
