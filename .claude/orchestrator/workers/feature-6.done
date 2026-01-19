@@ -1,0 +1,11 @@
+Feature: Configure axios to send credentials with all requests
+
+Summary:
+- Added `withCredentials: true` to the axios instance configuration in `client/src/utils/api.js`
+- This ensures that httpOnly cookies (containing JWT tokens) are automatically sent with every API request to the backend
+- The change supports the migration from localStorage-based token storage to httpOnly cookie-based authentication
+
+File modified:
+- client/src/utils/api.js (line 13)
+
+Status: COMPLETED

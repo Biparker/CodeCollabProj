@@ -1,0 +1,19 @@
+# Feature 3 Complete: Auth Middleware Cookie Support
+
+## Summary
+Updated `server/middleware/auth.js` to read the access token from httpOnly cookies with fallback to the Authorization header.
+
+## Changes Made
+- Modified `server/middleware/auth.js` to:
+  1. First check `req.cookies?.accessToken` for the JWT token
+  2. Fall back to `req.header('Authorization')?.replace('Bearer ', '')` if no cookie is present
+
+This enables both cookie-based (XSS-resistant) and header-based authentication, allowing backward compatibility during the migration period.
+
+## Verification
+- Cookie-parser middleware was already configured in `server/index.js` (line 123)
+- Cookie-parser dependency was already installed (`cookie-parser": "^1.4.7"`)
+- Server tests pass (unrelated logger test failures are pre-existing)
+
+## Commit
+`feat(auth): read accessToken from httpOnly cookie with header fallback`

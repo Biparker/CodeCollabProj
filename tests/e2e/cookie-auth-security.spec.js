@@ -10,7 +10,7 @@ const { test, expect } = require('@playwright/test');
 const API_BASE_URL = 'http://localhost:5001/api';
 const TEST_USER = {
   email: 'user1@example.com',
-  password: 'password123'
+  password: 'Password123!',
 };
 
 test.describe('Cookie-Based Authentication Security', () => {
@@ -20,8 +20,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       const response = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(response.ok()).toBeTruthy();
@@ -131,8 +131,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       const response = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(response.ok()).toBeTruthy();
@@ -141,9 +141,10 @@ test.describe('Cookie-Based Authentication Security', () => {
       expect(setCookieHeader).toBeDefined();
 
       // Parse the accessToken cookie
-      const accessTokenCookie = setCookieHeader.split(',')
-        .map(c => c.trim())
-        .find(c => c.startsWith('accessToken='));
+      const accessTokenCookie = setCookieHeader
+        .split(',')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith('accessToken='));
 
       expect(accessTokenCookie).toBeDefined();
 
@@ -161,8 +162,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       const response = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(response.ok()).toBeTruthy();
@@ -171,9 +172,10 @@ test.describe('Cookie-Based Authentication Security', () => {
       expect(setCookieHeader).toBeDefined();
 
       // Find the refreshToken cookie
-      const refreshTokenCookie = setCookieHeader.split(',')
-        .map(c => c.trim())
-        .find(c => c.startsWith('refreshToken='));
+      const refreshTokenCookie = setCookieHeader
+        .split(',')
+        .map((c) => c.trim())
+        .find((c) => c.startsWith('refreshToken='));
 
       expect(refreshTokenCookie).toBeDefined();
 
@@ -194,8 +196,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       const loginResponse = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(loginResponse.ok()).toBeTruthy();
@@ -226,8 +228,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       const loginResponse = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(loginResponse.ok()).toBeTruthy();
@@ -250,8 +252,8 @@ test.describe('Cookie-Based Authentication Security', () => {
       const loginResponse = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(loginResponse.ok()).toBeTruthy();
@@ -286,7 +288,7 @@ test.describe('Cookie-Based Authentication Security', () => {
           localStorageKeys: Object.keys(localStorage),
           sessionStorageKeys: Object.keys(sessionStorage),
           windowAccessToken: typeof window.accessToken,
-          windowRefreshToken: typeof window.refreshToken
+          windowRefreshToken: typeof window.refreshToken,
         };
         return results;
       });
@@ -302,14 +304,16 @@ test.describe('Cookie-Based Authentication Security', () => {
       expect(securityCheck.windowRefreshToken).toBe('undefined');
     });
 
-    test('should not expose tokens in API response body after transition period', async ({ request }) => {
+    test('should not expose tokens in API response body after transition period', async ({
+      request,
+    }) => {
       // This test documents the current backward-compatible behavior
       // After transition, tokens should NOT be in response body
       const response = await request.post(`${API_BASE_URL}/auth/login`, {
         data: {
           email: TEST_USER.email,
-          password: TEST_USER.password
-        }
+          password: TEST_USER.password,
+        },
       });
 
       expect(response.ok()).toBeTruthy();
@@ -328,11 +332,11 @@ test.describe('Cookie-Based Authentication Security', () => {
     test('should include credentials in cross-origin requests', async ({ page }) => {
       // Listen for API requests
       const requests = [];
-      page.on('request', request => {
+      page.on('request', (request) => {
         if (request.url().includes('/api/')) {
           requests.push({
             url: request.url(),
-            headers: request.headers()
+            headers: request.headers(),
           });
         }
       });
@@ -345,7 +349,7 @@ test.describe('Cookie-Based Authentication Security', () => {
 
       // After login, navigate to trigger authenticated requests
       // The cookies should be automatically included due to withCredentials: true
-      const authRequests = requests.filter(r => r.url.includes('/api/auth/'));
+      const authRequests = requests.filter((r) => r.url.includes('/api/auth/'));
       expect(authRequests.length).toBeGreaterThan(0);
     });
   });

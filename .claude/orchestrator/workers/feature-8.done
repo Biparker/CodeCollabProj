@@ -1,0 +1,26 @@
+# Feature 8: Update useAuth hook for httpOnly cookie authentication
+
+## Summary
+Updated the `useAuth` hook in `client/src/hooks/auth/useAuth.js` to work with cookie-based authentication instead of requiring localStorage tokens.
+
+## Changes Made
+1. **Changed `isAuthenticated` logic**: Now based solely on user data from the `/auth/me` response (`!!user`), rather than requiring both user data AND localStorage tokens.
+
+2. **Enabled query by default**: Set `enabled: true` on the TanStack Query so it always attempts to fetch user data. With httpOnly cookies, the browser automatically sends cookies with requests (via `withCredentials: true` in axios), allowing authentication to work without localStorage tokens.
+
+3. **Added `isFetched` property**: Exposes the query's `isFetched` state, which helps components determine if the initial authentication check is complete.
+
+4. **Backward compatibility**: All token-related properties (`accessToken`, `refreshToken`, `hasValidTokens`, `isTokenExpired`, `token`) are preserved but marked as deprecated. They will return `null` when using pure httpOnly cookie auth.
+
+5. **Updated documentation**: Added comprehensive JSDoc comments explaining the migration from localStorage to httpOnly cookies.
+
+## Files Modified
+- `client/src/hooks/auth/useAuth.js`
+
+## Backward Compatibility
+- Components using `isAuthenticated`, `user`, `isLoading`, `hasRole`, and other user-based properties work unchanged
+- Components using deprecated `token` property (like PrivateRoute for debug logging) continue to work, though `token` will be `null` with cookie-based auth
+- The hook works with both httpOnly cookies and legacy localStorage tokens during the migration period
+
+## Commit
+`feat(auth): update useAuth hook for httpOnly cookie authentication`

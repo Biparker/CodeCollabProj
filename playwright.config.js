@@ -28,16 +28,17 @@ module.exports = defineConfig({
   webServer: [
     {
       command: 'npm run server',
-      url: 'http://localhost:5001/api/health',
+      url: 'http://localhost:5001/api/auth/me',
+      ignoreHTTPSErrors: true,
       timeout: 120 * 1000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       cwd: '.',
     },
     {
       command: 'npm run client',
       url: 'http://localhost:3000',
       timeout: 120 * 1000,
-      reuseExistingServer: !process.env.CI,
+      reuseExistingServer: true,
       cwd: '.',
     },
   ],

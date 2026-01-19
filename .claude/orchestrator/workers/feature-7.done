@@ -1,0 +1,38 @@
+# Feature 7 Complete: Simplify authService.js for httpOnly Cookie Auth
+
+## Summary
+Refactored `client/src/services/authService.js` to support the migration from localStorage-based token storage to httpOnly cookie-based authentication.
+
+## Changes Made
+
+### New Method Added
+- `isAuthenticatedViaCookie()`: Server-validated auth check via `/auth/me` endpoint. Returns `{authenticated: boolean, user: Object|null}`. This is the preferred method for checking auth state during the migration.
+
+### Documentation Updates
+- Added comprehensive migration note in file header explaining dual-mode support
+- Added `@deprecated` JSDoc tags to all localStorage-based token methods
+- Updated method comments to explain cookie-based behavior
+
+### Methods Marked as Deprecated (kept for backward compatibility)
+- `setTokens()` - Backend now sets tokens via Set-Cookie headers
+- `clearTokens()` - Backend now clears cookies on logout
+- `getAccessToken()` - Tokens not accessible via JS in httpOnly cookies
+- `getRefreshToken()` - Tokens not accessible via JS in httpOnly cookies
+- `isTokenExpired()` - Handled server-side with httpOnly cookies
+- `isAuthenticated()` - Use `isAuthenticatedViaCookie()` instead
+- `getValidToken()` - Token refresh handled via httpOnly cookies
+- `getTokenNoRefresh()` - Deprecated
+- `getToken()` - Legacy alias, deprecated
+
+### Backward Compatibility
+- All existing localStorage methods preserved and functional
+- Login/register still store tokens in localStorage as fallback during migration
+- Logout clears both httpOnly cookies (via server) and localStorage
+
+## Commit
+```
+662819e refactor(auth): simplify authService for httpOnly cookie auth migration
+```
+
+## No Blockers
+Feature completed successfully.

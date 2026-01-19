@@ -1,0 +1,16 @@
+Feature: Backend - Update logout and logoutAll endpoints to clear cookies
+
+Summary:
+Updated the logout and logoutAll functions in server/controllers/authController.js to clear httpOnly cookies when users log out.
+
+Changes made:
+- Added res.clearCookie('accessToken', { path: '/' }) to logout function
+- Added res.clearCookie('refreshToken', { path: '/api/auth' }) to logout function
+- Added res.clearCookie('accessToken', { path: '/' }) to logoutAll function
+- Added res.clearCookie('refreshToken', { path: '/api/auth' }) to logoutAll function
+
+The cookie paths match the paths where the cookies are set:
+- accessToken: path '/' (available throughout the app)
+- refreshToken: path '/api/auth' (only available to auth endpoints)
+
+Commit: feat(auth): add cookie clearing on logout endpoints

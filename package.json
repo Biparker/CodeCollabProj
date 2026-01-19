@@ -5,7 +5,7 @@
   "scripts": {
     "start": "cd server && npm start",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "server": "cd server && npm run dev",
+    "server": "cd server && npm run dev:js",
     "client": "cd client && npm start",
     "build": "cd client && npm run build",
     "install-all": "npm install && cd client && npm install && cd ../server && npm install",
@@ -13,6 +13,11 @@
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:security": "npx playwright test cookie-auth-security",
+    "typecheck": "concurrently \"cd server && npm run typecheck\" \"cd client && npm run typecheck\"",
+    "lint": "concurrently \"cd server && npm run lint\" \"cd client && npm run lint\"",
+    "lint:fix": "concurrently \"cd server && npm run lint:fix\" \"cd client && npm run lint:fix\"",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prepare": "husky",
     "railway:backend": "cd server && npm start",
     "railway:frontend": "cd client && npm run build && npx serve -s build -l 3000"
   },
@@ -24,11 +29,28 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "concurrently": "^8.2.2"
+    "concurrently": "^8.2.2",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.0"
   },
   "dependencies": {
     "axios": "^1.10.0",
     "nodemailer": "^7.0.5",
     "nodemon": "^3.1.10"
+  },
+  "lint-staged": {
+    "client/src/**/*.{ts,tsx,js,jsx}": [
+      "prettier --write"
+    ],
+    "server/**/*.{ts,js}": [
+      "prettier --write"
+    ],
+    "tests/**/*.{ts,js}": [
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
   }
 }
