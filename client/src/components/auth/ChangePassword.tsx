@@ -1,46 +1,74 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent, FormEvent, MouseEvent } from 'react';
 import { useChangePassword } from '../../hooks/auth/useChangePassword';
 import { useNavigate } from 'react-router-dom';
+
+interface FormData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+interface FormErrors {
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
+  submit?: string;
+}
+
+interface ShowPasswords {
+  current: boolean;
+  new: boolean;
+  confirm: boolean;
+}
+
+interface AxiosError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
 
 /**
  * Change password component
  * Allows users to change their password (revokes all sessions)
  */
-const ChangePassword = () => {
+const ChangePassword: React.FC = () => {
   const navigate = useNavigate();
   const changePasswordMutation = useChangePassword();
-  
-  const [formData, setFormData] = useState({
+
+  const [formData, setFormData] = useState<FormData>({
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
-  });
-  
-  const [errors, setErrors] = useState({});
-  const [showPasswords, setShowPasswords] = useState({
-    current: false,
-    new: false,
-    confirm: false
+    confirmPassword: '',
   });
 
-  const handleChange = (e) => {
+  const [errors, setErrors] = useState<FormErrors>({});
+  const [showPasswords, setShowPasswords] = useState<ShowPasswords>({
+    current: false,
+    new: false,
+    confirm: false,
+  });
+
+  const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [name]: value
+      [name]: value,
     }));
-    
+
     // Clear error when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
+    if (errors[name as keyof FormErrors]) {
+      setErrors((prev) => ({
         ...prev,
-        [name]: ''
+        [name]: '',
       }));
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
+  const validateForm = (): boolean => {
+    const newErrors: FormErrors = {};
 
     if (!formData.currentPassword) {
       newErrors.currentPassword = 'Current password is required';
@@ -66,9 +94,9 @@ const ChangePassword = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
       return;
     }
@@ -76,53 +104,50 @@ const ChangePassword = () => {
     try {
       await changePasswordMutation.mutateAsync({
         currentPassword: formData.currentPassword,
-        newPassword: formData.newPassword
+        newPassword: formData.newPassword,
       });
-      
+
       // Success - redirect to login since all sessions are revoked
       navigate('/login', {
         state: {
           message: 'Password changed successfully. Please log in again.',
-          type: 'success'
-        }
+          type: 'success',
+        },
       });
     } catch (error) {
+      const axiosError = error as AxiosError;
       // Handle specific error messages
-      if (error.response?.data?.message === 'Current password is incorrect') {
+      if (axiosError.response?.data?.message === 'Current password is incorrect') {
         setErrors({ currentPassword: 'Current password is incorrect' });
       } else {
-        setErrors({ 
-          submit: error.response?.data?.message || 'Failed to change password' 
+        setErrors({
+          submit: axiosError.response?.data?.message || 'Failed to change password',
         });
       }
     }
   };
 
-  const togglePasswordVisibility = (field) => {
-    setShowPasswords(prev => ({
+  const togglePasswordVisibility = (field: keyof ShowPasswords): void => {
+    setShowPasswords((prev) => ({
       ...prev,
-      [field]: !prev[field]
+      [field]: !prev[field],
     }));
   };
 
   return (
     <div className="max-w-md mx-auto">
       <div className="bg-white shadow-md rounded-lg p-6">
-        <h2 className="text-xl font-semibold text-gray-900 mb-6">
-          Change Password
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">Change Password</h2>
 
         {/* Security Warning */}
         <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4 mb-6">
           <div className="flex">
-            <div className="text-yellow-400">⚠️</div>
+            <div className="text-yellow-400">Warning</div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-yellow-800">
-                Security Notice
-              </h3>
+              <h3 className="text-sm font-medium text-yellow-800">Security Notice</h3>
               <div className="mt-2 text-sm text-yellow-700">
-                Changing your password will log you out of all devices. 
-                You'll need to log in again on all your devices.
+                Changing your password will log you out of all devices. You'll need to log in again
+                on all your devices.
               </div>
             </div>
           </div>
@@ -151,7 +176,7 @@ const ChangePassword = () => {
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => togglePasswordVisibility('current')}
               >
-                {showPasswords.current ? '🙈' : '👁️'}
+                {showPasswords.current ? 'Hide' : 'Show'}
               </button>
             </div>
             {errors.currentPassword && (
@@ -181,7 +206,7 @@ const ChangePassword = () => {
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => togglePasswordVisibility('new')}
               >
-                {showPasswords.new ? '🙈' : '👁️'}
+                {showPasswords.new ? 'Hide' : 'Show'}
               </button>
             </div>
             {errors.newPassword && (
@@ -214,7 +239,7 @@ const ChangePassword = () => {
                 className="absolute inset-y-0 right-0 pr-3 flex items-center"
                 onClick={() => togglePasswordVisibility('confirm')}
               >
-                {showPasswords.confirm ? '🙈' : '👁️'}
+                {showPasswords.confirm ? 'Hide' : 'Show'}
               </button>
             </div>
             {errors.confirmPassword && (

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, useSearchParams, Link as RouterLink } from 'react-router-dom';
-import { 
+import {
   Container,
   Paper,
   Typography,
@@ -12,22 +12,28 @@ import {
   AlertTitle,
   CircularProgress,
 } from '@mui/material';
-import { 
-  usePasswordResetTokenQuery,
-  useResetPassword 
-} from '../../hooks/auth';
+import { usePasswordResetTokenQuery, useResetPassword } from '../../hooks/auth';
 
-const ResetPassword = () => {
+interface AxiosError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const resetPasswordMutation = useResetPassword();
 
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordError, setPasswordError] = useState('');
-  const [confirmPasswordError, setConfirmPasswordError] = useState('');
-  const [token, setToken] = useState('');
-  const [passwordResetSuccess, setPasswordResetSuccess] = useState(false);
+  const [password, setPassword] = useState<string>('');
+  const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [passwordError, setPasswordError] = useState<string>('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string>('');
+  const [token, setToken] = useState<string>('');
+  const [passwordResetSuccess, setPasswordResetSuccess] = useState<boolean>(false);
 
   // Query to verify the password reset token
   const {
@@ -46,9 +52,9 @@ const ResetPassword = () => {
     }
   }, [searchParams, navigate]);
 
-  const validateForm = () => {
+  const validateForm = (): boolean => {
     let isValid = true;
-    
+
     if (!password) {
       setPasswordError('Password is required');
       isValid = false;
@@ -72,36 +78,46 @@ const ResetPassword = () => {
     return isValid;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (validateForm()) {
       resetPasswordMutation.mutate(
         { token, password },
         {
           onSuccess: (data) => {
-            console.log('✅ Password reset successful:', data);
+            console.log('Password reset successful:', data);
             setPasswordResetSuccess(true);
           },
           onError: (error) => {
-            console.error('❌ Password reset failed:', error);
+            console.error('Password reset failed:', error);
           },
         }
       );
     }
   };
 
-  const handlePasswordChange = (e) => {
+  const handlePasswordChange = (e: ChangeEvent<HTMLInputElement>): void => {
     setPassword(e.target.value);
     if (passwordError) {
       setPasswordError('');
     }
   };
 
-  const handleConfirmPasswordChange = (e) => {
+  const handleConfirmPasswordChange = (e: ChangeEvent<HTMLInputElement>): void => {
     setConfirmPassword(e.target.value);
     if (confirmPasswordError) {
       setConfirmPasswordError('');
     }
+  };
+
+  const getErrorMessage = (): string => {
+    if (!resetPasswordMutation.error) return '';
+    const axiosError = resetPasswordMutation.error as AxiosError;
+    return (
+      axiosError?.response?.data?.message ||
+      resetPasswordMutation.error?.message ||
+      'Failed to reset password'
+    );
   };
 
   if (passwordResetSuccess) {
@@ -115,12 +131,7 @@ const ResetPassword = () => {
             </Alert>
 
             <Box sx={{ textAlign: 'center' }}>
-              <Button
-                component={RouterLink}
-                to="/login"
-                variant="contained"
-                color="primary"
-              >
+              <Button component={RouterLink} to="/login" variant="contained" color="primary">
                 Go to Login
               </Button>
             </Box>
@@ -176,7 +187,8 @@ const ResetPassword = () => {
           <Paper elevation={3} sx={{ p: 4 }}>
             <Alert severity="error" sx={{ mb: 3 }}>
               <AlertTitle>Invalid or Expired Reset Link</AlertTitle>
-              This password reset link is invalid or has expired. Please request a new password reset.
+              This password reset link is invalid or has expired. Please request a new password
+              reset.
             </Alert>
 
             <Box sx={{ textAlign: 'center' }}>
@@ -202,16 +214,14 @@ const ResetPassword = () => {
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Reset Password
           </Typography>
-          
+
           <Typography variant="body1" align="center" sx={{ mb: 3 }}>
             Enter your new password below.
           </Typography>
 
           {resetPasswordMutation.error && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {resetPasswordMutation.error?.response?.data?.message || 
-               resetPasswordMutation.error?.message || 
-               'Failed to reset password'}
+              {getErrorMessage()}
             </Alert>
           )}
 

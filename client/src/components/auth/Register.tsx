@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ChangeEvent, FormEvent } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -12,23 +12,50 @@ import {
   AlertTitle,
 } from '@mui/material';
 import { useAuth, useRegister } from '../../hooks/auth';
+import type { RegisterFormData } from '../../types/forms';
 
-const Register = () => {
+interface RegisterFormErrors {
+  username?: string;
+  email?: string;
+  password?: string;
+  confirmPassword?: string;
+}
+
+interface AxiosError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+interface RegisterResponse {
+  token?: string;
+  user?: {
+    id: string;
+    email: string;
+    username: string;
+  };
+  message?: string;
+}
+
+const Register: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  
+
   // TanStack Query mutation
   const registerMutation = useRegister();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<RegisterFormData>({
     username: '',
     email: '',
     password: '',
     confirmPassword: '',
   });
 
-  const [formErrors, setFormErrors] = useState({});
-  const [registrationSuccess, setRegistrationSuccess] = useState(false);
+  const [formErrors, setFormErrors] = useState<RegisterFormErrors>({});
+  const [registrationSuccess, setRegistrationSuccess] = useState<boolean>(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -43,8 +70,8 @@ const Register = () => {
     };
   }, []);
 
-  const validateForm = () => {
-    const errors = {};
+  const validateForm = (): boolean => {
+    const errors: RegisterFormErrors = {};
     if (!formData.username) {
       errors.username = 'Username is required';
     } else if (formData.username.length < 3) {
@@ -73,19 +100,19 @@ const Register = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleChange = (e) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (validateForm()) {
       const { confirmPassword, ...registerData } = formData;
       registerMutation.mutate(registerData, {
-        onSuccess: (data) => {
+        onSuccess: (data: RegisterResponse) => {
           setRegistrationSuccess(true);
           // If auto-login in development mode, navigate to dashboard
           if (data.token && data.user) {
@@ -96,6 +123,14 @@ const Register = () => {
     }
   };
 
+  const getErrorMessage = (): string => {
+    if (!registerMutation.error) return '';
+    const axiosError = registerMutation.error as AxiosError;
+    return (
+      axiosError?.response?.data?.message || registerMutation.error.message || 'Registration failed'
+    );
+  };
+
   if (registrationSuccess) {
     return (
       <Container maxWidth="sm">
@@ -103,13 +138,13 @@ const Register = () => {
           <Paper elevation={3} sx={{ p: 4 }}>
             <Alert severity="success" sx={{ mb: 3 }}>
               <AlertTitle>Registration Successful!</AlertTitle>
-              We've sent a verification email to <strong>{formData.email}</strong>. 
-              Please check your inbox and click the verification link to activate your account.
+              We've sent a verification email to <strong>{formData.email}</strong>. Please check
+              your inbox and click the verification link to activate your account.
             </Alert>
-            
+
             <Typography variant="body1" sx={{ mb: 3 }}>
-              If you don't see the email, please check your spam folder. 
-              You can also request a new verification email from the login page.
+              If you don't see the email, please check your spam folder. You can also request a new
+              verification email from the login page.
             </Typography>
 
             <Box sx={{ textAlign: 'center' }}>
@@ -139,7 +174,7 @@ const Register = () => {
 
           {registerMutation.error && (
             <Alert severity="error" sx={{ mb: 2 }}>
-              {registerMutation.error?.response?.data?.message || registerMutation.error.message || 'Registration failed'}
+              {getErrorMessage()}
             </Alert>
           )}
 
@@ -222,4 +257,4 @@ const Register = () => {
   );
 };
 
-export default Register; 
+export default Register;

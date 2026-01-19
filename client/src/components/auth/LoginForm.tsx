@@ -1,25 +1,54 @@
-import React from 'react';
-import {
-  Paper,
-  Typography,
-  TextField,
-  Button,
-  Link,
-  Box,
-  Alert,
-} from '@mui/material';
+import React, { ChangeEvent, FormEvent } from 'react';
+import { Paper, Typography, TextField, Button, Link, Box, Alert } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
+import type { LoginFormData } from '../../types/forms';
+
+interface LoginFormErrors {
+  email?: string;
+  password?: string;
+}
+
+interface AxiosError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+interface LoginFormProps {
+  formData: LoginFormData;
+  formErrors: LoginFormErrors;
+  isLoading: boolean;
+  error: AxiosError | Error | null;
+  onChange: (data: LoginFormData) => void;
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+}
 
 /**
  * Login Form Component
  * Handles the login form UI and validation
  */
-const LoginForm = ({ formData, formErrors, isLoading, error, onChange, onSubmit }) => {
-  const handleChange = (e) => {
+const LoginForm: React.FC<LoginFormProps> = ({
+  formData,
+  formErrors,
+  isLoading,
+  error,
+  onChange,
+  onSubmit,
+}) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>): void => {
     onChange({
       ...formData,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const getErrorMessage = (): string => {
+    if (!error) return '';
+    const axiosError = error as AxiosError;
+    return axiosError?.response?.data?.message || error.message || 'Login failed';
   };
 
   return (
@@ -30,7 +59,7 @@ const LoginForm = ({ formData, formErrors, isLoading, error, onChange, onSubmit 
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error?.response?.data?.message || error.message || 'Login failed'}
+          {getErrorMessage()}
         </Alert>
       )}
 
@@ -82,7 +111,12 @@ const LoginForm = ({ formData, formErrors, isLoading, error, onChange, onSubmit 
 
       <Box sx={{ mt: 2, textAlign: 'center' }}>
         <Typography variant="body2" sx={{ mb: 1 }}>
-          <Link component={RouterLink} to="/forgot-password" variant="body2" aria-label="Forgot password">
+          <Link
+            component={RouterLink}
+            to="/forgot-password"
+            variant="body2"
+            aria-label="Forgot password"
+          >
             Forgot your password?
           </Link>
         </Typography>
@@ -98,4 +132,3 @@ const LoginForm = ({ formData, formErrors, isLoading, error, onChange, onSubmit 
 };
 
 export default LoginForm;
-

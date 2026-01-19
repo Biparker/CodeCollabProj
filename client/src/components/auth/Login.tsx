@@ -1,28 +1,44 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Container, Box } from '@mui/material';
 import { useAuth, useLogin } from '../../hooks/auth';
 import LoginForm from './LoginForm';
 import VerificationAlert from './VerificationAlert';
+import type { LoginFormData } from '../../types/forms';
+
+interface LoginFormErrors {
+  email?: string;
+  password?: string;
+}
+
+interface AxiosError {
+  response?: {
+    data?: {
+      needsVerification?: boolean;
+      message?: string;
+    };
+  };
+  message?: string;
+}
 
 /**
  * Login Component
  * Main login page that handles authentication flow
  */
-const Login = () => {
+const Login: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
-  
+
   // TanStack Query mutations
   const loginMutation = useLogin();
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<LoginFormData>({
     email: '',
     password: '',
   });
 
-  const [formErrors, setFormErrors] = useState({});
-  const [needsVerification, setNeedsVerification] = useState(false);
+  const [formErrors, setFormErrors] = useState<LoginFormErrors>({});
+  const [needsVerification, setNeedsVerification] = useState<boolean>(false);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -37,8 +53,8 @@ const Login = () => {
     };
   }, []);
 
-  const validateForm = () => {
-    const errors = {};
+  const validateForm = (): boolean => {
+    const errors: LoginFormErrors = {};
     if (!formData.email) {
       errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -51,7 +67,7 @@ const Login = () => {
     return Object.keys(errors).length === 0;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (validateForm()) {
       loginMutation.mutate(formData, {
@@ -60,7 +76,8 @@ const Login = () => {
         },
         onError: (error) => {
           // Check if the error is due to unverified email
-          if (error?.response?.data?.needsVerification) {
+          const axiosError = error as AxiosError;
+          if (axiosError?.response?.data?.needsVerification) {
             setNeedsVerification(true);
           }
         },
@@ -72,10 +89,7 @@ const Login = () => {
     return (
       <Container maxWidth="sm">
         <Box sx={{ mt: 8, mb: 4 }}>
-          <VerificationAlert 
-            email={formData.email} 
-            onBack={() => setNeedsVerification(false)} 
-          />
+          <VerificationAlert email={formData.email} onBack={() => setNeedsVerification(false)} />
         </Box>
       </Container>
     );
@@ -97,4 +111,4 @@ const Login = () => {
   );
 };
 
-export default Login; 
+export default Login;

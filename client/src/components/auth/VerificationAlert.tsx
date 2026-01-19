@@ -1,17 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, ChangeEvent, FormEvent } from 'react';
 import { Box, Typography, Button, TextField, Alert, AlertTitle, Paper } from '@mui/material';
 import { useResendVerificationEmail } from '../../hooks/auth';
+
+interface VerificationAlertProps {
+  email?: string;
+  onBack?: () => void;
+}
+
+interface AxiosError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
 
 /**
  * Verification Alert Component
  * Displays when user needs to verify their email
  */
-const VerificationAlert = ({ email, onBack }) => {
-  const [showResendForm, setShowResendForm] = useState(false);
-  const [resendEmail, setResendEmail] = useState(email || '');
+const VerificationAlert: React.FC<VerificationAlertProps> = ({ email, onBack }) => {
+  const [showResendForm, setShowResendForm] = useState<boolean>(false);
+  const [resendEmail, setResendEmail] = useState<string>(email || '');
   const resendVerificationMutation = useResendVerificationEmail();
 
-  const handleResendVerification = async (e) => {
+  const handleResendVerification = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (resendEmail) {
       resendVerificationMutation.mutate(resendEmail, {
@@ -22,11 +36,18 @@ const VerificationAlert = ({ email, onBack }) => {
     }
   };
 
+  const getErrorMessage = (): string => {
+    if (!resendVerificationMutation.error) return '';
+    const axiosError = resendVerificationMutation.error as AxiosError;
+    return axiosError?.response?.data?.message || 'Failed to send verification email';
+  };
+
   return (
     <Paper elevation={3} sx={{ p: 4 }}>
       <Alert severity="warning" sx={{ mb: 3 }}>
         <AlertTitle>Email Verification Required</AlertTitle>
-        Please verify your email address before logging in. Check your inbox for a verification email.
+        Please verify your email address before logging in. Check your inbox for a verification
+        email.
       </Alert>
 
       {!showResendForm ? (
@@ -41,12 +62,7 @@ const VerificationAlert = ({ email, onBack }) => {
             Send Verification Email
           </Button>
           {onBack && (
-            <Button
-              onClick={onBack}
-              variant="text"
-              color="primary"
-              aria-label="Back to login"
-            >
+            <Button onClick={onBack} variant="text" color="primary" aria-label="Back to login">
               Back to Login
             </Button>
           )}
@@ -62,7 +78,7 @@ const VerificationAlert = ({ email, onBack }) => {
               label="Email"
               type="email"
               value={resendEmail}
-              onChange={(e) => setResendEmail(e.target.value)}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setResendEmail(e.target.value)}
               margin="normal"
               required
               autoFocus
@@ -100,7 +116,7 @@ const VerificationAlert = ({ email, onBack }) => {
 
       {resendVerificationMutation.error && (
         <Alert severity="error" sx={{ mt: 2 }}>
-          {resendVerificationMutation.error?.response?.data?.message || 'Failed to send verification email'}
+          {getErrorMessage()}
         </Alert>
       )}
     </Paper>
@@ -108,4 +124,3 @@ const VerificationAlert = ({ email, onBack }) => {
 };
 
 export default VerificationAlert;
-

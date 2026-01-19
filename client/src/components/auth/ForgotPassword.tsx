@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { useNavigate, Link as RouterLink } from 'react-router-dom';
-import { 
+import React, { useState, ChangeEvent, FormEvent } from 'react';
+import { Link as RouterLink } from 'react-router-dom';
+import {
   Container,
   Paper,
   Typography,
@@ -12,16 +12,26 @@ import {
   AlertTitle,
 } from '@mui/material';
 import { useRequestPasswordReset } from '../../hooks/auth';
+import type { PasswordResetRequestResponseDev } from '../../types/auth';
 
-const ForgotPassword = () => {
-  const navigate = useNavigate();
+interface AxiosError {
+  response?: {
+    data?: {
+      message?: string;
+    };
+  };
+  message?: string;
+}
+
+const ForgotPassword: React.FC = () => {
   const requestPasswordResetMutation = useRequestPasswordReset();
 
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState('');
-  const [passwordResetData, setPasswordResetData] = useState(null);
+  const [email, setEmail] = useState<string>('');
+  const [emailError, setEmailError] = useState<string>('');
+  const [passwordResetData, setPasswordResetData] =
+    useState<PasswordResetRequestResponseDev | null>(null);
 
-  const validateEmail = () => {
+  const validateEmail = (): boolean => {
     if (!email) {
       setEmailError('Email is required');
       return false;
@@ -33,26 +43,36 @@ const ForgotPassword = () => {
     return true;
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (validateEmail()) {
       requestPasswordResetMutation.mutate(email, {
         onSuccess: (data) => {
-          console.log('✅ Password reset requested successfully:', data);
-          setPasswordResetData(data);
+          console.log('Password reset requested successfully:', data);
+          setPasswordResetData(data as PasswordResetRequestResponseDev);
         },
         onError: (error) => {
-          console.error('❌ Password reset request failed:', error);
+          console.error('Password reset request failed:', error);
         },
       });
     }
   };
 
-  const handleEmailChange = (e) => {
+  const handleEmailChange = (e: ChangeEvent<HTMLInputElement>): void => {
     setEmail(e.target.value);
     if (emailError) {
       setEmailError('');
     }
+  };
+
+  const getErrorMessage = (): string => {
+    if (!requestPasswordResetMutation.error) return '';
+    const axiosError = requestPasswordResetMutation.error as AxiosError;
+    return (
+      axiosError?.response?.data?.message ||
+      requestPasswordResetMutation.error?.message ||
+      'Failed to send password reset email'
+    );
   };
 
   if (passwordResetData) {
@@ -64,8 +84,8 @@ const ForgotPassword = () => {
               <AlertTitle>Password Reset Link Generated</AlertTitle>
               {process.env.NODE_ENV === 'development' ? (
                 <>
-                  Development mode: A password reset link has been generated. 
-                  You can copy the link below or click it to reset your password.
+                  Development mode: A password reset link has been generated. You can copy the link
+                  below or click it to reset your password.
                   <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
                     <Typography variant="body2" sx={{ wordBreak: 'break-all', mb: 1 }}>
                       {passwordResetData.resetUrl}
@@ -83,8 +103,9 @@ const ForgotPassword = () => {
                 </>
               ) : (
                 <>
-                  If an account with that email exists, a password reset link has been sent to your email address.
-                  Please check your inbox and follow the instructions to reset your password.
+                  If an account with that email exists, a password reset link has been sent to your
+                  email address. Please check your inbox and follow the instructions to reset your
+                  password.
                 </>
               )}
             </Alert>
@@ -123,16 +144,14 @@ const ForgotPassword = () => {
           <Typography component="h1" variant="h4" align="center" gutterBottom>
             Forgot Password
           </Typography>
-          
+
           <Typography variant="body1" align="center" sx={{ mb: 3 }}>
             Enter your email address and we'll send you a link to reset your password.
           </Typography>
 
           {requestPasswordResetMutation.error && (
             <Alert severity="error" sx={{ mb: 3 }}>
-              {requestPasswordResetMutation.error?.response?.data?.message || 
-               requestPasswordResetMutation.error?.message || 
-               'Failed to send password reset email'}
+              {getErrorMessage()}
             </Alert>
           )}
 

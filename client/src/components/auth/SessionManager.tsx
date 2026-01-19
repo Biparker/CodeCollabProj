@@ -1,42 +1,42 @@
 import React from 'react';
 import { useSessions } from '../../hooks/auth/useSessions';
-import { useLogoutAll } from '../../hooks/auth/useLogout';
+import type { Session } from '../../types';
 
 /**
  * Session management component
  * Shows active sessions and allows logout from all devices
  */
-const SessionManager = () => {
-  const { 
-    sessions, 
-    sessionCount, 
-    isLoading, 
-    error, 
+const SessionManager: React.FC = () => {
+  const {
+    sessions,
+    sessionCount,
+    isLoading,
+    error,
     refetch,
     getCurrentSession,
     getOtherSessions,
     logoutAll,
-    isLoggingOutAll 
+    isLoggingOutAll,
   } = useSessions();
 
-  const formatLastActivity = (date) => {
+  const formatLastActivity = (date: string): string => {
     return new Date(date).toLocaleString();
   };
 
-  const getDeviceIcon = (platform) => {
+  const getDeviceIcon = (platform?: string): string => {
     switch (platform?.toLowerCase()) {
       case 'ios':
-        return '📱';
+        return 'Mobile';
       case 'android':
-        return '📱';
+        return 'Mobile';
       case 'windows':
-        return '💻';
+        return 'PC';
       case 'macos':
-        return '💻';
+        return 'Mac';
       case 'linux':
-        return '🖥️';
+        return 'Linux';
       default:
-        return '🌐';
+        return 'Web';
     }
   };
 
@@ -59,11 +59,9 @@ const SessionManager = () => {
       <div className="p-4">
         <div className="bg-red-50 border border-red-200 rounded-md p-4">
           <div className="flex">
-            <div className="text-red-400">⚠️</div>
+            <div className="text-red-400">Warning</div>
             <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">
-                Failed to load sessions
-              </h3>
+              <h3 className="text-sm font-medium text-red-800">Failed to load sessions</h3>
               <div className="mt-2">
                 <button
                   onClick={() => refetch()}
@@ -85,12 +83,10 @@ const SessionManager = () => {
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">
-          Active Sessions ({sessionCount})
-        </h2>
+        <h2 className="text-xl font-semibold text-gray-900">Active Sessions ({sessionCount})</h2>
         {sessionCount > 1 && (
           <button
-            onClick={logoutAll}
+            onClick={() => logoutAll()}
             disabled={isLoggingOutAll}
             className="bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 disabled:opacity-50"
           >
@@ -105,9 +101,7 @@ const SessionManager = () => {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-3">
-                <div className="text-2xl">
-                  {getDeviceIcon(currentSession.deviceInfo?.platform)}
-                </div>
+                <div className="text-2xl">{getDeviceIcon(currentSession.deviceInfo?.platform)}</div>
                 <div>
                   <div className="flex items-center space-x-2">
                     <h3 className="font-medium text-gray-900">
@@ -124,9 +118,7 @@ const SessionManager = () => {
                     Last active: {formatLastActivity(currentSession.lastActivity)}
                   </p>
                   {currentSession.deviceInfo?.ip && (
-                    <p className="text-xs text-gray-500">
-                      IP: {currentSession.deviceInfo.ip}
-                    </p>
+                    <p className="text-xs text-gray-500">IP: {currentSession.deviceInfo.ip}</p>
                   )}
                 </div>
               </div>
@@ -135,13 +127,11 @@ const SessionManager = () => {
         )}
 
         {/* Other Sessions */}
-        {otherSessions.map((session) => (
-          <div key={session._id} className="bg-white border border-gray-200 rounded-lg p-4">
+        {otherSessions.map((session: Session) => (
+          <div key={session.id} className="bg-white border border-gray-200 rounded-lg p-4">
             <div className="flex items-start justify-between">
               <div className="flex items-start space-x-3">
-                <div className="text-2xl">
-                  {getDeviceIcon(session.deviceInfo?.platform)}
-                </div>
+                <div className="text-2xl">{getDeviceIcon(session.deviceInfo?.platform)}</div>
                 <div>
                   <h3 className="font-medium text-gray-900">
                     {session.deviceInfo?.browser || 'Unknown Browser'}
@@ -153,15 +143,11 @@ const SessionManager = () => {
                     Last active: {formatLastActivity(session.lastActivity)}
                   </p>
                   {session.deviceInfo?.ip && (
-                    <p className="text-xs text-gray-500">
-                      IP: {session.deviceInfo.ip}
-                    </p>
+                    <p className="text-xs text-gray-500">IP: {session.deviceInfo.ip}</p>
                   )}
                   {session.location && (
                     <p className="text-xs text-gray-500">
-                      {[session.location.city, session.location.country]
-                        .filter(Boolean)
-                        .join(', ')}
+                      {[session.location.city, session.location.country].filter(Boolean).join(', ')}
                     </p>
                   )}
                 </div>
@@ -172,25 +158,21 @@ const SessionManager = () => {
 
         {sessionCount === 0 && (
           <div className="text-center py-8">
-            <div className="text-4xl mb-4">🔒</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              No active sessions
-            </h3>
-            <p className="text-gray-600">
-              You are not logged in on any devices.
-            </p>
+            <div className="text-4xl mb-4">Lock</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No active sessions</h3>
+            <p className="text-gray-600">You are not logged in on any devices.</p>
           </div>
         )}
       </div>
 
       {/* Session Security Info */}
       <div className="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-medium text-blue-900 mb-2">🔐 Session Security</h4>
+        <h4 className="font-medium text-blue-900 mb-2">Session Security</h4>
         <div className="text-sm text-blue-800 space-y-1">
-          <p>• Sessions automatically expire after 7 days of inactivity</p>
-          <p>• Access tokens refresh every 15 minutes for security</p>
-          <p>• Changing your password logs out all devices</p>
-          <p>• Maximum 3 concurrent sessions allowed</p>
+          <p>Sessions automatically expire after 7 days of inactivity</p>
+          <p>Access tokens refresh every 15 minutes for security</p>
+          <p>Changing your password logs out all devices</p>
+          <p>Maximum 3 concurrent sessions allowed</p>
         </div>
       </div>
     </div>
