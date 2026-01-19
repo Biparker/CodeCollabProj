@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { FC } from 'react';
 import {
   Box,
   Card,
@@ -11,10 +11,12 @@ import {
 } from '@mui/material';
 
 // Skeleton for project cards
-export const ProjectCardSkeleton = () => (
+export const ProjectCardSkeleton: FC = () => (
   <Card>
     <CardContent>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+      <Box
+        sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}
+      >
         <Skeleton variant="text" width="60%" height={32} />
         <Skeleton variant="rounded" width={80} height={24} />
       </Box>
@@ -38,7 +40,7 @@ export const ProjectCardSkeleton = () => (
 );
 
 // Skeleton for stat cards on dashboard
-export const StatCardSkeleton = () => (
+export const StatCardSkeleton: FC = () => (
   <Card>
     <CardContent>
       <Skeleton variant="text" width="70%" height={20} sx={{ mb: 1 }} />
@@ -48,7 +50,7 @@ export const StatCardSkeleton = () => (
 );
 
 // Skeleton for member table rows
-export const MemberRowSkeleton = () => (
+export const MemberRowSkeleton: FC = () => (
   <TableRow>
     <TableCell>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -74,8 +76,12 @@ export const MemberRowSkeleton = () => (
   </TableRow>
 );
 
+interface ProjectListSkeletonProps {
+  count?: number;
+}
+
 // Grid of project card skeletons
-export const ProjectListSkeleton = ({ count = 6 }) => (
+export const ProjectListSkeleton: FC<ProjectListSkeletonProps> = ({ count = 6 }) => (
   <Grid container spacing={3}>
     {Array.from({ length: count }).map((_, index) => (
       <Grid item xs={12} sm={6} md={4} key={index}>
@@ -86,7 +92,7 @@ export const ProjectListSkeleton = ({ count = 6 }) => (
 );
 
 // Dashboard skeleton
-export const DashboardSkeleton = () => (
+export const DashboardSkeleton: FC = () => (
   <Box>
     {/* Welcome section */}
     <Box sx={{ mb: 4 }}>
@@ -114,8 +120,12 @@ export const DashboardSkeleton = () => (
   </Box>
 );
 
+interface MembersTableSkeletonProps {
+  count?: number;
+}
+
 // Members table skeleton
-export const MembersTableSkeleton = ({ count = 5 }) => (
+export const MembersTableSkeleton: FC<MembersTableSkeletonProps> = ({ count = 5 }) => (
   <>
     {Array.from({ length: count }).map((_, index) => (
       <MemberRowSkeleton key={index} />

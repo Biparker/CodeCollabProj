@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { FC, useState, MouseEvent } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar,
@@ -12,17 +12,14 @@ import {
   Badge,
   Tooltip,
 } from '@mui/material';
-import {
-  Menu as MenuIcon,
-  Message as MessageIcon
-} from '@mui/icons-material';
+import { Menu as MenuIcon, Message as MessageIcon } from '@mui/icons-material';
 import { useAuth, useLogout } from '../../hooks/auth';
 import { useMessages } from '../../hooks/users/useMessaging';
 import { useMyProfile } from '../../hooks/users';
 import Avatar from '../common/Avatar';
 import logger from '../../utils/logger';
 
-const Header = () => {
+const Header: FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const logoutMutation = useLogout();
@@ -36,23 +33,23 @@ const Header = () => {
   const { data: inboxMessages = [] } = useMessages('inbox', {
     enabled: isAuthenticated, // Only fetch if authenticated
   });
-  const unreadCount = inboxMessages.filter(msg => !msg.isRead).length;
-  
+  const unreadCount = inboxMessages.filter((msg) => !msg.isRead).length;
+
   // Only log in development
   if (process.env.NODE_ENV === 'development') {
     logger.debug('Header isAuthenticated (TanStack Query):', isAuthenticated, 'user:', user);
   }
-  const [anchorEl, setAnchorEl] = React.useState(null);
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
 
-  const handleMenu = (event) => {
+  const handleMenu = (event: MouseEvent<HTMLElement>): void => {
     setAnchorEl(event.currentTarget);
   };
 
-  const handleClose = () => {
+  const handleClose = (): void => {
     setAnchorEl(null);
   };
 
-  const handleLogout = () => {
+  const handleLogout = (): void => {
     logoutMutation.mutate(undefined, {
       onSuccess: () => {
         navigate('/login');
@@ -121,18 +118,10 @@ const Header = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           {isAuthenticated ? (
             <>
-              <Button
-                color="inherit"
-                component={RouterLink}
-                to="/projects"
-              >
+              <Button color="inherit" component={RouterLink} to="/projects">
                 Projects
               </Button>
-              <Button
-                color="inherit"
-                component={RouterLink}
-                to="/members"
-              >
+              <Button color="inherit" component={RouterLink} to="/members">
                 Members
               </Button>
               <IconButton
@@ -146,11 +135,7 @@ const Header = () => {
                   <MessageIcon />
                 </Badge>
               </IconButton>
-              <Button
-                color="inherit"
-                component={RouterLink}
-                to="/dashboard"
-              >
+              <Button color="inherit" component={RouterLink} to="/dashboard">
                 Dashboard
               </Button>
               {/* Admin Panel Link - only show for admins and moderators */}
@@ -159,11 +144,11 @@ const Header = () => {
                   color="inherit"
                   component={RouterLink}
                   to="/admin"
-                  sx={{ 
+                  sx={{
                     bgcolor: 'error.main',
                     '&:hover': { bgcolor: 'error.dark' },
                     borderRadius: 1,
-                    px: 2
+                    px: 2,
                   }}
                 >
                   Admin
@@ -180,10 +165,7 @@ const Header = () => {
                   color="inherit"
                   sx={{ p: 0.5 }}
                 >
-                  <Avatar
-                    user={profile || user}
-                    size="sm"
-                  />
+                  <Avatar user={profile || user} size="sm" />
                 </IconButton>
               </Tooltip>
               <Menu
@@ -227,4 +209,4 @@ const Header = () => {
   );
 };
 
-export default Header; 
+export default Header;

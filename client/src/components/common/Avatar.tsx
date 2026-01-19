@@ -1,8 +1,29 @@
-import React from 'react';
-import { Avatar as MuiAvatar, Box } from '@mui/material';
+import React, { FC, MouseEvent } from 'react';
+import { Avatar as MuiAvatar, Box, SxProps, Theme } from '@mui/material';
+
+// Type for user object (partial, for avatar purposes)
+interface AvatarUser {
+  username?: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImage?: string;
+}
+
+// Size presets
+type AvatarSizePreset = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'xxl';
+type AvatarSize = AvatarSizePreset | number;
+
+interface AvatarProps {
+  user?: AvatarUser | null;
+  size?: AvatarSize;
+  showOnlineStatus?: boolean;
+  onClick?: (event: MouseEvent<HTMLDivElement>) => void;
+  sx?: SxProps<Theme>;
+}
 
 // Generate a consistent color from a string (username/email)
-const stringToColor = (string) => {
+const stringToColor = (string: string | undefined | null): string => {
   if (!string) return '#1976d2';
 
   let hash = 0;
@@ -17,7 +38,7 @@ const stringToColor = (string) => {
 };
 
 // Get initials from user object
-const getInitials = (user) => {
+const getInitials = (user: AvatarUser | undefined | null): string => {
   if (!user) return '?';
 
   const firstName = user.firstName || '';
@@ -39,8 +60,8 @@ const getInitials = (user) => {
   return '?';
 };
 
-// Size presets
-const sizeMap = {
+// Size presets map
+const sizeMap: Record<AvatarSizePreset, number> = {
   xs: 24,
   sm: 32,
   md: 40,
@@ -49,7 +70,7 @@ const sizeMap = {
   xxl: 120,
 };
 
-const Avatar = ({
+const Avatar: FC<AvatarProps> = ({
   user,
   size = 'md',
   showOnlineStatus = false,
@@ -64,7 +85,7 @@ const Avatar = ({
   const bgColor = stringToColor(user?.username || user?.email || '');
 
   // Construct the full image URL
-  const getImageUrl = () => {
+  const getImageUrl = (): string | null => {
     if (!user?.profileImage) return null;
 
     // If it's already a full URL, use it directly
@@ -102,7 +123,7 @@ const Avatar = ({
       }}
     >
       <MuiAvatar
-        src={imageUrl}
+        src={imageUrl || undefined}
         alt={user?.username || 'User'}
         onClick={onClick}
         sx={{
@@ -112,10 +133,12 @@ const Avatar = ({
           bgcolor: bgColor,
           cursor: onClick ? 'pointer' : 'default',
           transition: 'transform 0.2s, box-shadow 0.2s',
-          '&:hover': onClick ? {
-            transform: 'scale(1.05)',
-            boxShadow: 2,
-          } : {},
+          '&:hover': onClick
+            ? {
+                transform: 'scale(1.05)',
+                boxShadow: 2,
+              }
+            : {},
         }}
         {...props}
       >

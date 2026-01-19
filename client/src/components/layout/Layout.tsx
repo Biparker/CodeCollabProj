@@ -1,9 +1,13 @@
-import React, { memo } from 'react';
+import React, { memo, FC, ReactNode } from 'react';
 import { Box } from '@mui/material';
 import Header from './Header';
 import Footer from './Footer';
 
-const Layout = memo(({ children }) => {
+interface LayoutProps {
+  children: ReactNode;
+}
+
+const Layout: FC<LayoutProps> = memo(({ children }) => {
   return (
     <Box
       sx={{
@@ -31,4 +35,4 @@ const Layout = memo(({ children }) => {
 
 Layout.displayName = 'Layout';
 
-export default Layout; 
+export default Layout;

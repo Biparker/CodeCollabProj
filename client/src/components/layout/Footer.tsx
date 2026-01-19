@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { FC } from 'react';
 import { Box, Typography, Container } from '@mui/material';
 
-const Footer = () => {
+const Footer: FC = () => {
   return (
     <Box
       component="footer"
@@ -9,8 +9,7 @@ const Footer = () => {
         py: 3,
         px: 2,
         mt: 'auto',
-        backgroundColor: (theme) =>
-          theme.palette.grey[200],
+        backgroundColor: (theme) => theme.palette.grey[200],
       }}
     >
       <Container maxWidth="sm">
@@ -70,4 +69,4 @@ const Footer = () => {
   );
 };
 
-export default Footer; 
+export default Footer;
