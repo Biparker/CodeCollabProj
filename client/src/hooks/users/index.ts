@@ -1,11 +1,11 @@
 // Central export for all user hooks
-export { 
-  useUsers, 
-  useUser, 
-  useUserSearch, 
-  useUserProjects, 
-  useUserStats, 
-  useMyProfile 
+export {
+  useUsers,
+  useUser,
+  useUserSearch,
+  useUserProjects,
+  useUserStats,
+  useMyProfile,
 } from './useUsers';
 
 export {
@@ -16,7 +16,7 @@ export {
   useDeleteAvatar,
 } from './useProfileMutations';
 
-export { 
+export {
   useMessages,
   useMessage,
   useSendMessage,

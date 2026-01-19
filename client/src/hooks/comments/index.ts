@@ -1,11 +1,7 @@
 // Central export for all comment hooks
-export { 
-  useComments, 
-  useComment, 
-  useCommentReplies 
-} from './useComments';
+export { useComments, useComment, useCommentReplies } from './useComments';
 
-export { 
+export {
   useCreateComment,
   useUpdateComment,
   useDeleteComment,

@@ -1,23 +1,31 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersService } from '../../services/usersService';
+import { useMutation, useQueryClient, UseMutationResult } from '@tanstack/react-query';
+import {
+  usersService,
+  ProfileUpdateResponse,
+  AvatarUploadResponse,
+  MessageResponse,
+  FollowResponse,
+} from '../../services/usersService';
 import { queryKeys, invalidateQueries } from '../../config/queryClient';
+import type { User } from '../../types';
 
 /**
- * User profile mutation hooks for update, image upload operations
+ * Update profile hook
  */
-
-// Update profile hook
-export const useUpdateProfile = () => {
-  const queryClient = useQueryClient();
-  
+export const useUpdateProfile = (): UseMutationResult<
+  ProfileUpdateResponse,
+  Error,
+  Partial<User>,
+  unknown
+> => {
   return useMutation({
     mutationFn: usersService.updateProfile,
     onSuccess: (data) => {
       console.log('✅ Profile updated successfully:', data);
-      
+
       // Invalidate profile queries to refetch fresh data
       invalidateQueries.userProfile();
-      
+
       // Also invalidate auth queries since profile data might be used there
       invalidateQueries.auth();
     },
@@ -27,18 +35,23 @@ export const useUpdateProfile = () => {
   });
 };
 
-// Upload profile image hook
-export const useUploadProfileImage = () => {
-  const queryClient = useQueryClient();
-  
+/**
+ * Upload profile image hook
+ */
+export const useUploadProfileImage = (): UseMutationResult<
+  AvatarUploadResponse,
+  Error,
+  File,
+  unknown
+> => {
   return useMutation({
     mutationFn: usersService.uploadProfileImage,
     onSuccess: (data) => {
       console.log('✅ Profile image uploaded successfully:', data);
-      
+
       // Invalidate profile queries
       invalidateQueries.userProfile();
-      
+
       // Also invalidate auth queries since profile image might be used there
       invalidateQueries.auth();
     },
@@ -48,8 +61,10 @@ export const useUploadProfileImage = () => {
   });
 };
 
-// Toggle follow user hook
-export const useToggleFollow = () => {
+/**
+ * Toggle follow user hook
+ */
+export const useToggleFollow = (): UseMutationResult<FollowResponse, Error, string, unknown> => {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -59,15 +74,15 @@ export const useToggleFollow = () => {
 
       // Invalidate the specific user's data
       queryClient.invalidateQueries({
-        queryKey: queryKeys.users.detail(userId)
+        queryKey: queryKeys.users.detail(userId),
       });
 
       // Invalidate followers/following lists
       queryClient.invalidateQueries({
-        queryKey: queryKeys.users.followers(userId)
+        queryKey: queryKeys.users.followers(userId),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.users.following(userId)
+        queryKey: queryKeys.users.following(userId),
       });
 
       // Invalidate current user's following list
@@ -79,65 +94,98 @@ export const useToggleFollow = () => {
   });
 };
 
-// Upload avatar hook
-export const useUploadAvatar = () => {
+/**
+ * Response type for avatar upload that includes the user object
+ */
+interface AvatarUploadWithUserResponse extends AvatarUploadResponse {
+  user?: User;
+}
+
+/**
+ * Upload avatar hook
+ */
+export const useUploadAvatar = (): UseMutationResult<
+  AvatarUploadWithUserResponse,
+  Error,
+  FormData,
+  unknown
+> => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: usersService.uploadAvatar,
+    mutationFn: usersService.uploadAvatar as (
+      formData: FormData
+    ) => Promise<AvatarUploadWithUserResponse>,
     onSuccess: async (data) => {
       console.log('✅ Avatar upload response:', data);
       console.log('🔍 data.user exists?', !!data.user);
       console.log('🔍 data.user.profileImage:', data.user?.profileImage);
-      
+
       // If response includes updated user, update BOTH caches immediately
       if (data.user) {
         // Update auth cache
         queryClient.setQueryData(queryKeys.auth.currentUser(), data.user);
-        
+
         // CRITICAL: Also update the users.profile cache (used by Profile page!)
         queryClient.setQueryData(queryKeys.users.profile(), data.user);
-        
-        console.log('✅ Updated both auth and profile caches with new avatar:', data.user.profileImage);
+
+        console.log(
+          '✅ Updated both auth and profile caches with new avatar:',
+          data.user.profileImage
+        );
         console.log('🔍 Full user object:', data.user);
         console.log('🔍 Cache keys used:', {
           auth: queryKeys.auth.currentUser(),
-          profile: queryKeys.users.profile()
+          profile: queryKeys.users.profile(),
         });
       } else {
         console.error('❌ No user object in upload response!');
       }
-      
+
       // Invalidate queries to force refetch and re-render
-      await queryClient.invalidateQueries({ 
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.users.profile(),
-        refetchType: 'active'
+        refetchType: 'active',
       });
-      
-      await queryClient.invalidateQueries({ 
+
+      await queryClient.invalidateQueries({
         queryKey: queryKeys.auth.currentUser(),
-        refetchType: 'active'
+        refetchType: 'active',
       });
     },
   });
 };
 
-// Delete avatar hook
-export const useDeleteAvatar = () => {
+/**
+ * Response type for avatar deletion that includes the user object
+ */
+interface AvatarDeleteResponse extends MessageResponse {
+  user?: User;
+}
+
+/**
+ * Delete avatar hook
+ */
+export const useDeleteAvatar = (): UseMutationResult<
+  AvatarDeleteResponse,
+  Error,
+  void,
+  unknown
+> => {
   const queryClient = useQueryClient();
-  
+
   return useMutation({
-    mutationFn: usersService.deleteAvatar,
+    mutationFn: usersService.deleteAvatar as () => Promise<AvatarDeleteResponse>,
     onSuccess: (data) => {
       console.log('✅ Avatar deleted successfully');
-      
+
       // If response includes updated user, update both caches
       if (data && data.user) {
         queryClient.setQueryData(queryKeys.auth.currentUser(), data.user);
         queryClient.setQueryData(queryKeys.users.profile(), data.user);
         console.log('✅ Updated both caches after avatar deletion');
       }
-      
+
       // Invalidate profile queries
       invalidateQueries.userProfile();
 
