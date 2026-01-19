@@ -11,6 +11,7 @@
     "install-all": "npm install && cd client && npm install && cd ../server && npm install",
     "test": "concurrently \"cd server && npm test\" \"cd client && npm test\"",
     "test:e2e": "npx playwright test",
+    "test:e2e:headed": "npx playwright test --headed",
     "test:e2e:ui": "npx playwright test --ui",
     "test:e2e:security": "npx playwright test cookie-auth-security",
     "typecheck": "concurrently \"cd server && npm run typecheck\" \"cd client && npm run typecheck\"",
