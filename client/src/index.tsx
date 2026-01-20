@@ -5,7 +5,7 @@ import './styles/global.css';
 import logger from './utils/logger';
 
 // Performance monitoring (development only)
-if (process.env.NODE_ENV === 'development') {
+if (import.meta.env.DEV) {
   const startTime = performance.now();
   const renderStart = performance.now();
 

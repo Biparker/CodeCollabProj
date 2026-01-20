@@ -84,7 +84,7 @@ function App(): React.ReactElement {
   // when components mount and use the useAuth hook
   useEffect(() => {
     // Only log in development
-    if (process.env.NODE_ENV === 'development') {
+    if (import.meta.env.DEV) {
       const token = localStorage.getItem('token');
       logger.debug('🔐 App startup - Token exists:', !!token);
       logger.debug('🔐 QueryClient initialized:', !!queryClient);
@@ -204,7 +204,7 @@ function App(): React.ReactElement {
           </Router>
         </ThemeProvider>
         {/* React Query DevTools - temporarily disabled to avoid chunk loading issues */}
-        {/* {process.env.NODE_ENV === 'development' && (
+        {/* {import.meta.env.DEV && (
           <React.Suspense fallback={null}>
             <ReactQueryDevtools initialIsOpen={false} />
           </React.Suspense>

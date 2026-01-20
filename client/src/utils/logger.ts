@@ -3,7 +3,7 @@
  * Wraps console methods to prevent logging in production
  */
 
-const isDevelopment = process.env.NODE_ENV === 'development';
+const isDevelopment = import.meta.env.DEV;
 
 /**
  * Sensitive fields that should be removed from logs in production

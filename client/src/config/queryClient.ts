@@ -35,7 +35,7 @@ export const queryClient = new QueryClient({
       retryDelay: (attemptIndex: number): number =>
         Math.min(QUERY_CONFIG.RETRY_DELAY_BASE * 2 ** attemptIndex, QUERY_CONFIG.RETRY_DELAY_MAX),
       // Don't refetch on window focus in development
-      refetchOnWindowFocus: process.env.NODE_ENV === 'production',
+      refetchOnWindowFocus: import.meta.env.PROD,
       // Don't refetch on reconnect unless data is stale
       refetchOnReconnect: 'always',
       // Enable background refetching

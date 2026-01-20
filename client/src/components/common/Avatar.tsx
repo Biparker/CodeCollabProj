@@ -94,7 +94,7 @@ const Avatar: FC<AvatarProps> = ({
     }
 
     // Get the API base URL
-    const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
 
     // Check if profileImage is a GridFS ObjectId (24 hex characters)
     // or an old-style file path (starts with /uploads/)

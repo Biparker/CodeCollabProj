@@ -39,7 +39,7 @@ interface ApiErrorData {
 let authService: AuthService | null = null;
 
 const api: AxiosInstance = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5001/api',
+  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5001/api',
   headers: {
     'Content-Type': 'application/json',
   },
@@ -106,7 +106,7 @@ api.interceptors.request.use(
     }
 
     // Only log API requests in development mode and for important operations
-    if (process.env.NODE_ENV === 'development' && isCriticalOperation) {
+    if (import.meta.env.DEV && isCriticalOperation) {
       logger.debug('🌐 API Request:', {
         method: config.method?.toUpperCase() || 'unknown',
         url: config.url || 'unknown',
@@ -133,7 +133,7 @@ api.interceptors.response.use(
       response?.config?.url?.includes('/password') ||
       response?.config?.url?.includes('/session');
 
-    if (process.env.NODE_ENV === 'development' && isCriticalUrl) {
+    if (import.meta.env.DEV && isCriticalUrl) {
       logger.debug('✅ API Response:', {
         status: response?.status || 'unknown',
         url: response?.config?.url || 'unknown',
@@ -250,7 +250,7 @@ api.interceptors.response.use(
  * Debug function to help troubleshoot API configuration
  */
 export const debugApiConfig = (): void => {
-  if (process.env.NODE_ENV === 'development') {
+  if (import.meta.env.DEV) {
     logger.debug('🔍 API Debug Info:', {
       baseURL: api.defaults.baseURL,
       timeout: api.defaults.timeout,
