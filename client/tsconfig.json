@@ -27,7 +27,7 @@
       "@/types/*": ["./types/*"],
       "@/pages/*": ["./pages/*"]
     },
-    "types": ["vite/client", "vitest/globals"],
+    "types": [],
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "noImplicitAny": false,
     "strictNullChecks": false,
@@ -35,6 +35,16 @@
     "noUnusedParameters": false
   },
   "include": ["src"],
-  "exclude": ["node_modules", "build", "coverage", "dist"],
+  "exclude": [
+    "node_modules",
+    "build",
+    "coverage",
+    "dist",
+    "src/__tests__",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 /**
  * Type declarations for environment variables
  * Extends NodeJS.ProcessEnv for legacy support and ImportMetaEnv for Vite

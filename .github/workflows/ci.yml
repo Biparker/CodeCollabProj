@@ -99,7 +99,7 @@ jobs:
         run: cd client && npm ci
 
       - name: Run client tests
-        run: cd client && npm test -- --watchAll=false --coverage
+        run: cd client && npm run test:coverage
         env:
           CI: true
 
