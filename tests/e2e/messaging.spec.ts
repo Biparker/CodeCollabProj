@@ -40,12 +40,12 @@ test.describe('Messaging', () => {
     // Wait for dialog to open
     await expect(page.getByRole('dialog')).toBeVisible();
 
-    // Verify dialog title
-    await expect(page.getByText('Compose New Message')).toBeVisible();
+    // Verify dialog title - use heading role to be specific
+    await expect(page.getByRole('heading', { name: 'Compose New Message' })).toBeVisible();
 
     // Verify form fields are present
-    // Recipient autocomplete field
-    const recipientField = page.getByRole('combobox');
+    // Recipient autocomplete field - use first() in case dialog has multiple comboboxes
+    const recipientField = page.getByRole('combobox').first();
     await expect(recipientField).toBeVisible();
 
     // Subject field
@@ -144,9 +144,9 @@ test.describe('Messaging', () => {
     // Click send without filling any fields
     await page.getByRole('button', { name: /send message/i }).click();
 
-    // Verify validation errors appear
-    await expect(page.getByText(/please select a recipient/i)).toBeVisible();
-    await expect(page.getByText(/subject is required/i)).toBeVisible();
-    await expect(page.getByText(/message content is required/i)).toBeVisible();
+    // Verify validation errors appear - use .first() in case of multiple matches
+    await expect(page.getByText(/please select a recipient/i).first()).toBeVisible();
+    await expect(page.getByText(/subject is required/i).first()).toBeVisible();
+    await expect(page.getByText(/message content is required/i).first()).toBeVisible();
   });
 });

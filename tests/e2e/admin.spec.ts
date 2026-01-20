@@ -23,17 +23,18 @@ test.describe('Admin', () => {
       await expect(page.getByRole('heading', { name: 'Admin Dashboard' })).toBeVisible();
 
       // Verify stats are displayed (stat cards should be present)
+      // Use .first() since stat cards may have label and value matching the text
       // Check for Total Users stat card
-      await expect(page.getByText('Total Users')).toBeVisible();
+      await expect(page.getByText('Total Users').first()).toBeVisible();
 
       // Check for Active Users stat card
-      await expect(page.getByText('Active Users')).toBeVisible();
+      await expect(page.getByText('Active Users').first()).toBeVisible();
 
       // Check for Total Projects stat card
-      await expect(page.getByText('Total Projects')).toBeVisible();
+      await expect(page.getByText('Total Projects').first()).toBeVisible();
 
       // Check for Active Sessions stat card
-      await expect(page.getByText('Active Sessions')).toBeVisible();
+      await expect(page.getByText('Active Sessions').first()).toBeVisible();
     });
   });
 
