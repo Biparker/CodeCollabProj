@@ -58,12 +58,12 @@ test.describe('Messaging', () => {
 
     // Fill in the recipient - click the autocomplete and select a user
     await recipientField.click();
-    // Wait for users to load and select user2 from the dropdown
-    await page.waitForTimeout(500); // Give time for users list to load
-    // Type to filter and select user2
+    // Type to filter users
     await recipientField.fill('user2');
-    // Wait for options to appear and click the first matching option
-    await page.getByRole('option').first().click();
+    // Wait for the specific option containing user2 to appear and click it
+    const user2Option = page.getByRole('option', { name: /user2/i });
+    await expect(user2Option).toBeVisible({ timeout: 5000 });
+    await user2Option.click();
 
     // Fill in subject
     await subjectField.fill('Test Subject from E2E');
