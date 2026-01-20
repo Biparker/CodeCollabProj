@@ -156,6 +156,7 @@ jobs:
     env:
       CI: true
       NODE_ENV: test
+      PORT: '5001'
       MONGODB_URI: mongodb://localhost:27017/codecollab_test
       JWT_SECRET: e2e-test-secret-at-least-32-characters
       JWT_REFRESH_SECRET: e2e-test-refresh-secret-32-chars
