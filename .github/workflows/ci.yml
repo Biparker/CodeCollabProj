@@ -162,6 +162,8 @@ jobs:
       JWT_REFRESH_SECRET: e2e-test-refresh-secret-32-chars-123
       FRONTEND_URL: http://localhost:3000
       REACT_APP_API_URL: http://localhost:5001/api
+      # Skip email sending in E2E tests
+      SKIP_EMAIL_VERIFICATION: 'true'
 
     services:
       mongodb:

@@ -37,6 +37,13 @@ const sendVerificationEmail = async (
   token: string,
   username: string
 ): Promise<boolean> => {
+  // Skip email sending in E2E/test environments
+  if (process.env.SKIP_EMAIL_VERIFICATION === 'true' || process.env.NODE_ENV === 'e2e') {
+    console.log(`📧 [SKIP] Email sending disabled in ${process.env.NODE_ENV} environment`);
+    console.log(`📧 [SKIP] Would have sent verification email to: ${email}`);
+    return true;
+  }
+
   try {
     console.log(`📧 Starting email send process for: ${email}`);
     console.log(`🔧 Email config check:`);
@@ -117,6 +124,13 @@ const sendPasswordResetEmail = async (
   token: string,
   username: string
 ): Promise<boolean> => {
+  // Skip email sending in E2E/test environments
+  if (process.env.SKIP_EMAIL_VERIFICATION === 'true' || process.env.NODE_ENV === 'e2e') {
+    console.log(`📧 [SKIP] Email sending disabled in ${process.env.NODE_ENV} environment`);
+    console.log(`📧 [SKIP] Would have sent password reset email to: ${email}`);
+    return true;
+  }
+
   try {
     const transporter = createTransporter();
 
