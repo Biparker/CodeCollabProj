@@ -136,14 +136,13 @@ jobs:
         run: cd client && npm run build
         env:
           CI: true
-          DISABLE_ESLINT_PLUGIN: true
-          REACT_APP_API_URL: http://localhost:5001/api
+          VITE_API_URL: http://localhost:5001/api
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
           name: client-build
-          path: client/build/
+          path: client/dist/
           retention-days: 7
 
   # Job 5: E2E Tests (slowest, runs last)
@@ -161,7 +160,7 @@ jobs:
       JWT_SECRET: e2e-test-secret-at-least-32-characters-123
       JWT_REFRESH_SECRET: e2e-test-refresh-secret-32-chars-123
       FRONTEND_URL: http://localhost:3000
-      REACT_APP_API_URL: http://localhost:5001/api
+      VITE_API_URL: http://localhost:5001/api
       # Skip email sending in E2E tests
       SKIP_EMAIL_VERIFICATION: 'true'
 
