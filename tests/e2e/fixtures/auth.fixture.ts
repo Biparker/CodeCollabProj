@@ -35,18 +35,21 @@ export type TestUserRole = keyof typeof TEST_USERS;
  * @param password - User password
  */
 export async function loginAs(page: Page, email: string, password: string): Promise<void> {
-  // Navigate to login page
-  await page.goto('http://localhost:3000/login');
+  // Navigate to login page and wait for it to be fully loaded
+  await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+
+  // Wait for the login form to be visible
+  await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
 
   // Fill the login form using input name attributes
   await page.fill('input[name="email"]', email);
   await page.fill('input[name="password"]', password);
 
-  // Click the submit button
-  await page.click('button[type="submit"]');
-
-  // Wait for redirect to dashboard
-  await page.waitForURL('**/dashboard**', { timeout: 10000 });
+  // Click the submit button and wait for navigation
+  await Promise.all([
+    page.waitForURL('**/dashboard**', { timeout: 30000 }),
+    page.click('button[type="submit"]'),
+  ]);
 }
 
 /**
