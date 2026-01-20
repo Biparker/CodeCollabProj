@@ -13,7 +13,7 @@ const {
   getMyProfile,
   uploadAvatar,
   deleteAvatar,
-  getAvatar
+  getAvatar,
 } = require('../controllers/userController');
 const { profileUpdateValidator, messageValidator } = require('../middleware/validators');
 const auth = require('../middleware/auth');
@@ -24,30 +24,29 @@ const { FILE_UPLOAD } = require('../config/constants');
 const path = require('path');
 const uploadPath = global.uploadPath || path.join(__dirname, '../uploads');
 
+// Multer 2.x uses async functions instead of callbacks
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
+  destination: function (req, file) {
+    return uploadPath;
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const filename = 'avatar-' + uniqueSuffix + path.extname(file.originalname);
-    cb(null, filename);
-  }
+  filename: function (req, file) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    return 'avatar-' + uniqueSuffix + path.extname(file.originalname);
+  },
 });
 
 const avatarUpload = multer({
   storage: storage,
   limits: {
-    fileSize: FILE_UPLOAD.MAX_FILE_SIZE
+    fileSize: FILE_UPLOAD.MAX_FILE_SIZE,
   },
-  fileFilter: function (req, file, cb) {
-    // Accept any image MIME type
+  fileFilter: function (req, file) {
+    // Accept any image MIME type - return true/false for multer 2.x
     if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
+      return true;
     }
-  }
+    throw new Error('Only image files are allowed!');
+  },
 });
 
 // @route   GET /api/users
@@ -110,4 +109,4 @@ router.delete('/messages/:messageId', auth, deleteMessage);
 // @access  Public
 router.get('/:id', getUserById);
 
-module.exports = router; 
+module.exports = router;
