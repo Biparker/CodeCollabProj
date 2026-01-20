@@ -52,8 +52,8 @@ test.describe('Messaging', () => {
     const subjectField = page.getByLabel(/subject/i);
     await expect(subjectField).toBeVisible();
 
-    // Message/Content field - search within the dialog to avoid matching nav link
-    const messageField = page.getByRole('dialog').getByRole('textbox', { name: /message/i });
+    // Message/Content field - use label selector within dialog for reliability
+    const messageField = page.getByRole('dialog').getByLabel(/^message$/i);
     await expect(messageField).toBeVisible();
 
     // Fill in the recipient - click the autocomplete and select a user
