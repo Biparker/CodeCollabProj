@@ -20,6 +20,14 @@ dist/
 */build/
 */dist/
 
+# TypeScript build info
+*.tsbuildinfo
+
+# Vite config emit (from composite project references)
+client/vite.config.js
+client/vite.config.d.ts
+client/vite.config.d.ts.map
+
 # Logs (SECURITY: Log files may contain sensitive information)
 *.log
 npm-debug.log*
