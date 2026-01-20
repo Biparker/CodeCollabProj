@@ -48,6 +48,7 @@ interface SessionValidationResult {
 interface JwtPayload {
   userId: string;
   type: 'access';
+  jti: string;
 }
 
 /**
@@ -319,9 +320,11 @@ class SessionService {
    * Generate secure access token
    */
   generateAccessToken(userId: Types.ObjectId | string): string {
-    return jwt.sign({ userId, type: 'access' }, process.env.JWT_SECRET as string, {
-      expiresIn: '15m',
-    });
+    return jwt.sign(
+      { userId, type: 'access', jti: crypto.randomUUID() },
+      process.env.JWT_SECRET as string,
+      { expiresIn: '15m' }
+    );
   }
 
   /**
