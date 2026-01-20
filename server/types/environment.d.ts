@@ -2,9 +2,10 @@ declare global {
   namespace NodeJS {
     interface ProcessEnv {
       // Server Configuration
-      NODE_ENV: 'development' | 'production' | 'test';
+      NODE_ENV: 'development' | 'production' | 'test' | 'e2e';
       PORT?: string;
       FRONTEND_URL: string;
+      SKIP_EMAIL_VERIFICATION?: string;
 
       // Database Configuration
       MONGODB_URI: string;
