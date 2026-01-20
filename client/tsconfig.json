@@ -27,7 +27,7 @@
       "@/types/*": ["./types/*"],
       "@/pages/*": ["./pages/*"]
     },
-    "types": ["vite/client"],
+    "types": ["vite/client", "vitest/globals"],
     "typeRoots": ["./node_modules/@types", "./src/types"],
     "noImplicitAny": false,
     "strictNullChecks": false,
