@@ -47,7 +47,7 @@ export async function loginAs(page: Page, email: string, password: string): Prom
 
   // Click the submit button and wait for navigation
   await Promise.all([
-    page.waitForURL('**/dashboard**', { timeout: 30000 }),
+    page.waitForURL('**/dashboard**', { timeout: 15000 }),
     page.click('button[type="submit"]'),
   ]);
 }
