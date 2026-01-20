@@ -15,8 +15,8 @@ test.describe('Messaging', () => {
     // Navigate to messages page
     await page.goto('http://localhost:3000/messages');
 
-    // Verify the page title is visible
-    await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible();
+    // Verify the page title is visible (h1 specifically, not h6 "No messages yet")
+    await expect(page.getByRole('heading', { name: 'Messages', level: 1 })).toBeVisible();
 
     // Verify Inbox tab is visible and active
     const inboxTab = page.getByRole('tab', { name: /inbox/i });
@@ -52,8 +52,8 @@ test.describe('Messaging', () => {
     const subjectField = page.getByLabel(/subject/i);
     await expect(subjectField).toBeVisible();
 
-    // Message/Content field
-    const messageField = page.getByLabel(/message/i);
+    // Message/Content field - search within the dialog to avoid matching nav link
+    const messageField = page.getByRole('dialog').getByRole('textbox', { name: /message/i });
     await expect(messageField).toBeVisible();
 
     // Fill in the recipient - click the autocomplete and select a user
@@ -104,8 +104,8 @@ test.describe('Messaging', () => {
     // Wait for any loading to complete
     await page.waitForLoadState('networkidle');
 
-    // The page should still show the Messages heading
-    await expect(page.getByRole('heading', { name: 'Messages' })).toBeVisible();
+    // The page should still show the Messages heading (h1)
+    await expect(page.getByRole('heading', { name: 'Messages', level: 1 })).toBeVisible();
   });
 
   test('should close compose dialog when cancel is clicked', async ({ page }) => {

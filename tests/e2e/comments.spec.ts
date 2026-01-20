@@ -107,12 +107,10 @@ test.describe('Comments', () => {
     const commentsHeading = page.locator('h5:has-text("Comments"), h6:has-text("Comments")');
     await expect(commentsHeading).toBeVisible({ timeout: 10000 });
 
-    // Verify comments section is present - look for the comments container
-    // Either there are comments displayed or a "No comments yet" message
-    const commentsSection = page.locator('.MuiCardContent-root').filter({
-      has: page.locator('h5:has-text("Comments"), h6:has-text("Comments")'),
-    });
-    await expect(commentsSection).toBeVisible({ timeout: 10000 });
+    // Verify comments section is present - either there are comments or a "No comments yet" message
+    // Also verify the comment form is visible (textarea or post button)
+    const commentTextarea = page.locator('textarea[placeholder="Write a comment..."]');
+    await expect(commentTextarea).toBeVisible({ timeout: 10000 });
   });
 
   test('should disable Post Comment button when textarea is empty', async ({ page }) => {

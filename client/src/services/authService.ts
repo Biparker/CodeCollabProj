@@ -90,15 +90,7 @@ export const authService: AuthServiceInterface = {
    */
   register: async (userData: RegisterData): Promise<RegisterResponse> => {
     const response = await api.post<RegisterResponse>('/auth/register', userData);
-
-    // DEPRECATED: localStorage token storage
-    // The backend now sets httpOnly cookies automatically.
-    // This localStorage storage is kept only for backward compatibility
-    // during the migration period and will be removed in a future release.
-    if (response.data.accessToken && response.data.refreshToken) {
-      authService.setTokens(response.data.accessToken, response.data.refreshToken);
-    }
-
+    // Tokens are now set via httpOnly cookies by the backend
     return response.data;
   },
 
@@ -109,15 +101,7 @@ export const authService: AuthServiceInterface = {
    */
   login: async (userData: LoginCredentials): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('/auth/login', userData);
-
-    // DEPRECATED: localStorage token storage
-    // The backend now sets httpOnly cookies automatically.
-    // This localStorage storage is kept only for backward compatibility
-    // during the migration period and will be removed in a future release.
-    if (response.data.accessToken && response.data.refreshToken) {
-      authService.setTokens(response.data.accessToken, response.data.refreshToken);
-    }
-
+    // Tokens are now set via httpOnly cookies by the backend
     return response.data;
   },
 
