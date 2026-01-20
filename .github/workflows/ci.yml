@@ -158,8 +158,8 @@ jobs:
       NODE_ENV: test
       PORT: '5001'
       MONGODB_URI: mongodb://localhost:27017/codecollab_test
-      JWT_SECRET: e2e-test-secret-at-least-32-characters
-      JWT_REFRESH_SECRET: e2e-test-refresh-secret-32-chars
+      JWT_SECRET: e2e-test-secret-at-least-32-characters-123
+      JWT_REFRESH_SECRET: e2e-test-refresh-secret-32-chars-123
       FRONTEND_URL: http://localhost:3000
       REACT_APP_API_URL: http://localhost:5001/api
 
