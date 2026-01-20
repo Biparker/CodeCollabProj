@@ -39,7 +39,7 @@ export default defineConfig({
       stderr: 'pipe',
     },
     {
-      command: 'npm run client',
+      command: 'PORT=3000 npm run client',
       url: 'http://localhost:3000',
       timeout: 120 * 1000,
       reuseExistingServer: !process.env.CI,
