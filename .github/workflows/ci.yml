@@ -155,7 +155,7 @@ jobs:
     # Environment variables at job level so they're available to Playwright webServer subprocesses
     env:
       CI: true
-      NODE_ENV: test
+      NODE_ENV: e2e
       PORT: '5001'
       MONGODB_URI: mongodb://localhost:27017/codecollab_test
       JWT_SECRET: e2e-test-secret-at-least-32-characters-123
