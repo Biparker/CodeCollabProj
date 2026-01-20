@@ -50,19 +50,21 @@ test.describe('Cookie-Based Authentication Security', () => {
     });
 
     test('should return user data without exposing tokens to JavaScript', async ({ page }) => {
-      // Navigate to the app
-      await page.goto('http://localhost:3000');
+      // Navigate to the login page and wait for it to load
+      await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+
+      // Wait for the login form to be visible
+      await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
 
       // Perform login via the UI - use specific selectors
       await page.fill('input[name="email"]', TEST_USER.email);
       await page.fill('input[name="password"]', TEST_USER.password);
-      await page.click('button[type="submit"]');
 
-      // Wait for login to complete
-      await page.waitForURL('**/dashboard**', { timeout: 10000 }).catch(() => {
-        // If dashboard redirect doesn't happen, wait for network to settle
-        return page.waitForLoadState('networkidle');
-      });
+      // Click submit and wait for navigation
+      await Promise.all([
+        page.waitForURL('**/dashboard**', { timeout: 15000 }),
+        page.click('button[type="submit"]'),
+      ]);
 
       // Verify tokens are NOT accessible via JavaScript (httpOnly protection)
       const documentCookies = await page.evaluate(() => document.cookie);
@@ -75,16 +77,21 @@ test.describe('Cookie-Based Authentication Security', () => {
 
   test.describe('Token Storage Security', () => {
     test('should NOT store tokens in localStorage', async ({ page }) => {
-      // Navigate to the app
-      await page.goto('http://localhost:3000');
+      // Navigate to the login page and wait for it to load
+      await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+
+      // Wait for the login form to be visible
+      await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
 
       // Perform login
       await page.fill('input[name="email"]', TEST_USER.email);
       await page.fill('input[name="password"]', TEST_USER.password);
-      await page.click('button[type="submit"]');
 
-      // Wait for login to complete
-      await page.waitForLoadState('networkidle');
+      // Click submit and wait for navigation
+      await Promise.all([
+        page.waitForURL('**/dashboard**', { timeout: 15000 }),
+        page.click('button[type="submit"]'),
+      ]);
 
       // Check localStorage for tokens (should NOT exist)
       const localStorageData = await page.evaluate((): StorageData => {
@@ -106,16 +113,21 @@ test.describe('Cookie-Based Authentication Security', () => {
     });
 
     test('should NOT store tokens in sessionStorage', async ({ page }) => {
-      // Navigate to the app
-      await page.goto('http://localhost:3000');
+      // Navigate to the login page and wait for it to load
+      await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+
+      // Wait for the login form to be visible
+      await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
 
       // Perform login
       await page.fill('input[name="email"]', TEST_USER.email);
       await page.fill('input[name="password"]', TEST_USER.password);
-      await page.click('button[type="submit"]');
 
-      // Wait for login to complete
-      await page.waitForLoadState('networkidle');
+      // Click submit and wait for navigation
+      await Promise.all([
+        page.waitForURL('**/dashboard**', { timeout: 15000 }),
+        page.click('button[type="submit"]'),
+      ]);
 
       // Check sessionStorage for tokens (should NOT exist)
       const sessionStorageData = await page.evaluate((): StorageData => {
@@ -269,12 +281,21 @@ test.describe('Cookie-Based Authentication Security', () => {
 
   test.describe('XSS Protection', () => {
     test('should prevent JavaScript access to auth tokens', async ({ page }) => {
-      // Navigate and login
-      await page.goto('http://localhost:3000');
+      // Navigate to the login page and wait for it to load
+      await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+
+      // Wait for the login form to be visible
+      await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
+
+      // Perform login
       await page.fill('input[name="email"]', TEST_USER.email);
       await page.fill('input[name="password"]', TEST_USER.password);
-      await page.click('button[type="submit"]');
-      await page.waitForLoadState('networkidle');
+
+      // Click submit and wait for navigation
+      await Promise.all([
+        page.waitForURL('**/dashboard**', { timeout: 15000 }),
+        page.click('button[type="submit"]'),
+      ]);
 
       // Attempt to read tokens via various JavaScript methods
       const securityCheck = await page.evaluate((): SecurityCheckResult => {
@@ -340,11 +361,21 @@ test.describe('Cookie-Based Authentication Security', () => {
         }
       });
 
-      await page.goto('http://localhost:3000');
+      // Navigate to the login page and wait for it to load
+      await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+
+      // Wait for the login form to be visible
+      await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
+
+      // Perform login
       await page.fill('input[name="email"]', TEST_USER.email);
       await page.fill('input[name="password"]', TEST_USER.password);
-      await page.click('button[type="submit"]');
-      await page.waitForLoadState('networkidle');
+
+      // Click submit and wait for navigation
+      await Promise.all([
+        page.waitForURL('**/dashboard**', { timeout: 15000 }),
+        page.click('button[type="submit"]'),
+      ]);
 
       // After login, navigate to trigger authenticated requests
       // The cookies should be automatically included due to withCredentials: true
