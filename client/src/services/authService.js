@@ -112,30 +112,57 @@ import logger from '../utils/logger';
  *   Secure flag (less secure, consider same-domain architecture)
  *
  * ============================================================================
+ *
+ * MIGRATION NOTE (httpOnly Cookie Auth):
+ * This service is transitioning from localStorage-based token storage to
+ * httpOnly cookie-based authentication. During this transition:
+ *
+ * - Cookie-based auth: The backend now sets tokens in httpOnly cookies automatically
+ *   on login/register. Use isAuthenticatedViaCookie() for server-validated auth state.
+ *
+ * - localStorage methods: Kept for backward compatibility during transition.
+ *   These are marked as @deprecated and will be removed in a future release.
+ *
+ * - Dual-mode support: Both methods work simultaneously. The backend accepts
+ *   tokens from either cookies or Authorization header.
  */
 
 export const authService = {
-  // User registration
+  /**
+   * User registration
+   * Note: Backend now sets httpOnly cookies automatically on successful registration.
+   * localStorage storage is deprecated but kept for backward compatibility.
+   */
   register: async (userData) => {
     const response = await api.post('/auth/register', userData);
-    
-    // Handle dual-token response from registration (in development mode)
+
+    // DEPRECATED: localStorage token storage
+    // The backend now sets httpOnly cookies automatically.
+    // This localStorage storage is kept only for backward compatibility
+    // during the migration period and will be removed in a future release.
     if (response.data.accessToken && response.data.refreshToken) {
       authService.setTokens(response.data.accessToken, response.data.refreshToken);
     }
-    
+
     return response.data;
   },
 
-  // User login with dual-token system
+  /**
+   * User login with dual-token system
+   * Note: Backend now sets httpOnly cookies automatically on successful login.
+   * localStorage storage is deprecated but kept for backward compatibility.
+   */
   login: async (userData) => {
     const response = await api.post('/auth/login', userData);
-    
-    // Store both tokens securely
+
+    // DEPRECATED: localStorage token storage
+    // The backend now sets httpOnly cookies automatically.
+    // This localStorage storage is kept only for backward compatibility
+    // during the migration period and will be removed in a future release.
     if (response.data.accessToken && response.data.refreshToken) {
       authService.setTokens(response.data.accessToken, response.data.refreshToken);
     }
-    
+
     return response.data;
   },
 
@@ -164,32 +191,75 @@ export const authService = {
     }
   },
 
-  // Get current user
+  /**
+   * Get current user from server
+   * This endpoint validates the auth state via httpOnly cookies.
+   */
   getCurrentUser: async () => {
     const response = await api.get('/auth/me');
     return response.data;
   },
 
-  // Enhanced logout with server-side session cleanup
+  /**
+   * Check if user is authenticated via httpOnly cookie
+   * This is the preferred method for checking auth state during the migration.
+   * It validates authentication server-side rather than relying on localStorage.
+   * @returns {Promise<{authenticated: boolean, user: Object|null}>}
+   */
+  isAuthenticatedViaCookie: async () => {
+    try {
+      const response = await api.get('/auth/me');
+      return {
+        authenticated: true,
+        user: response.data
+      };
+    } catch (error) {
+      // 401 means not authenticated, which is expected for unauthenticated users
+      if (error?.response?.status === 401) {
+        return {
+          authenticated: false,
+          user: null
+        };
+      }
+      // For other errors (network, server issues), log and return not authenticated
+      logger.warn('Auth check failed:', error.message);
+      return {
+        authenticated: false,
+        user: null
+      };
+    }
+  },
+
+  /**
+   * Enhanced logout with server-side session cleanup
+   * The server clears httpOnly cookies. localStorage is cleared as fallback
+   * for backward compatibility during the migration period.
+   */
   logout: async () => {
     try {
-      // Call server logout endpoint to invalidate session
+      // Call server logout endpoint to invalidate session and clear httpOnly cookies
       await api.post('/auth/logout');
     } catch (error) {
       logger.warn('Server logout failed:', error.message);
     } finally {
-      // Always clear local tokens regardless of server response
+      // DEPRECATED: Clear localStorage tokens as fallback
+      // This is kept for backward compatibility during the migration period
       authService.clearTokens();
     }
   },
 
-  // Logout from all devices
+  /**
+   * Logout from all devices
+   * The server clears httpOnly cookies and invalidates all sessions.
+   * localStorage is cleared as fallback for backward compatibility.
+   */
   logoutAll: async () => {
     try {
       await api.post('/auth/logout-all');
     } catch (error) {
       logger.warn('Server logout-all failed:', error.message);
     } finally {
+      // DEPRECATED: Clear localStorage tokens as fallback
       authService.clearTokens();
     }
   },
@@ -250,6 +320,18 @@ export const authService = {
    *
    * @param {string} accessToken - JWT access token (short-lived)
    * @param {string} refreshToken - JWT refresh token (long-lived, higher risk)
+  // ============================================================================
+  // DEPRECATED: localStorage Token Management Functions
+  // ============================================================================
+  // These functions are kept for backward compatibility during the migration
+  // to httpOnly cookie-based authentication. They will be removed in a future
+  // release. For new code, prefer using isAuthenticatedViaCookie() instead.
+  // ============================================================================
+
+  /**
+   * @deprecated Use httpOnly cookies instead. The backend now sets tokens
+   * automatically via Set-Cookie headers. This method is kept for backward
+   * compatibility during the migration period.
    */
   setTokens: (accessToken, refreshToken) => {
     try {
@@ -278,6 +360,11 @@ export const authService = {
     }
   },
 
+  /**
+   * @deprecated This clears localStorage tokens. The backend now clears
+   * httpOnly cookies on logout. This method is kept for backward compatibility
+   * during the migration period.
+   */
   clearTokens: () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
@@ -296,6 +383,9 @@ export const authService = {
    * automatically includes the cookie with requests.
    *
    * @returns {string|null} Decrypted access token or null
+   * @deprecated Tokens are now stored in httpOnly cookies and not accessible
+   * via JavaScript. This method is kept for backward compatibility during
+   * the migration period.
    */
   getAccessToken: () => {
     try {
@@ -326,6 +416,9 @@ export const authService = {
    * 3. Be automatically managed by the browser
    *
    * @returns {string|null} Decrypted refresh token or null
+   * @deprecated Tokens are now stored in httpOnly cookies and not accessible
+   * via JavaScript. This method is kept for backward compatibility during
+   * the migration period.
    */
   getRefreshToken: () => {
     try {
@@ -344,26 +437,37 @@ export const authService = {
     }
   },
 
-  // Check if access token is expired or about to expire
+  /**
+   * @deprecated Token expiration is now handled server-side via httpOnly cookies.
+   * This method is kept for backward compatibility during the migration period.
+   */
   isTokenExpired: () => {
     const expiration = localStorage.getItem('tokenExpiration');
     if (!expiration) return true;
-    
+
     // Consider expired if less than threshold remaining
     return Date.now() > (parseInt(expiration) - TOKEN_EXPIRATION.TOKEN_REFRESH_THRESHOLD);
   },
 
-  // Check if user is authenticated (has valid tokens)
+  /**
+   * @deprecated Use isAuthenticatedViaCookie() for server-validated auth state.
+   * This method checks localStorage tokens which is less secure than server validation.
+   * Kept for backward compatibility during the migration period.
+   */
   isAuthenticated: () => {
     const accessToken = authService.getAccessToken();
     const refreshToken = authService.getRefreshToken();
     return !!(accessToken && refreshToken);
   },
 
-  // Get current valid token (refresh if necessary)
+  /**
+   * @deprecated Token refresh is now handled via httpOnly cookies.
+   * This method is kept for backward compatibility during the migration period.
+   * The api.js interceptor still uses this for Authorization header fallback.
+   */
   getValidToken: async () => {
     const accessToken = authService.getAccessToken();
-    
+
     if (!accessToken) {
       return null;
     }
@@ -376,7 +480,7 @@ export const authService = {
         authService.clearTokens();
         return null;
       }
-      
+
       try {
         return await authService.refreshToken();
       } catch (error) {
@@ -389,16 +493,22 @@ export const authService = {
     return accessToken;
   },
 
-  // Get current token without auto-refresh (for less critical requests)
+  /**
+   * @deprecated Tokens are now stored in httpOnly cookies.
+   * This method is kept for backward compatibility during the migration period.
+   */
   getTokenNoRefresh: () => {
     const accessToken = authService.getAccessToken();
-    
+
     // Return token even if expired - let the server handle expiration
     // This reduces unnecessary API calls for non-critical requests
     return accessToken;
   },
 
-  // Legacy support - get token (for backward compatibility)
+  /**
+   * @deprecated Use isAuthenticatedViaCookie() for auth state checks.
+   * This is a legacy alias for getAccessToken().
+   */
   getToken: () => {
     return authService.getAccessToken();
   },

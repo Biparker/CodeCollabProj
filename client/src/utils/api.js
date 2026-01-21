@@ -10,6 +10,7 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 second timeout
+  withCredentials: true, // Send cookies with all requests for httpOnly cookie auth
 });
 
 // Track if we're currently refreshing to prevent multiple refresh calls
