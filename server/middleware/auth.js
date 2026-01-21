@@ -3,7 +3,11 @@ const logger = require('../utils/logger');
 
 const auth = async (req, res, next) => {
   try {
-    const token = req.header('Authorization')?.replace('Bearer ', '');
+    // Try cookie first (httpOnly cookie for XSS protection), then Authorization header for backward compatibility
+    let token = req.cookies?.accessToken;
+    if (!token) {
+      token = req.header('Authorization')?.replace('Bearer ', '');
+    }
     
     if (!token) {
       logger.securityEvent('MISSING_AUTH_TOKEN', {

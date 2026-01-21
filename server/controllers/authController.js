@@ -55,7 +55,25 @@ const register = async (req, res) => {
         userAgent: req.get('User-Agent'),
         method: 'register'
       });
-      
+
+      // Set httpOnly cookies for secure token storage
+      res.cookie('accessToken', sessionData.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+        path: '/'
+      });
+
+      res.cookie('refreshToken', sessionData.refreshToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/api/auth'
+      });
+
+      // Still return tokens in response body for backward compatibility during transition
       return res.status(201).json({
         message: 'Account created successfully. You are automatically logged in.',
         accessToken: sessionData.accessToken,
@@ -176,6 +194,24 @@ const login = async (req, res) => {
       method: 'login'
     });
 
+    // Set httpOnly cookies for secure token storage
+    res.cookie('accessToken', sessionData.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/'
+    });
+
+    res.cookie('refreshToken', sessionData.refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/api/auth'
+    });
+
+    // Still return tokens in response body for backward compatibility during transition
     res.json({
       accessToken: sessionData.accessToken,
       refreshToken: sessionData.refreshToken,
@@ -404,9 +440,12 @@ const getCurrentUser = async (req, res) => {
 // Refresh token endpoint
 const refreshToken = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
-    
-    if (!refreshToken) {
+    // Support both cookie-based and body-based refresh token for backward compatibility
+    const tokenFromCookie = req.cookies?.refreshToken;
+    const tokenFromBody = req.body?.refreshToken;
+    const token = tokenFromCookie || tokenFromBody;
+
+    if (!token) {
       return res.status(400).json({ message: 'Refresh token is required' });
     }
 
@@ -415,8 +454,18 @@ const refreshToken = async (req, res) => {
       ip: req.ip
     };
 
-    const sessionData = await sessionService.refreshSession(refreshToken, deviceInfo);
+    const sessionData = await sessionService.refreshSession(token, deviceInfo);
 
+    // Set new access token as httpOnly cookie
+    res.cookie('accessToken', sessionData.accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/'
+    });
+
+    // Still return token in response body for backward compatibility
     res.json({
       accessToken: sessionData.accessToken,
       expiresIn: sessionData.expiresIn
@@ -431,16 +480,20 @@ const refreshToken = async (req, res) => {
 const logout = async (req, res) => {
   try {
     const sessionId = req.sessionId; // From auth middleware
-    
+
     if (sessionId) {
       await sessionService.revokeSession(sessionId, 'logout');
-      
+
       logger.sessionEvent('logout', {
         userId: req.user._id,
         sessionId,
         ip: req.ip
       });
     }
+
+    // Clear httpOnly cookies
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/api/auth' });
 
     res.json({ message: 'Logged out successfully' });
   } catch (error) {
@@ -454,15 +507,19 @@ const logoutAll = async (req, res) => {
   try {
     const userId = req.user._id;
     const revokedCount = await sessionService.revokeAllUserSessions(userId, 'logout_all');
-    
+
     logger.sessionEvent('logout_all', {
       userId,
       revokedCount,
       ip: req.ip
     });
 
-    res.json({ 
-      message: `Logged out from ${revokedCount} devices successfully` 
+    // Clear httpOnly cookies
+    res.clearCookie('accessToken', { path: '/' });
+    res.clearCookie('refreshToken', { path: '/api/auth' });
+
+    res.json({
+      message: `Logged out from ${revokedCount} devices successfully`
     });
   } catch (error) {
     logger.error('Logout all error:', { error: error.message });

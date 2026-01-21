@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const crypto = require('crypto');
+const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const helmet = require('helmet');
 const mongoSanitize = require('express-mongo-sanitize');
@@ -117,6 +118,9 @@ app.use(trackAccessViolations);
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Cookie parsing middleware (for httpOnly cookie auth)
+app.use(cookieParser());
 
 // Serve static files from uploads directory with security
 app.use('/uploads', (req, res, next) => {
