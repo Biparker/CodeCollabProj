@@ -77,7 +77,7 @@ const createProject = async (req, res) => {
     });
 
     await project.save();
-    await project.populate('owner', 'username email');
+    await project.populate('owner', '_id username');
 
     logger.info('Project created successfully', {
       projectId: project._id,
@@ -217,7 +217,7 @@ const updateProject = async (req, res) => {
       projectId,
       { $set: updateFields },
       { new: true }
-    ).populate('owner', 'name email');
+    ).populate('owner', '_id username');
 
     logger.info('Project updated successfully', {
       projectId: updatedProject._id,
@@ -342,7 +342,7 @@ const searchProjects = async (req, res) => {
         { requiredSkills: { $regex: query, $options: 'i' } }
       ]
     })
-    .populate('owner', 'name email')
+    .populate('owner', '_id username')
     .sort({ createdAt: -1 });
 
     res.json(projects);

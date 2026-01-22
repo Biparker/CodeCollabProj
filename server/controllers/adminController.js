@@ -5,6 +5,9 @@ const Comment = require('../models/Comment');
 const Session = require('../models/Session');
 const logger = require('../utils/logger');
 
+// Sensitive fields that should NEVER be returned in API responses
+const SENSITIVE_FIELDS = '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
+
 /**
  * Admin Dashboard - Get system statistics (optimized)
  */
@@ -169,7 +172,7 @@ const getAllUsers = async (req, res) => {
     }
 
     const users = await User.find(filter)
-      .select('-password -emailVerificationToken -passwordResetToken')
+      .select(SENSITIVE_FIELDS)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -210,7 +213,7 @@ const getUserDetails = async (req, res) => {
     const { userId } = req.params;
 
     const user = await User.findById(userId)
-      .select('-password -emailVerificationToken -passwordResetToken');
+      .select(SENSITIVE_FIELDS);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
