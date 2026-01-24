@@ -4,11 +4,15 @@ const Message = require('../models/Message');
 // GridFS removed - now using filesystem storage
 // const { uploadToGridFS, downloadFromGridFS, deleteFromGridFS, getFileInfo } = require('../utils/gridfs');
 
+// Sensitive fields that should NEVER be returned in API responses
+const SENSITIVE_FIELDS =
+  '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
+
 // Get all users (public profiles)
 const getAllUsers = async (req, res) => {
   try {
     const users = await User.find({ isProfilePublic: true })
-      .select('-password -email')
+      .select(`${SENSITIVE_FIELDS} -email`)
       .sort({ createdAt: -1 });
     res.json(users);
   } catch (error) {
@@ -19,13 +23,12 @@ const getAllUsers = async (req, res) => {
 // Get user by ID
 const getUserById = async (req, res) => {
   try {
-    const user = await User.findById(req.params.id)
-      .select('-password');
-    
+    const user = await User.findById(req.params.id).select(`${SENSITIVE_FIELDS} -email`);
+
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
-    
+
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching user', error: error.message });
@@ -51,9 +54,9 @@ const updateProfile = async (req, res) => {
       availability,
       portfolioLinks,
       socialLinks,
-      isProfilePublic
+      isProfilePublic,
     } = req.body;
-    
+
     const userId = req.user._id;
 
     // Build update object
@@ -70,11 +73,9 @@ const updateProfile = async (req, res) => {
     if (socialLinks !== undefined) updateFields.socialLinks = socialLinks;
     if (isProfilePublic !== undefined) updateFields.isProfilePublic = isProfilePublic;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { $set: updateFields },
-      { new: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(userId, { $set: updateFields }, { new: true }).select(
+      SENSITIVE_FIELDS
+    );
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -89,49 +90,43 @@ const updateProfile = async (req, res) => {
 // Search users by skills, name, or other criteria
 const searchUsers = async (req, res) => {
   try {
-    const { 
-      query, 
-      skills, 
-      experience, 
-      availability, 
-      location 
-    } = req.query;
-    
+    const { query, skills, experience, availability, location } = req.query;
+
     const searchCriteria = { isProfilePublic: true };
-    
+
     // Text search
     if (query) {
       searchCriteria.$or = [
         { firstName: { $regex: query, $options: 'i' } },
         { lastName: { $regex: query, $options: 'i' } },
         { username: { $regex: query, $options: 'i' } },
-        { bio: { $regex: query, $options: 'i' } }
+        { bio: { $regex: query, $options: 'i' } },
       ];
     }
-    
+
     // Skills filter
     if (skills) {
-      const skillsArray = skills.split(',').map(skill => skill.trim());
+      const skillsArray = skills.split(',').map((skill) => skill.trim());
       searchCriteria.skills = { $in: skillsArray };
     }
-    
+
     // Experience filter
     if (experience) {
       searchCriteria.experience = experience;
     }
-    
+
     // Availability filter
     if (availability) {
       searchCriteria.availability = availability;
     }
-    
+
     // Location filter
     if (location) {
       searchCriteria.location = { $regex: location, $options: 'i' };
     }
 
     const users = await User.find(searchCriteria)
-      .select('-password -email')
+      .select(`${SENSITIVE_FIELDS} -email`)
       .sort({ createdAt: -1 });
 
     res.json(users);
@@ -166,7 +161,7 @@ const sendMessage = async (req, res) => {
       sender: senderId,
       recipient: recipientId,
       subject,
-      content
+      content,
     });
 
     await message.save();
@@ -234,10 +229,7 @@ const deleteMessage = async (req, res) => {
     // Find and delete message if user is sender or recipient
     const message = await Message.findOneAndDelete({
       _id: messageId,
-      $or: [
-        { sender: userId },
-        { recipient: userId }
-      ]
+      $or: [{ sender: userId }, { recipient: userId }],
     });
 
     if (!message) {
@@ -253,7 +245,7 @@ const deleteMessage = async (req, res) => {
 // Get user's own profile
 const getMyProfile = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id).select('-password');
+    const user = await User.findById(req.user._id).select(SENSITIVE_FIELDS);
     res.json(user);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching profile', error: error.message });
@@ -300,7 +292,7 @@ const uploadAvatar = async (req, res) => {
       userId,
       { profileImage: avatarPath },
       { new: true, runValidators: true }
-    ).select('-password');
+    ).select(SENSITIVE_FIELDS);
 
     if (!user) {
       return res.status(500).json({ message: 'Failed to update user profile' });
@@ -310,7 +302,7 @@ const uploadAvatar = async (req, res) => {
       message: 'Avatar uploaded successfully',
       profileImage: user.profileImage,
       avatar: avatarPath,
-      user
+      user,
     });
   } catch (error) {
     console.error('Error uploading avatar:', error);
@@ -335,7 +327,11 @@ const deleteAvatar = async (req, res) => {
     const currentUser = await User.findById(userId);
 
     // Delete avatar file if it exists (and it's a file path)
-    if (currentUser && currentUser.profileImage && currentUser.profileImage.startsWith('/uploads/')) {
+    if (
+      currentUser &&
+      currentUser.profileImage &&
+      currentUser.profileImage.startsWith('/uploads/')
+    ) {
       const uploadPath = global.uploadPath || path.join(__dirname, '../uploads');
       const filePath = path.join(uploadPath, path.basename(currentUser.profileImage));
       try {
@@ -348,11 +344,9 @@ const deleteAvatar = async (req, res) => {
       }
     }
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { profileImage: null },
-      { new: true }
-    ).select('-password');
+    const user = await User.findByIdAndUpdate(userId, { profileImage: null }, { new: true }).select(
+      SENSITIVE_FIELDS
+    );
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -360,7 +354,7 @@ const deleteAvatar = async (req, res) => {
 
     res.json({
       message: 'Avatar deleted successfully',
-      user
+      user,
     });
   } catch (error) {
     console.error('❌ Error deleting avatar:', error);
@@ -373,9 +367,9 @@ const deleteAvatar = async (req, res) => {
 // Avatars are now served directly via express.static from /uploads
 // This endpoint kept for backwards compatibility but returns 410 Gone
 const getAvatar = async (req, res) => {
-  res.status(410).json({ 
+  res.status(410).json({
     message: 'This endpoint is deprecated. Avatars are now served from /uploads/{filename}',
-    migration: 'Use profileImage field directly (e.g., /uploads/avatar-123456.jpg)'
+    migration: 'Use profileImage field directly (e.g., /uploads/avatar-123456.jpg)',
   });
 };
 
@@ -391,5 +385,5 @@ module.exports = {
   getMyProfile,
   uploadAvatar,
   deleteAvatar,
-  getAvatar
-}; 
+  getAvatar,
+};

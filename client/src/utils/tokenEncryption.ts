@@ -1,7 +1,31 @@
 /**
  * Token encryption utility for localStorage
- * Provides basic encryption layer to protect tokens from XSS attacks
- * Note: This is not a replacement for httpOnly cookies, but adds a layer of protection
+ *
+ * ============================================================================
+ * SECURITY LIMITATIONS - READ CAREFULLY
+ * ============================================================================
+ *
+ * This utility provides OBFUSCATION, NOT TRUE SECURITY against XSS attacks.
+ *
+ * WHY THIS DOESN'T PROTECT AGAINST XSS:
+ * 1. The encryption key is stored in sessionStorage - also accessible via XSS
+ * 2. An attacker can simply import this module or copy the decrypt function
+ * 3. XOR encryption is trivially reversible once the key is known
+ * 4. Both localStorage and sessionStorage are accessible to any JavaScript
+ *
+ * WHAT THIS ACTUALLY PROVIDES:
+ * - Prevents casual inspection of tokens in browser DevTools
+ * - Stops basic automated token scrapers that look for raw JWT patterns
+ * - Adds a small barrier that may slow down less sophisticated attackers
+ *
+ * FOR TRUE XSS PROTECTION:
+ * Tokens must be stored in httpOnly cookies which are:
+ * - Inaccessible to ALL JavaScript (including malicious scripts)
+ * - Automatically sent by the browser without JS involvement
+ *
+ * See authService.js for the full httpOnly cookie migration plan.
+ *
+ * ============================================================================
  */
 
 /**

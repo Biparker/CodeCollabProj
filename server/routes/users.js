@@ -51,13 +51,13 @@ const avatarUpload = multer({
 
 // @route   GET /api/users
 // @desc    Get all users (public profiles)
-// @access  Public
-router.get('/', getAllUsers);
+// @access  Private
+router.get('/', auth, getAllUsers);
 
 // @route   GET /api/users/search
 // @desc    Search users by skills or name
-// @access  Public
-router.get('/search', searchUsers);
+// @access  Private
+router.get('/search', auth, searchUsers);
 
 // @route   GET /api/users/profile/me
 // @desc    Get current user's profile
@@ -106,7 +106,7 @@ router.delete('/messages/:messageId', auth, deleteMessage);
 
 // @route   GET /api/users/:id
 // @desc    Get user by ID
-// @access  Public
-router.get('/:id', getUserById);
+// @access  Private
+router.get('/:id', auth, getUserById);
 
 module.exports = router;

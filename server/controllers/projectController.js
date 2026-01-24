@@ -9,19 +9,29 @@ const createProject = async (req, res) => {
     logger.info('Project creation request received', {
       userId: req.user?._id,
       hasFile: !!req.file,
-      bodyKeys: Object.keys(req.body)
+      bodyKeys: Object.keys(req.body),
     });
 
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
       logger.warn('Project creation validation failed', {
         userId: req.user?._id,
-        errors: errors.array()
+        errors: errors.array(),
       });
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, technologies, githubUrl, liveUrl, requiredSkills, tags, resources, incentives } = req.body;
+    const {
+      title,
+      description,
+      technologies,
+      githubUrl,
+      liveUrl,
+      requiredSkills,
+      tags,
+      resources,
+      incentives,
+    } = req.body;
     const owner = req.user._id;
 
     // Handle image upload
@@ -48,16 +58,16 @@ const createProject = async (req, res) => {
       amount: 0,
       currency: 'USD',
       equityPercentage: 0,
-      customReward: ''
+      customReward: '',
     };
-    
+
     if (incentives) {
       try {
         parsedIncentives = typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
       } catch (e) {
         logger.debug('Error parsing incentives, using defaults', {
           error: e.message,
-          userId: req.user?._id
+          userId: req.user?._id,
         });
       }
     }
@@ -73,16 +83,16 @@ const createProject = async (req, res) => {
       tags,
       resources,
       incentives: parsedIncentives,
-      owner
+      owner,
     });
 
     await project.save();
-    await project.populate('owner', 'username email');
+    await project.populate('owner', '_id username');
 
     logger.info('Project created successfully', {
       projectId: project._id,
       userId: req.user?._id,
-      title: project.title
+      title: project.title,
     });
 
     res.status(201).json(project);
@@ -90,7 +100,7 @@ const createProject = async (req, res) => {
     logger.error('Failed to create project', {
       userId: req.user?._id,
       errorMessage: error.message,
-      errorStack: error.stack
+      errorStack: error.stack,
     });
     res.status(500).json({ message: 'Error creating project', error: error.message });
   }
@@ -99,10 +109,8 @@ const createProject = async (req, res) => {
 // Get all projects
 const getAllProjects = async (req, res) => {
   try {
-    const projects = await Project.find()
-      .populate('owner', '_id username')
-      .sort({ createdAt: -1 });
-    
+    const projects = await Project.find().populate('owner', '_id username').sort({ createdAt: -1 });
+
     res.json(projects);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching projects', error: error.message });
@@ -132,7 +140,7 @@ const updateProject = async (req, res) => {
     logger.info('Project update request received', {
       projectId: req.params.id,
       userId: req.user._id,
-      updateFields: Object.keys(req.body)
+      updateFields: Object.keys(req.body),
     });
 
     const errors = validationResult(req);
@@ -140,12 +148,23 @@ const updateProject = async (req, res) => {
       logger.warn('Project update validation failed', {
         projectId: req.params.id,
         userId: req.user._id,
-        errors: errors.array()
+        errors: errors.array(),
       });
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, status, requiredSkills, tags, resources, technologies, githubUrl, liveUrl, incentives } = req.body;
+    const {
+      title,
+      description,
+      status,
+      requiredSkills,
+      tags,
+      resources,
+      technologies,
+      githubUrl,
+      liveUrl,
+      incentives,
+    } = req.body;
     const projectId = req.params.id;
     const userId = req.user._id;
 
@@ -153,7 +172,7 @@ const updateProject = async (req, res) => {
     if (!project) {
       logger.warn('Project not found for update', {
         projectId,
-        userId
+        userId,
       });
       return res.status(404).json({ message: 'Project not found' });
     }
@@ -163,7 +182,7 @@ const updateProject = async (req, res) => {
       logger.warn('Unauthorized project update attempt', {
         projectId,
         projectOwner: project.owner.toString(),
-        attemptedBy: userId.toString()
+        attemptedBy: userId.toString(),
       });
       return res.status(403).json({ message: 'Not authorized to update this project' });
     }
@@ -174,7 +193,7 @@ const updateProject = async (req, res) => {
     if (status) updateFields.status = status;
     if (githubUrl !== undefined) updateFields.githubUrl = githubUrl;
     if (liveUrl !== undefined) updateFields.liveUrl = liveUrl;
-    
+
     // Handle arrays properly
     if (requiredSkills !== undefined) {
       updateFields.requiredSkills = Array.isArray(requiredSkills) ? requiredSkills : [];
@@ -188,17 +207,18 @@ const updateProject = async (req, res) => {
     if (resources !== undefined) {
       updateFields.resources = Array.isArray(resources) ? resources : [];
     }
-    
+
     // Handle incentives
     if (incentives !== undefined) {
       try {
-        const parsedIncentives = typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
+        const parsedIncentives =
+          typeof incentives === 'string' ? JSON.parse(incentives) : incentives;
         updateFields.incentives = parsedIncentives;
       } catch (e) {
         logger.debug('Error parsing incentives for update, using defaults', {
           projectId,
           userId,
-          error: e.message
+          error: e.message,
         });
         // Use default incentives if parsing fails
         updateFields.incentives = {
@@ -208,7 +228,7 @@ const updateProject = async (req, res) => {
           amount: 0,
           currency: 'USD',
           equityPercentage: 0,
-          customReward: ''
+          customReward: '',
         };
       }
     }
@@ -217,12 +237,12 @@ const updateProject = async (req, res) => {
       projectId,
       { $set: updateFields },
       { new: true }
-    ).populate('owner', 'name email');
+    ).populate('owner', '_id username');
 
     logger.info('Project updated successfully', {
       projectId: updatedProject._id,
       userId,
-      updatedFields: Object.keys(updateFields)
+      updatedFields: Object.keys(updateFields),
     });
 
     res.json(updatedProject);
@@ -231,7 +251,7 @@ const updateProject = async (req, res) => {
       projectId: req.params.id,
       userId: req.user?._id,
       errorMessage: error.message,
-      errorStack: error.stack
+      errorStack: error.stack,
     });
     res.status(500).json({ message: 'Error updating project', error: error.message });
   }
@@ -267,7 +287,7 @@ const requestCollaboration = async (req, res) => {
 
     // Check if user is already a collaborator
     const isCollaborator = project.collaborators.some(
-      collab => collab.userId.toString() === req.user._id.toString()
+      (collab) => collab.userId.toString() === req.user._id.toString()
     );
 
     if (isCollaborator) {
@@ -276,7 +296,7 @@ const requestCollaboration = async (req, res) => {
 
     project.collaborators.push({
       userId: req.user._id,
-      status: 'pending'
+      status: 'pending',
     });
 
     await project.save();
@@ -303,7 +323,7 @@ const handleCollaborationRequest = async (req, res) => {
     }
 
     const collaboratorIndex = project.collaborators.findIndex(
-      collab => collab.userId.toString() === userId
+      (collab) => collab.userId.toString() === userId
     );
 
     if (collaboratorIndex === -1) {
@@ -330,7 +350,7 @@ const handleCollaborationRequest = async (req, res) => {
 const searchProjects = async (req, res) => {
   try {
     const { query } = req.query;
-    
+
     if (!query) {
       return res.status(400).json({ message: 'Search query is required' });
     }
@@ -339,11 +359,11 @@ const searchProjects = async (req, res) => {
       $or: [
         { title: { $regex: query, $options: 'i' } },
         { tags: { $regex: query, $options: 'i' } },
-        { requiredSkills: { $regex: query, $options: 'i' } }
-      ]
+        { requiredSkills: { $regex: query, $options: 'i' } },
+      ],
     })
-    .populate('owner', 'name email')
-    .sort({ createdAt: -1 });
+      .populate('owner', '_id username')
+      .sort({ createdAt: -1 });
 
     res.json(projects);
   } catch (error) {
@@ -359,5 +379,5 @@ module.exports = {
   deleteProject,
   requestCollaboration,
   handleCollaborationRequest,
-  searchProjects
-}; 
+  searchProjects,
+};
