@@ -10,7 +10,7 @@ const {
   deleteProject,
   requestCollaboration,
   handleCollaborationRequest,
-  searchProjects
+  searchProjects,
 } = require('../controllers/projectController');
 const { projectValidator } = require('../middleware/validators');
 const auth = require('../middleware/auth');
@@ -20,30 +20,29 @@ const { FILE_UPLOAD } = require('../config/constants');
 // Use global uploadPath from server/index.js (supports Railway volumes)
 const uploadPath = global.uploadPath || path.join(__dirname, '../uploads');
 
+// Multer 2.x uses async functions instead of callbacks
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, uploadPath);
+  destination: function (req, file) {
+    return uploadPath;
   },
-  filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const filename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
-    cb(null, filename);
-  }
+  filename: function (req, file) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    return file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+  },
 });
 
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: FILE_UPLOAD.MAX_FILE_SIZE
+    fileSize: FILE_UPLOAD.MAX_FILE_SIZE,
   },
-  fileFilter: function (req, file, cb) {
-    // Accept any image MIME type (image/jpeg, image/png, image/svg+xml, image/heic, etc.)
+  fileFilter: function (req, file) {
+    // Accept any image MIME type - return true/false for multer 2.x
     if (file.mimetype.startsWith('image/')) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only image files are allowed!'), false);
+      return true;
     }
-  }
+    throw new Error('Only image files are allowed!');
+  },
 });
 
 // @route   POST /api/projects
@@ -86,4 +85,4 @@ router.post('/:id/collaborate', auth, requestCollaboration);
 // @access  Private (owner only)
 router.put('/:projectId/collaborate/:userId', auth, handleCollaborationRequest);
 
-module.exports = router; 
+module.exports = router;

@@ -6,7 +6,7 @@ const API_URL = process.env.API_URL || 'http://localhost:5001/api';
 // Test user credentials (from seed.js)
 const TEST_USER = {
   email: 'user1@example.com',
-  password: 'Password123!'
+  password: 'Password123!',
 };
 
 // Sensitive fields that should NEVER appear in API responses
@@ -15,13 +15,11 @@ const SENSITIVE_FIELDS = [
   'passwordResetExpires',
   'emailVerificationToken',
   'emailVerificationExpires',
-  'password'
+  'password',
 ];
 
 test.describe('Security Audit Fixes Verification', () => {
-
   test.describe('Critical: Unauthenticated API Access', () => {
-
     test('GET /api/users should return 401 without auth token', async ({ request }) => {
       const response = await request.get(`${API_URL}/users`);
       expect(response.status()).toBe(401);
@@ -47,7 +45,7 @@ test.describe('Security Audit Fixes Verification', () => {
     test.beforeAll(async ({ request }) => {
       // Login to get auth token
       const loginResponse = await request.post(`${API_URL}/auth/login`, {
-        data: TEST_USER
+        data: TEST_USER,
       });
 
       if (loginResponse.status() === 200) {
@@ -56,11 +54,13 @@ test.describe('Security Audit Fixes Verification', () => {
       }
     });
 
-    test('GET /api/users should not expose sensitive tokens when authenticated', async ({ request }) => {
+    test('GET /api/users should not expose sensitive tokens when authenticated', async ({
+      request,
+    }) => {
       test.skip(!authToken, 'Could not authenticate - skipping');
 
       const response = await request.get(`${API_URL}/users`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       expect(response.status()).toBe(200);
@@ -78,7 +78,7 @@ test.describe('Security Audit Fixes Verification', () => {
       test.skip(!authToken, 'Could not authenticate - skipping');
 
       const response = await request.get(`${API_URL}/users/profile/me`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       expect(response.status()).toBe(200);
@@ -93,7 +93,7 @@ test.describe('Security Audit Fixes Verification', () => {
       test.skip(!authToken, 'Could not authenticate - skipping');
 
       const response = await request.get(`${API_URL}/auth/me`, {
-        headers: { 'Authorization': `Bearer ${authToken}` }
+        headers: { Authorization: `Bearer ${authToken}` },
       });
 
       expect(response.status()).toBe(200);
@@ -106,7 +106,6 @@ test.describe('Security Audit Fixes Verification', () => {
   });
 
   test.describe('High: Admin Email Exposure', () => {
-
     test('GET /api/projects should not expose owner email', async ({ request }) => {
       const response = await request.get(`${API_URL}/projects`);
 
@@ -139,10 +138,9 @@ test.describe('Security Audit Fixes Verification', () => {
   });
 
   test.describe('Authentication Flow', () => {
-
     test('Login should return tokens without exposing sensitive user data', async ({ request }) => {
       const response = await request.post(`${API_URL}/auth/login`, {
-        data: TEST_USER
+        data: TEST_USER,
       });
 
       // Login might fail if user doesn't exist, that's ok

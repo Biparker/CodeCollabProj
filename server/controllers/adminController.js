@@ -6,7 +6,8 @@ const Session = require('../models/Session');
 const logger = require('../utils/logger');
 
 // Sensitive fields that should NEVER be returned in API responses
-const SENSITIVE_FIELDS = '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
+const SENSITIVE_FIELDS =
+  '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
 
 /**
  * Admin Dashboard - Get system statistics (optimized)
@@ -17,42 +18,39 @@ const getDashboardStats = async (req, res) => {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
     // Run all database queries in parallel for better performance
-    const [
-      userStats,
-      projectStats,
-      commentCount,
-      sessionCount
-    ] = await Promise.all([
+    const [userStats, projectStats, commentCount, sessionCount] = await Promise.all([
       // User statistics aggregation
       User.aggregate([
         {
           $facet: {
-            total: [{ $count: "count" }],
-            active: [{ $match: { isActive: true } }, { $count: "count" }],
-            suspended: [{ $match: { isSuspended: true } }, { $count: "count" }],
-            admins: [{ $match: { role: 'admin' } }, { $count: "count" }],
-            moderators: [{ $match: { role: 'moderator' } }, { $count: "count" }],
-            newThisWeek: [{ $match: { createdAt: { $gte: sevenDaysAgo } } }, { $count: "count" }]
-          }
-        }
+            total: [{ $count: 'count' }],
+            active: [{ $match: { isActive: true } }, { $count: 'count' }],
+            suspended: [{ $match: { isSuspended: true } }, { $count: 'count' }],
+            admins: [{ $match: { role: 'admin' } }, { $count: 'count' }],
+            moderators: [{ $match: { role: 'moderator' } }, { $count: 'count' }],
+            newThisWeek: [{ $match: { createdAt: { $gte: sevenDaysAgo } } }, { $count: 'count' }],
+          },
+        },
       ]),
-      
+
       // Project statistics aggregation
       Project.aggregate([
         {
           $facet: {
-            total: [{ $count: "count" }],
-            active: [{ $match: { status: 'active' } }, { $count: "count" }],
-            newThisWeek: [{ $match: { createdAt: { $gte: sevenDaysAgo } } }, { $count: "count" }]
-          }
-        }
-      ]).catch(() => [{ total: [{ count: 0 }], active: [{ count: 0 }], newThisWeek: [{ count: 0 }] }]),
-      
+            total: [{ $count: 'count' }],
+            active: [{ $match: { status: 'active' } }, { $count: 'count' }],
+            newThisWeek: [{ $match: { createdAt: { $gte: sevenDaysAgo } } }, { $count: 'count' }],
+          },
+        },
+      ]).catch(() => [
+        { total: [{ count: 0 }], active: [{ count: 0 }], newThisWeek: [{ count: 0 }] },
+      ]),
+
       // Comment count (with fallback)
       Comment.countDocuments().catch(() => 0),
-      
+
       // Active sessions count (with fallback)
-      Session.countDocuments({ isActive: true }).catch(() => 0)
+      Session.countDocuments({ isActive: true }).catch(() => 0),
     ]);
 
     // Extract counts with fallbacks
@@ -67,7 +65,7 @@ const getDashboardStats = async (req, res) => {
       adminId: req.user._id,
       adminEmail: req.user.email,
       ip: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get('User-Agent'),
     });
 
     res.json({
@@ -77,29 +75,29 @@ const getDashboardStats = async (req, res) => {
         suspended: getUserCount('suspended'),
         admins: getUserCount('admins'),
         moderators: getUserCount('moderators'),
-        newThisWeek: getUserCount('newThisWeek')
+        newThisWeek: getUserCount('newThisWeek'),
       },
       content: {
         projects: {
           total: getProjectCount('total'),
           active: getProjectCount('active'),
-          newThisWeek: getProjectCount('newThisWeek')
+          newThisWeek: getProjectCount('newThisWeek'),
         },
         comments: {
-          total: commentCount || 0
-        }
+          total: commentCount || 0,
+        },
       },
       system: {
-        activeSessions: sessionCount || 0
-      }
+        activeSessions: sessionCount || 0,
+      },
     });
   } catch (error) {
-    logger.error('Admin dashboard error', { 
-      error: error.message, 
+    logger.error('Admin dashboard error', {
+      error: error.message,
       adminId: req.user?._id || 'unknown',
-      stack: error.stack
+      stack: error.stack,
     });
-    
+
     // Return fallback data instead of failing completely
     res.json({
       users: {
@@ -108,22 +106,22 @@ const getDashboardStats = async (req, res) => {
         suspended: 0,
         admins: 0,
         moderators: 0,
-        newThisWeek: 0
+        newThisWeek: 0,
       },
       content: {
         projects: {
           total: 0,
           active: 0,
-          newThisWeek: 0
+          newThisWeek: 0,
         },
         comments: {
-          total: 0
-        }
+          total: 0,
+        },
       },
       system: {
-        activeSessions: 0
+        activeSessions: 0,
       },
-      error: 'Some statistics may be unavailable'
+      error: 'Some statistics may be unavailable',
     });
   }
 };
@@ -142,13 +140,13 @@ const getAllUsers = async (req, res) => {
 
     // Build filter query
     let filter = {};
-    
+
     if (search) {
       filter.$or = [
         { username: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
         { firstName: { $regex: search, $options: 'i' } },
-        { lastName: { $regex: search, $options: 'i' } }
+        { lastName: { $regex: search, $options: 'i' } },
       ];
     }
 
@@ -184,7 +182,7 @@ const getAllUsers = async (req, res) => {
       filter,
       page,
       limit,
-      total
+      total,
     });
 
     res.json({
@@ -193,13 +191,13 @@ const getAllUsers = async (req, res) => {
         page,
         limit,
         total,
-        pages: Math.ceil(total / limit)
-      }
+        pages: Math.ceil(total / limit),
+      },
     });
   } catch (error) {
-    logger.error('Admin get users error', { 
-      error: error.message, 
-      adminId: req.user._id 
+    logger.error('Admin get users error', {
+      error: error.message,
+      adminId: req.user._id,
     });
     res.status(500).json({ message: 'Error fetching users', error: error.message });
   }
@@ -212,8 +210,7 @@ const getUserDetails = async (req, res) => {
   try {
     const { userId } = req.params;
 
-    const user = await User.findById(userId)
-      .select(SENSITIVE_FIELDS);
+    const user = await User.findById(userId).select(SENSITIVE_FIELDS);
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -225,29 +222,29 @@ const getUserDetails = async (req, res) => {
       .sort({ lastActivity: -1 });
 
     // Get user's projects
-    const projects = await Project.find({ 
-      $or: [
-        { createdBy: userId },
-        { collaborators: userId }
-      ]
-    }).select('title status createdAt').sort({ createdAt: -1 }).limit(10);
+    const projects = await Project.find({
+      $or: [{ createdBy: userId }, { collaborators: userId }],
+    })
+      .select('title status createdAt')
+      .sort({ createdAt: -1 })
+      .limit(10);
 
     logger.adminAction('user_details_access', {
       adminId: req.user._id,
       targetUserId: userId,
-      targetUserEmail: user.email
+      targetUserEmail: user.email,
     });
 
     res.json({
       user,
       sessions,
-      projects
+      projects,
     });
   } catch (error) {
-    logger.error('Admin get user details error', { 
-      error: error.message, 
+    logger.error('Admin get user details error', {
+      error: error.message,
       adminId: req.user._id,
-      targetUserId: req.params.userId
+      targetUserId: req.params.userId,
     });
     res.status(500).json({ message: 'Error fetching user details', error: error.message });
   }
@@ -289,7 +286,7 @@ const updateUserRole = async (req, res) => {
       user.permissions = permissions;
     } else if (customPermissions && Array.isArray(customPermissions)) {
       // Add custom permissions to existing ones
-      customPermissions.forEach(permission => {
+      customPermissions.forEach((permission) => {
         user.addPermission(permission);
       });
     }
@@ -305,7 +302,7 @@ const updateUserRole = async (req, res) => {
       newRole: user.role,
       oldPermissions,
       newPermissions: user.permissions,
-      ip: req.ip
+      ip: req.ip,
     });
 
     res.json({
@@ -315,14 +312,14 @@ const updateUserRole = async (req, res) => {
         email: user.email,
         username: user.username,
         role: user.role,
-        permissions: user.permissions
-      }
+        permissions: user.permissions,
+      },
     });
   } catch (error) {
-    logger.error('Admin update user role error', { 
-      error: error.message, 
+    logger.error('Admin update user role error', {
+      error: error.message,
       adminId: req.user._id,
-      targetUserId: req.params.userId
+      targetUserId: req.params.userId,
     });
     res.status(500).json({ message: 'Error updating user role', error: error.message });
   }
@@ -358,14 +355,14 @@ const toggleUserSuspension = async (req, res) => {
 
     if (suspend) {
       user.suspend(reason, duration);
-      
+
       // Revoke all user sessions
       await Session.updateMany(
         { userId, isActive: true },
-        { 
-          isActive: false, 
+        {
+          isActive: false,
           revokedAt: new Date(),
-          revokedReason: 'admin_suspend'
+          revokedReason: 'admin_suspend',
         }
       );
     } else {
@@ -381,7 +378,7 @@ const toggleUserSuspension = async (req, res) => {
       targetUserEmail: user.email,
       reason,
       duration,
-      ip: req.ip
+      ip: req.ip,
     });
 
     res.json({
@@ -392,14 +389,14 @@ const toggleUserSuspension = async (req, res) => {
         username: user.username,
         isSuspended: user.isSuspended,
         suspensionReason: user.suspensionReason,
-        suspendedUntil: user.suspendedUntil
-      }
+        suspendedUntil: user.suspendedUntil,
+      },
     });
   } catch (error) {
-    logger.error('Admin toggle user suspension error', { 
-      error: error.message, 
+    logger.error('Admin toggle user suspension error', {
+      error: error.message,
       adminId: req.user._id,
-      targetUserId: req.params.userId
+      targetUserId: req.params.userId,
     });
     res.status(500).json({ message: 'Error updating user suspension', error: error.message });
   }
@@ -431,16 +428,16 @@ const deleteUser = async (req, res) => {
     if (permanent === 'true') {
       // Permanent deletion (only for super admins)
       await User.findByIdAndDelete(userId);
-      
+
       // Also delete all sessions
       await Session.deleteMany({ userId });
-      
+
       logger.adminAction('user_permanently_deleted', {
         adminId: req.user._id,
         adminEmail: req.user.email,
         targetUserId: userId,
         targetUserEmail: user.email,
-        ip: req.ip
+        ip: req.ip,
       });
 
       res.json({ message: 'User permanently deleted' });
@@ -452,10 +449,10 @@ const deleteUser = async (req, res) => {
       // Revoke all sessions
       await Session.updateMany(
         { userId, isActive: true },
-        { 
-          isActive: false, 
+        {
+          isActive: false,
           revokedAt: new Date(),
-          revokedReason: 'account_deactivated'
+          revokedReason: 'account_deactivated',
         }
       );
 
@@ -464,16 +461,16 @@ const deleteUser = async (req, res) => {
         adminEmail: req.user.email,
         targetUserId: userId,
         targetUserEmail: user.email,
-        ip: req.ip
+        ip: req.ip,
       });
 
       res.json({ message: 'User account deactivated' });
     }
   } catch (error) {
-    logger.error('Admin delete user error', { 
-      error: error.message, 
+    logger.error('Admin delete user error', {
+      error: error.message,
       adminId: req.user._id,
-      targetUserId: req.params.userId
+      targetUserId: req.params.userId,
     });
     res.status(500).json({ message: 'Error deleting user', error: error.message });
   }
@@ -494,7 +491,7 @@ const getSystemLogs = async (req, res) => {
       adminId: req.user._id,
       page,
       limit,
-      type
+      type,
     });
 
     res.json({
@@ -502,13 +499,13 @@ const getSystemLogs = async (req, res) => {
       filters: {
         page,
         limit,
-        type
-      }
+        type,
+      },
     });
   } catch (error) {
-    logger.error('Admin get system logs error', { 
-      error: error.message, 
-      adminId: req.user._id 
+    logger.error('Admin get system logs error', {
+      error: error.message,
+      adminId: req.user._id,
     });
     res.status(500).json({ message: 'Error fetching system logs', error: error.message });
   }
@@ -521,5 +518,5 @@ module.exports = {
   updateUserRole,
   toggleUserSuspension,
   deleteUser,
-  getSystemLogs
+  getSystemLogs,
 };
