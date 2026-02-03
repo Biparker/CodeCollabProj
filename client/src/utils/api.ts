@@ -98,14 +98,10 @@ api.interceptors.request.use(
 
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
-          console.log('🔑 Token from localStorage attached for', config.url);
-        } else {
-          // No token in localStorage - relying on httpOnly cookies
-          console.log('🍪 Using httpOnly cookie authentication for', config.url);
         }
+        // If no token in localStorage, httpOnly cookies will handle authentication
       } catch (error) {
         // If token retrieval fails, that's okay - cookies will handle auth
-        console.log('🍪 Token retrieval failed, using httpOnly cookies for', config.url);
       }
     }
 

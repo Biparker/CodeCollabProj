@@ -117,10 +117,6 @@ export const useUploadAvatar = (): UseMutationResult<
       formData: FormData
     ) => Promise<AvatarUploadWithUserResponse>,
     onSuccess: async (data) => {
-      console.log('✅ Avatar upload response:', data);
-      console.log('🔍 data.user exists?', !!data.user);
-      console.log('🔍 data.user.profileImage:', data.user?.profileImage);
-
       // If response includes updated user, update BOTH caches immediately
       if (data.user) {
         // Update auth cache
@@ -128,18 +124,6 @@ export const useUploadAvatar = (): UseMutationResult<
 
         // CRITICAL: Also update the users.profile cache (used by Profile page!)
         queryClient.setQueryData(queryKeys.users.profile(), data.user);
-
-        console.log(
-          '✅ Updated both auth and profile caches with new avatar:',
-          data.user.profileImage
-        );
-        console.log('🔍 Full user object:', data.user);
-        console.log('🔍 Cache keys used:', {
-          auth: queryKeys.auth.currentUser(),
-          profile: queryKeys.users.profile(),
-        });
-      } else {
-        console.error('❌ No user object in upload response!');
       }
 
       // Invalidate queries to force refetch and re-render

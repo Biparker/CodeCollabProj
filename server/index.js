@@ -125,12 +125,6 @@ app.use(trackAccessViolations);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Debug middleware - log all requests
-app.use((req, res, next) => {
-  console.log(`📨 ${req.method} ${req.path}`);
-  next();
-});
-
 // Cookie parsing middleware (for httpOnly cookie auth)
 app.use(cookieParser());
 
