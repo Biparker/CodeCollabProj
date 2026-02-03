@@ -24,14 +24,17 @@ const { FILE_UPLOAD } = require('../config/constants');
 const path = require('path');
 const uploadPath = global.uploadPath || path.join(__dirname, '../uploads');
 
-// Multer 2.x uses async functions instead of callbacks
+// Multer configuration with callback-based API (works with both 1.x and 2.x)
 const storage = multer.diskStorage({
-  destination: function (req, file) {
-    return uploadPath;
+  destination: function (req, file, cb) {
+    console.log('📂 Multer destination:', uploadPath);
+    cb(null, uploadPath);
   },
-  filename: function (req, file) {
+  filename: function (req, file, cb) {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    return 'avatar-' + uniqueSuffix + path.extname(file.originalname);
+    const filename = 'avatar-' + uniqueSuffix + path.extname(file.originalname);
+    console.log('📝 Multer filename:', filename);
+    cb(null, filename);
   },
 });
 
@@ -40,12 +43,13 @@ const avatarUpload = multer({
   limits: {
     fileSize: FILE_UPLOAD.MAX_FILE_SIZE,
   },
-  fileFilter: function (req, file) {
-    // Accept any image MIME type - return true/false for multer 2.x
+  fileFilter: function (req, file, cb) {
+    // Accept any image MIME type
     if (file.mimetype.startsWith('image/')) {
-      return true;
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files are allowed!'));
     }
-    throw new Error('Only image files are allowed!');
   },
 });
 
