@@ -89,15 +89,21 @@ api.interceptors.request.use(
 
     if (!isAuthEndpoint) {
       try {
+        // For file uploads (multipart/form-data), use simple token getter to avoid refresh issues
+        const isFileUpload = config.headers?.['Content-Type']?.includes('multipart/form-data');
+
         // For most requests, use the lightweight token getter
         // Only use getValidToken() for critical operations that need guaranteed fresh tokens
-        const token = isCriticalOperation
-          ? await authService.getValidToken() // Expensive but ensures fresh token
-          : authService.getTokenNoRefresh(); // Lightweight, let server handle expiration
+        const token =
+          isCriticalOperation && !isFileUpload
+            ? await authService.getValidToken() // Expensive but ensures fresh token
+            : authService.getTokenNoRefresh(); // Lightweight, let server handle expiration
 
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
         }
+
+        console.log('🔑 Token attached:', !!token, 'for', config.url);
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         logger.warn('Failed to get token:', errorMessage);
