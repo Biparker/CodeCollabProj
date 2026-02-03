@@ -88,26 +88,24 @@ api.interceptors.request.use(
       config.method?.toLowerCase() === 'delete';
 
     if (!isAuthEndpoint) {
-      try {
-        // For file uploads (multipart/form-data), use simple token getter to avoid refresh issues
-        const isFileUpload = config.headers?.['Content-Type']?.includes('multipart/form-data');
+      // Using httpOnly cookies for authentication (withCredentials: true above)
+      // Cookies are automatically sent with all requests, no need for manual token handling
+      // The following code is kept for backward compatibility with localStorage-based auth
 
-        // For most requests, use the lightweight token getter
-        // Only use getValidToken() for critical operations that need guaranteed fresh tokens
-        const token =
-          isCriticalOperation && !isFileUpload
-            ? await authService.getValidToken() // Expensive but ensures fresh token
-            : authService.getTokenNoRefresh(); // Lightweight, let server handle expiration
+      try {
+        // Try to get token from localStorage (backward compatibility)
+        const token = authService?.getTokenNoRefresh();
 
         if (token && config.headers) {
           config.headers.Authorization = `Bearer ${token}`;
+          console.log('🔑 Token from localStorage attached for', config.url);
+        } else {
+          // No token in localStorage - relying on httpOnly cookies
+          console.log('🍪 Using httpOnly cookie authentication for', config.url);
         }
-
-        console.log('🔑 Token attached:', !!token, 'for', config.url);
       } catch (error) {
-        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-        logger.warn('Failed to get token:', errorMessage);
-        // Continue with request without token
+        // If token retrieval fails, that's okay - cookies will handle auth
+        console.log('🍪 Token retrieval failed, using httpOnly cookies for', config.url);
       }
     }
 
