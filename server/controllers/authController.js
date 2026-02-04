@@ -139,6 +139,13 @@ const login = async (req, res) => {
 
     const { email, password } = req.body;
 
+    console.log('🔍 Login request body:', {
+      email,
+      passwordLength: password?.length,
+      passwordFirstChar: password?.[0],
+      passwordLastChar: password?.[password.length - 1],
+    });
+
     // Find user
     // Use generic error message to prevent user enumeration
     const user = await User.findOne({ email });
