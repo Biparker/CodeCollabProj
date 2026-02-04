@@ -154,8 +154,12 @@ const login = async (req, res) => {
     }
 
     // Check password
+    console.log('🔍 Login attempt for:', email, '(role:', user.role, ')');
     const isMatch = await user.comparePassword(password);
+    console.log('🔍 Password match result:', isMatch);
+
     if (!isMatch) {
+      console.log('❌ Password mismatch for:', email);
       logger.authAttempt(false, {
         userId: user._id,
         email,
@@ -166,6 +170,8 @@ const login = async (req, res) => {
       // Use generic error message to prevent user enumeration
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    console.log('✅ Password matched for:', email);
 
     // Check if email is verified
     // Skip verification check for pre-seeded test users (they have isEmailVerified: true)
