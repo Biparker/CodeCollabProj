@@ -22,7 +22,7 @@ export default defineConfig({
   },
 
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.BASE_URL || 'http://localhost:3000',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     // Disable video in CI to speed up tests
@@ -40,7 +40,8 @@ export default defineConfig({
     },
   ],
 
-  webServer: [
+  // Only start local servers if not testing against remote preview URL
+  webServer: process.env.BASE_URL ? undefined : [
     {
       command: 'npm run server',
       url: 'http://localhost:5001/api/auth/me',

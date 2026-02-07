@@ -1,34 +1,28 @@
 name: Railway Preview Deploy
+
 on:
-  pull_request:
-    types: [opened, synchronize, closed]
+  workflow_run:
+    workflows: ['CI']
+    types: [completed]
 
 env:
   NODE_VERSION: '20'
 
 jobs:
   deploy-preview:
-    if: github.event.action != 'closed'
+    # Only run if CI succeeded and it's a PR
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
       statuses: write
     outputs:
       preview_url: ${{ steps.deploy.outputs.preview_url }}
-      service_id: ${{ steps.deploy.outputs.service_id }}
     steps:
-      - name: Wait for CI checks to pass
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY_OWNER: ${{ github.repository_owner }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
-        run: |
-          pip install requests
-          python scripts/wait-for-ci.py
-
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -42,7 +36,7 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Create Preview Environment
+      - name: Deploy to Railway
         id: deploy
         working-directory: ${{ github.workspace }}
         env:
@@ -54,9 +48,7 @@ jobs:
             local n=0 max=5 delay=5
             until "$@"; do
               n=$((n+1))
-              if [ "$n" -ge "$max" ]; then
-                return 1
-              fi
+              if [ "$n" -ge "$max" ]; then return 1; fi
               sleep "$delay"
               delay=$((delay*2))
             done
@@ -65,61 +57,38 @@ jobs:
           retry_out() {
             local n=0 max=5 delay=5 out
             while true; do
-              if out="$($@)"; then
-                echo "$out"
-                return 0
-              fi
+              if out="$($@)"; then echo "$out"; return 0; fi
               n=$((n+1))
-              if [ "$n" -ge "$max" ]; then
-                return 1
-              fi
+              if [ "$n" -ge "$max" ]; then return 1; fi
               sleep "$delay"
               delay=$((delay*2))
             done
           }
 
-          # Generate unique environment name
-          ENV_NAME="pr-${{ github.run_id }}-${{ github.event.number }}"
+          ENV_NAME="pr-${{ github.event.workflow_run.id }}"
           echo "environment=$ENV_NAME" >> "$GITHUB_OUTPUT"
 
-          # Link to service (assumes project is already linked)
           retry_cmd railway link --service codecollabproj2
-
-          # Deploy to specific environment (with retries)
           retry_cmd railway up --environment "$ENV_NAME" --detached
 
-          # Fetch preview domain from Railway
-          PREVIEW_DOMAIN=$(retry_out railway domain --json --environment "$ENV_NAME" | jq -r '.[0].domain // .[0].name // .[0].url // empty')
-
-          if [ -z "$PREVIEW_DOMAIN" ]; then
-            echo "Failed to resolve preview domain from Railway."
-            exit 1
-          fi
+          PREVIEW_DOMAIN=$(retry_out railway domain --json --environment "$ENV_NAME" | jq -r '.[0].domain // empty')
+          [ -z "$PREVIEW_DOMAIN" ] && { echo "Failed to get domain"; exit 1; }
 
           PREVIEW_URL="https://$PREVIEW_DOMAIN"
-
-          # Health check (retry for app readiness)
           retry_cmd curl -fsS --max-time 10 "$PREVIEW_URL" > /dev/null
 
           echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-          echo "Deployed preview to: $PREVIEW_URL"
+          echo "Deployed: $PREVIEW_URL"
 
-      - name: Comment PR with Preview URL
+      - name: Comment PR
         uses: actions/github-script@v7
         with:
           script: |
-            const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
-            const envName = '${{ steps.deploy.outputs.environment }}';
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `🚀 **Preview Deployed!**
-
-              Environment: \`${envName}\`
-              URL: ${previewUrl}
-
-              This environment will be automatically destroyed when the PR is closed.`
+              body: `🚀 **Preview Deployed**\nURL: ${{ steps.deploy.outputs.preview_url }}`
             });
 
   test-preview:
@@ -128,76 +97,22 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install Dependencies (Server)
-        run: |
-          cd server
-          npm ci
-
-      - name: Install Dependencies (Client)
-        run: |
-          cd client
-          npm ci
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Install Playwright
-        run: npx playwright install --with-deps
+        run: npx playwright install --with-deps chromium
 
-      - name: Run E2E Tests Against Preview
-        run: |
-          cd client
-          npm run test:e2e
+      - name: Run E2E Tests
+        run: npx playwright test
         env:
           BASE_URL: ${{ needs.deploy-preview.outputs.preview_url }}
           CI: true
 
-      - name: Upload Playwright Report
+      - name: Upload Report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
-          path: client/playwright-report/
+          path: playwright-report/
           retention-days: 7
-
-  cleanup:
-    if: github.event.action == 'closed'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Railway CLI
-        run: npm install -g @railway/cli
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
-      - name: Destroy Preview Environment
-        working-directory: ${{ github.workspace }}
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-        run: |
-          set -euo pipefail
-
-          retry_cmd() {
-            local n=0 max=5 delay=5
-            until "$@"; do
-              n=$((n+1))
-              if [ "$n" -ge "$max" ]; then
-                return 1
-              fi
-              sleep "$delay"
-              delay=$((delay*2))
-            done
-          }
-
-          ENV_NAME="pr-${{ github.run_id }}-${{ github.event.number }}"
-
-          # Link to service
-          retry_cmd railway link --service codecollabproj2
-
-          # Destroy the environment
-          retry_cmd railway down --environment "$ENV_NAME"
-          echo "Destroyed preview environment: $ENV_NAME"
