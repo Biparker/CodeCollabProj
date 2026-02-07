@@ -1,5 +1,4 @@
 name: Railway Preview Deploy
-
 on:
   pull_request:
     types: [opened, synchronize, closed]
@@ -33,12 +32,11 @@ jobs:
       - name: Install jq
         run: sudo apt-get update && sudo apt-get install -y jq
 
-      - name: Login to Railway
-        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
-
       - name: Create Preview Environment
         id: deploy
         working-directory: ${{ github.workspace }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -82,10 +80,12 @@ jobs:
 
           # Fetch preview domain from Railway
           PREVIEW_DOMAIN=$(retry_out railway domain --json --environment "$ENV_NAME" | jq -r '.[0].domain // .[0].name // .[0].url // empty')
+
           if [ -z "$PREVIEW_DOMAIN" ]; then
             echo "Failed to resolve preview domain from Railway."
             exit 1
           fi
+
           PREVIEW_URL="https://$PREVIEW_DOMAIN"
 
           # Health check (retry for app readiness)
@@ -100,7 +100,6 @@ jobs:
           script: |
             const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
             const envName = '${{ steps.deploy.outputs.environment }}';
-
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -162,11 +161,13 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Login to Railway
-        run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: Destroy Preview Environment
         working-directory: ${{ github.workspace }}
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           set -euo pipefail
 
@@ -189,5 +190,4 @@ jobs:
 
           # Destroy the environment
           retry_cmd railway down --environment "$ENV_NAME"
-
           echo "Destroyed preview environment: $ENV_NAME"
