@@ -1,12 +1,4 @@
 // @ts-check
-const { defineConfig } = require('@playwright/test');
-
-module.exports = defineConfig({
-  testDir: './tests',
-  timeout: 30000,
-  expect: {
-    timeout: 5000
-  },
 const { defineConfig, devices } = require('@playwright/test');
 
 /**
@@ -14,17 +6,17 @@ const { defineConfig, devices } = require('@playwright/test');
  * @see https://playwright.dev/docs/test-configuration
  */
 module.exports = defineConfig({
-  testDir: './tests/e2e',
+  testDir: './tests',
+  timeout: 30000,
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: 'list',
-  use: {
-    baseURL: process.env.API_URL || 'http://localhost:5001',
-    trace: 'on-first-retry',
-  },
   reporter: 'html',
+
+  expect: {
+    timeout: 5000
+  },
 
   use: {
     baseURL: 'http://localhost:3000',
