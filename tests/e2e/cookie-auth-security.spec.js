@@ -10,7 +10,7 @@ const { test, expect } = require('@playwright/test');
 const API_BASE_URL = 'http://localhost:5001/api';
 const TEST_USER = {
   email: 'user1@example.com',
-  password: 'password123'
+  password: 'Password123!'
 };
 
 test.describe('Cookie-Based Authentication Security', () => {
