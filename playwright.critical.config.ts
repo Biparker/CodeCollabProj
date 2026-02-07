@@ -41,9 +41,10 @@ export default defineConfig({
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'PORT=3000 npm run client',
+      // Build client first, then serve production build (more reliable than Vite dev)
+      command: 'cd client && npm run build && npx serve -s build -l 3000',
       url: 'http://localhost:3000',
-      timeout: 120 * 1000,
+      timeout: 180 * 1000,
       reuseExistingServer: !process.env.CI,
     },
   ],
