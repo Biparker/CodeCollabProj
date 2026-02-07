@@ -7,8 +7,7 @@ interface TestUser {
   username: string;
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  confirmPassword: string;
 }
 
 /**
@@ -23,8 +22,7 @@ test.describe('Authentication Flow E2E', () => {
     username: `testuser${timestamp}`,
     email: `test${timestamp}@example.com`,
     password: 'SecurePass123!',
-    firstName: 'Test',
-    lastName: 'User',
+    confirmPassword: 'SecurePass123!',
   };
 
   test.describe('User Registration', () => {
@@ -35,8 +33,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.fill('input[name="username"]', testUser.username);
       await page.fill('input[name="email"]', testUser.email);
       await page.fill('input[name="password"]', testUser.password);
-      await page.fill('input[name="firstName"]', testUser.firstName);
-      await page.fill('input[name="lastName"]', testUser.lastName);
+      await page.fill('input[name="confirmPassword"]', testUser.confirmPassword);
 
       // Submit form
       await page.click('button[type="submit"]');
@@ -57,8 +54,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.fill('input[name="username"]', 'newuser');
       await page.fill('input[name="email"]', 'user1@example.com');
       await page.fill('input[name="password"]', 'Password123!');
-      await page.fill('input[name="firstName"]', 'New');
-      await page.fill('input[name="lastName"]', 'User');
+      await page.fill('input[name="confirmPassword"]', 'Password123!');
 
       await page.click('button[type="submit"]');
 
@@ -73,8 +69,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.fill('input[name="username"]', 'testuser');
       await page.fill('input[name="email"]', 'test@example.com');
       await page.fill('input[name="password"]', 'weak'); // Too weak
-      await page.fill('input[name="firstName"]', 'Test');
-      await page.fill('input[name="lastName"]', 'User');
+      await page.fill('input[name="confirmPassword"]', 'weak');
 
       await page.click('button[type="submit"]');
 
@@ -131,8 +126,7 @@ test.describe('Authentication Flow E2E', () => {
         username: `unverified${Date.now()}`,
         email: `unverified${Date.now()}@example.com`,
         password: 'Password123!',
-        firstName: 'Unverified',
-        lastName: 'User',
+        confirmPassword: 'Password123!',
       };
 
       await request.post(`${API_URL}/auth/register`, {
