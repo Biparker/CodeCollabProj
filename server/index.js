@@ -12,11 +12,11 @@ const logger = require('./utils/logger');
 const scheduledTasks = require('./utils/scheduledTasks');
 const { initGridFS } = require('./utils/gridfs');
 const { RATE_LIMITS } = require('./config/constants');
-const { 
-  trackFailedAuth, 
-  trackSuspiciousActivity, 
-  trackFileUploads, 
-  trackAccessViolations 
+const {
+  trackFailedAuth,
+  trackSuspiciousActivity,
+  trackFileUploads,
+  trackAccessViolations,
 } = require('./middleware/securityMonitoring');
 
 // Load environment variables
@@ -58,7 +58,10 @@ if (!fs.existsSync(uploadPath)) {
 
 // Make uploadPath available globally for controllers
 global.uploadPath = uploadPath;
-logger.info('Upload path configured', { uploadPath, isProduction: process.env.NODE_ENV === 'production' });
+logger.info('Upload path configured', {
+  uploadPath,
+  isProduction: process.env.NODE_ENV === 'production',
+});
 
 // Trust proxy for Railway/production deployments
 // This allows express-rate-limit to correctly identify users behind proxies
@@ -78,28 +81,31 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(helmet({
-  crossOriginEmbedderPolicy: false,
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
-      scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'"],
-      fontSrc: ["'self'"],
-      objectSrc: ["'none'"],
-      mediaSrc: ["'self'"],
-      frameSrc: ["'none'"],
+app.use(
+  helmet({
+    crossOriginEmbedderPolicy: false,
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        styleSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
+        scriptSrc: ["'self'", (req, res) => `'nonce-${res.locals.nonce}'`],
+        imgSrc: ["'self'", 'data:', 'https:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        mediaSrc: ["'self'"],
+        frameSrc: ["'none'"],
+      },
     },
-  },
-}));
+  })
+);
 
 // CORS configuration - restrictive
 const corsOptions = {
-  origin: process.env.NODE_ENV === 'production' 
-    ? [process.env.FRONTEND_URL]
-    : ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin:
+    process.env.NODE_ENV === 'production'
+      ? [process.env.FRONTEND_URL]
+      : ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -123,20 +129,24 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
 
 // Serve static files from uploads directory with security
-app.use('/uploads', (req, res, next) => {
-  // Security headers for uploads
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
-  
-  // Allow cross-origin access for avatar images (production and development)
-  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
-  res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  
-  next();
-}, express.static(uploadPath));
+app.use(
+  '/uploads',
+  (req, res, next) => {
+    // Security headers for uploads
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Cache-Control', 'public, max-age=31536000'); // 1 year
+
+    // Allow cross-origin access for avatar images (production and development)
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    res.setHeader('Access-Control-Allow-Origin', process.env.FRONTEND_URL || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    next();
+  },
+  express.static(uploadPath)
+);
 
 // Rate limiting - general (with admin exemption)
 const generalLimiter = rateLimit({
@@ -144,7 +154,7 @@ const generalLimiter = rateLimit({
   max: RATE_LIMITS.GENERAL_MAX_REQUESTS,
   message: {
     error: 'Too many requests from this IP, please try again later.',
-    retryAfter: Math.ceil(RATE_LIMITS.GENERAL_WINDOW_MS / 1000)
+    retryAfter: Math.ceil(RATE_LIMITS.GENERAL_WINDOW_MS / 1000),
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -158,13 +168,13 @@ const generalLimiter = rateLimit({
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       path: req.path,
-      limit: 'general'
+      limit: 'general',
     });
     res.status(429).json({
       error: 'Too many requests from this IP, please try again later.',
-      retryAfter: Math.ceil(RATE_LIMITS.GENERAL_WINDOW_MS / 1000)
+      retryAfter: Math.ceil(RATE_LIMITS.GENERAL_WINDOW_MS / 1000),
     });
-  }
+  },
 });
 
 // Admin-specific rate limiting (more permissive)
@@ -173,7 +183,7 @@ const adminLimiter = rateLimit({
   max: RATE_LIMITS.ADMIN_MAX_REQUESTS,
   message: {
     error: 'Too many admin requests, please slow down.',
-    retryAfter: 300 // 5 minutes
+    retryAfter: 300, // 5 minutes
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -182,13 +192,13 @@ const adminLimiter = rateLimit({
       ip: req.ip,
       userAgent: req.get('User-Agent'),
       path: req.path,
-      limit: 'admin'
+      limit: 'admin',
     });
     res.status(429).json({
       error: 'Too many admin requests, please slow down.',
-      retryAfter: 300
+      retryAfter: 300,
     });
-  }
+  },
 });
 
 // Only apply rate limiting in production
@@ -203,7 +213,7 @@ const authLimiter = rateLimit({
   skipSuccessfulRequests: true,
   message: {
     error: 'Too many authentication attempts from this IP, please try again later.',
-    retryAfter: Math.ceil(RATE_LIMITS.AUTH_WINDOW_MS / 1000)
+    retryAfter: Math.ceil(RATE_LIMITS.AUTH_WINDOW_MS / 1000),
   },
   handler: (req, res) => {
     logger.rateLimitHit({
@@ -211,13 +221,13 @@ const authLimiter = rateLimit({
       userAgent: req.get('User-Agent'),
       path: req.path,
       limit: 'auth',
-      severity: 'high'
+      severity: 'high',
     });
     res.status(429).json({
       error: 'Too many authentication attempts from this IP, please try again later.',
-      retryAfter: 900
+      retryAfter: 900,
     });
-  }
+  },
 });
 
 // Password reset rate limiting (stricter)
@@ -227,7 +237,7 @@ const passwordResetLimiter = rateLimit({
   skipSuccessfulRequests: true,
   message: {
     error: 'Too many password reset requests from this IP, please try again later.',
-    retryAfter: Math.ceil(RATE_LIMITS.PASSWORD_RESET_WINDOW_MS / 1000)
+    retryAfter: Math.ceil(RATE_LIMITS.PASSWORD_RESET_WINDOW_MS / 1000),
   },
   handler: (req, res) => {
     logger.rateLimitHit({
@@ -235,13 +245,13 @@ const passwordResetLimiter = rateLimit({
       userAgent: req.get('User-Agent'),
       path: req.path,
       limit: 'password_reset',
-      severity: 'high'
+      severity: 'high',
     });
     res.status(429).json({
       error: 'Too many password reset requests from this IP, please try again later.',
-      retryAfter: Math.ceil(RATE_LIMITS.PASSWORD_RESET_WINDOW_MS / 1000)
+      retryAfter: Math.ceil(RATE_LIMITS.PASSWORD_RESET_WINDOW_MS / 1000),
     });
-  }
+  },
 });
 
 // Apply auth rate limiting to auth routes (production only)
@@ -254,16 +264,18 @@ if (process.env.NODE_ENV === 'production') {
 }
 
 // MongoDB Connection
-const MONGODB_URI = process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollabproj';
+const MONGODB_URI =
+  process.env.MONGODB_URI || process.env.MONGO_URI || 'mongodb://localhost:27017/codecollabproj';
 
 // Only try to connect if we're not in test mode
 if (process.env.NODE_ENV !== 'test') {
-  mongoose.connect(MONGODB_URI, {
-    // Add MongoDB connection optimizations
-    maxPoolSize: 10,
-    serverSelectionTimeoutMS: 5000,
-    socketTimeoutMS: 45000,
-  })
+  mongoose
+    .connect(MONGODB_URI, {
+      // Add MongoDB connection optimizations
+      maxPoolSize: 10,
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+    })
     .then(() => {
       logger.info('Connected to MongoDB');
       // Initialize GridFS for avatar storage
@@ -298,8 +310,8 @@ app.get('/', (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'OK', 
+  res.json({
+    status: 'OK',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     memory: process.memoryUsage(),
@@ -322,9 +334,9 @@ const server = app.listen(PORT, () => {
     port: PORT,
     environment: process.env.NODE_ENV || 'development',
     healthCheck: `http://localhost:${PORT}/health`,
-    securityFeatures: ['helmet', 'cors', 'rate-limiting', 'mongo-sanitize', 'session-management']
+    securityFeatures: ['helmet', 'cors', 'rate-limiting', 'mongo-sanitize', 'session-management'],
   });
-  
+
   // Start scheduled security tasks
   scheduledTasks.start();
 });
@@ -332,10 +344,10 @@ const server = app.listen(PORT, () => {
 // Graceful shutdown
 const gracefulShutdown = (signal) => {
   logger.info(`${signal} received, shutting down gracefully`);
-  
+
   // Stop scheduled tasks
   scheduledTasks.stop();
-  
+
   server.close(() => {
     logger.info('Server closed');
     mongoose.connection.close(false, () => {
@@ -344,7 +356,7 @@ const gracefulShutdown = (signal) => {
       process.exit(0);
     });
   });
-  
+
   // Force exit after 10 seconds
   setTimeout(() => {
     logger.error('Forced shutdown after timeout');
@@ -359,7 +371,7 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 process.on('uncaughtException', (error) => {
   logger.error('Uncaught Exception', {
     error: error.message,
-    stack: error.stack
+    stack: error.stack,
   });
   gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
@@ -367,7 +379,7 @@ process.on('uncaughtException', (error) => {
 process.on('unhandledRejection', (reason, promise) => {
   logger.error('Unhandled Rejection', {
     reason: reason?.message || reason,
-    promise: promise.toString()
+    promise: promise.toString(),
   });
   gracefulShutdown('UNHANDLED_REJECTION');
-}); 
+});

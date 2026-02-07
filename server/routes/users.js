@@ -13,7 +13,7 @@ const {
   getMyProfile,
   uploadAvatar,
   deleteAvatar,
-  getAvatar
+  getAvatar,
 } = require('../controllers/userController');
 const { profileUpdateValidator, messageValidator } = require('../middleware/validators');
 const auth = require('../middleware/auth');
@@ -24,30 +24,31 @@ const { FILE_UPLOAD } = require('../config/constants');
 const path = require('path');
 const uploadPath = global.uploadPath || path.join(__dirname, '../uploads');
 
+// Multer configuration with callback-based API (works with both 1.x and 2.x)
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, uploadPath);
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     const filename = 'avatar-' + uniqueSuffix + path.extname(file.originalname);
     cb(null, filename);
-  }
+  },
 });
 
 const avatarUpload = multer({
   storage: storage,
   limits: {
-    fileSize: FILE_UPLOAD.MAX_FILE_SIZE
+    fileSize: FILE_UPLOAD.MAX_FILE_SIZE,
   },
   fileFilter: function (req, file, cb) {
     // Accept any image MIME type
     if (file.mimetype.startsWith('image/')) {
       cb(null, true);
     } else {
-      cb(new Error('Only image files are allowed!'), false);
+      cb(new Error('Only image files are allowed!'));
     }
-  }
+  },
 });
 
 // @route   GET /api/users
@@ -110,4 +111,4 @@ router.delete('/messages/:messageId', auth, deleteMessage);
 // @access  Private
 router.get('/:id', auth, getUserById);
 
-module.exports = router; 
+module.exports = router;

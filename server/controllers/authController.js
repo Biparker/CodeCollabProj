@@ -6,7 +6,8 @@ const logger = require('../utils/logger');
 const { sendVerificationEmail, sendPasswordResetEmail } = require('../services/emailService');
 
 // Sensitive fields that should NEVER be returned in API responses
-const SENSITIVE_FIELDS = '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
+const SENSITIVE_FIELDS =
+  '-password -passwordResetToken -passwordResetExpires -emailVerificationToken -emailVerificationExpires';
 
 // Register new user
 const register = async (req, res) => {
@@ -20,12 +21,12 @@ const register = async (req, res) => {
 
     // Check if user already exists
     // Use generic error message to prevent user enumeration
-    const existingUser = await User.findOne({ 
-      $or: [{ email }, { username }] 
+    const existingUser = await User.findOne({
+      $or: [{ email }, { username }],
     });
     if (existingUser) {
-      return res.status(400).json({ 
-        message: 'An account with this email or username already exists' 
+      return res.status(400).json({
+        message: 'An account with this email or username already exists',
       });
     }
 
@@ -33,7 +34,7 @@ const register = async (req, res) => {
     const user = new User({
       email,
       password,
-      username
+      username,
     });
 
     await user.save();
@@ -42,21 +43,21 @@ const register = async (req, res) => {
     // In development, skip email verification
     if (process.env.NODE_ENV === 'development') {
       logger.info('Development mode: Auto-verifying user');
-      
+
       // Create session with tokens
       const deviceInfo = {
         userAgent: req.get('User-Agent'),
-        ip: req.ip
+        ip: req.ip,
       };
-      
+
       const sessionData = await sessionService.createSession(user._id, deviceInfo);
-      
+
       logger.authAttempt(true, {
         userId: user._id,
         email: user.email,
         ip: req.ip,
         userAgent: req.get('User-Agent'),
-        method: 'register'
+        method: 'register',
       });
 
       // Set httpOnly cookies for secure token storage
@@ -65,7 +66,7 @@ const register = async (req, res) => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 15 * 60 * 1000, // 15 minutes
-        path: '/'
+        path: '/',
       });
 
       res.cookie('refreshToken', sessionData.refreshToken, {
@@ -73,7 +74,7 @@ const register = async (req, res) => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/api/auth'
+        path: '/api/auth',
       });
 
       // Still return tokens in response body for backward compatibility during transition
@@ -86,8 +87,8 @@ const register = async (req, res) => {
           id: user._id,
           email: user.email,
           username: user.username,
-          isEmailVerified: user.isEmailVerified
-        }
+          isEmailVerified: user.isEmailVerified,
+        },
       });
     }
 
@@ -103,12 +104,13 @@ const register = async (req, res) => {
     if (!emailSent) {
       logger.warn('Failed to send verification email');
       return res.status(201).json({
-        message: 'Account created successfully, but verification email could not be sent. Please contact support.',
+        message:
+          'Account created successfully, but verification email could not be sent. Please contact support.',
         user: {
           id: user._id,
           email: user.email,
-          username: user.username
-        }
+          username: user.username,
+        },
       });
     }
 
@@ -118,8 +120,8 @@ const register = async (req, res) => {
       user: {
         id: user._id,
         email: user.email,
-        username: user.username
-      }
+        username: user.username,
+      },
     });
   } catch (error) {
     logger.error('Registration error:', { error: error.message, stack: error.stack });
@@ -137,6 +139,13 @@ const login = async (req, res) => {
 
     const { email, password } = req.body;
 
+    console.log('🔍 Login request body:', {
+      email,
+      passwordLength: password?.length,
+      passwordFirstChar: password?.[0],
+      passwordLastChar: password?.[password.length - 1],
+    });
+
     // Find user
     // Use generic error message to prevent user enumeration
     const user = await User.findOne({ email });
@@ -145,25 +154,31 @@ const login = async (req, res) => {
         email,
         ip: req.ip,
         userAgent: req.get('User-Agent'),
-        reason: 'user_not_found'
+        reason: 'user_not_found',
       });
       // Use generic error message to prevent user enumeration
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
     // Check password
+    console.log('🔍 Login attempt for:', email, '(role:', user.role, ')');
     const isMatch = await user.comparePassword(password);
+    console.log('🔍 Password match result:', isMatch);
+
     if (!isMatch) {
+      console.log('❌ Password mismatch for:', email);
       logger.authAttempt(false, {
         userId: user._id,
         email,
         ip: req.ip,
         userAgent: req.get('User-Agent'),
-        reason: 'invalid_password'
+        reason: 'invalid_password',
       });
       // Use generic error message to prevent user enumeration
       return res.status(401).json({ message: 'Invalid credentials' });
     }
+
+    console.log('✅ Password matched for:', email);
 
     // Check if email is verified
     // Skip verification check for pre-seeded test users (they have isEmailVerified: true)
@@ -173,28 +188,29 @@ const login = async (req, res) => {
         email,
         ip: req.ip,
         userAgent: req.get('User-Agent'),
-        reason: 'email_not_verified'
+        reason: 'email_not_verified',
       });
-      return res.status(401).json({ 
-        message: 'Please verify your email address before logging in. Check your inbox for a verification email.',
-        needsVerification: true
+      return res.status(401).json({
+        message:
+          'Please verify your email address before logging in. Check your inbox for a verification email.',
+        needsVerification: true,
       });
     }
 
     // Create session with tokens
     const deviceInfo = {
       userAgent: req.get('User-Agent'),
-      ip: req.ip
+      ip: req.ip,
     };
-    
+
     const sessionData = await sessionService.createSession(user._id, deviceInfo);
-    
+
     logger.authAttempt(true, {
       userId: user._id,
       email,
       ip: req.ip,
       userAgent: req.get('User-Agent'),
-      method: 'login'
+      method: 'login',
     });
 
     // Set httpOnly cookies for secure token storage
@@ -203,7 +219,7 @@ const login = async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/'
+      path: '/',
     });
 
     res.cookie('refreshToken', sessionData.refreshToken, {
@@ -211,7 +227,7 @@ const login = async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/api/auth'
+      path: '/api/auth',
     });
 
     // Still return tokens in response body for backward compatibility during transition
@@ -226,8 +242,8 @@ const login = async (req, res) => {
         role: user.role,
         permissions: user.permissions,
         isActive: user.isActive,
-        isSuspended: user.isSuspended
-      }
+        isSuspended: user.isSuspended,
+      },
     });
   } catch (error) {
     res.status(500).json({ message: 'Error logging in', error: error.message });
@@ -238,22 +254,22 @@ const login = async (req, res) => {
 const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
-    
+
     if (process.env.NODE_ENV === 'development') {
       logger.debug('VERIFY EMAIL DEBUG:', {
         tokenLength: token ? token.length : 0,
-        timestamp: Date.now()
+        timestamp: Date.now(),
       });
     }
 
     const user = await User.findOne({
       emailVerificationToken: token,
-      emailVerificationExpires: { $gt: Date.now() }
+      emailVerificationExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ 
-        message: 'Invalid or expired verification token' 
+      return res.status(400).json({
+        message: 'Invalid or expired verification token',
       });
     }
 
@@ -263,8 +279,8 @@ const verifyEmail = async (req, res) => {
     user.emailVerificationExpires = undefined;
     await user.save();
 
-    res.json({ 
-      message: 'Email verified successfully. You can now log in to your account.' 
+    res.json({
+      message: 'Email verified successfully. You can now log in to your account.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error verifying email', error: error.message });
@@ -293,13 +309,13 @@ const resendVerificationEmail = async (req, res) => {
     const emailSent = await sendVerificationEmail(email, verificationToken, user.username);
 
     if (!emailSent) {
-      return res.status(500).json({ 
-        message: 'Failed to send verification email. Please try again later.' 
+      return res.status(500).json({
+        message: 'Failed to send verification email. Please try again later.',
       });
     }
 
-    res.json({ 
-      message: 'Verification email sent successfully. Please check your inbox.' 
+    res.json({
+      message: 'Verification email sent successfully. Please check your inbox.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error sending verification email', error: error.message });
@@ -319,8 +335,8 @@ const requestPasswordReset = async (req, res) => {
     const user = await User.findOne({ email });
     if (!user) {
       // Don't reveal if user exists or not for security
-      return res.json({ 
-        message: 'If an account with that email exists, a password reset link has been sent.' 
+      return res.json({
+        message: 'If an account with that email exists, a password reset link has been sent.',
       });
     }
 
@@ -331,12 +347,14 @@ const requestPasswordReset = async (req, res) => {
     // In development mode, return the token directly for testing
     if (process.env.NODE_ENV === 'development') {
       logger.debug(`Development mode: Password reset token generated for ${email}`);
-      logger.debug(`Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`);
-      
-      return res.json({ 
+      logger.debug(
+        `Reset URL: ${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
+      );
+
+      return res.json({
         message: 'Password reset link generated successfully (development mode)',
         resetToken: resetToken, // Only in development
-        resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`
+        resetUrl: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/reset-password?token=${resetToken}`,
       });
     }
 
@@ -344,13 +362,13 @@ const requestPasswordReset = async (req, res) => {
     const emailSent = await sendPasswordResetEmail(email, resetToken, user.username);
 
     if (!emailSent) {
-      return res.status(500).json({ 
-        message: 'Failed to send password reset email. Please try again later.' 
+      return res.status(500).json({
+        message: 'Failed to send password reset email. Please try again later.',
       });
     }
 
-    res.json({ 
-      message: 'If an account with that email exists, a password reset link has been sent.' 
+    res.json({
+      message: 'If an account with that email exists, a password reset link has been sent.',
     });
   } catch (error) {
     logger.error('Error requesting password reset:', { error: error.message, stack: error.stack });
@@ -365,18 +383,18 @@ const verifyPasswordResetToken = async (req, res) => {
 
     const user = await User.findOne({
       passwordResetToken: token,
-      passwordResetExpires: { $gt: Date.now() }
+      passwordResetExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ 
-        message: 'Invalid or expired password reset token' 
+      return res.status(400).json({
+        message: 'Invalid or expired password reset token',
       });
     }
 
-    res.json({ 
+    res.json({
       message: 'Password reset token is valid',
-      email: user.email 
+      email: user.email,
     });
   } catch (error) {
     res.status(500).json({ message: 'Error verifying password reset token', error: error.message });
@@ -395,12 +413,12 @@ const resetPassword = async (req, res) => {
 
     const user = await User.findOne({
       passwordResetToken: token,
-      passwordResetExpires: { $gt: Date.now() }
+      passwordResetExpires: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ 
-        message: 'Invalid or expired password reset token' 
+      return res.status(400).json({
+        message: 'Invalid or expired password reset token',
       });
     }
 
@@ -409,21 +427,22 @@ const resetPassword = async (req, res) => {
     user.markModified('password'); // Explicitly mark password as modified
     user.clearPasswordResetToken();
     await user.save();
-    
+
     // Revoke all existing sessions when password is changed
     await sessionService.revokeAllUserSessions(user._id, 'password_change');
-    
+
     logger.securityEvent('PASSWORD_RESET', {
       userId: user._id,
       email: user.email,
       ip: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get('User-Agent'),
     });
-    
+
     logger.info('Password reset successful', { userId: user._id });
 
-    res.json({ 
-      message: 'Password has been reset successfully. All existing sessions have been revoked. You can now log in with your new password.' 
+    res.json({
+      message:
+        'Password has been reset successfully. All existing sessions have been revoked. You can now log in with your new password.',
     });
   } catch (error) {
     res.status(500).json({ message: 'Error resetting password', error: error.message });
@@ -454,7 +473,7 @@ const refreshToken = async (req, res) => {
 
     const deviceInfo = {
       userAgent: req.get('User-Agent'),
-      ip: req.ip
+      ip: req.ip,
     };
 
     const sessionData = await sessionService.refreshSession(token, deviceInfo);
@@ -465,13 +484,13 @@ const refreshToken = async (req, res) => {
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 15 * 60 * 1000, // 15 minutes
-      path: '/'
+      path: '/',
     });
 
     // Still return token in response body for backward compatibility
     res.json({
       accessToken: sessionData.accessToken,
-      expiresIn: sessionData.expiresIn
+      expiresIn: sessionData.expiresIn,
     });
   } catch (error) {
     logger.error('Token refresh error:', { error: error.message });
@@ -490,7 +509,7 @@ const logout = async (req, res) => {
       logger.sessionEvent('logout', {
         userId: req.user._id,
         sessionId,
-        ip: req.ip
+        ip: req.ip,
       });
     }
 
@@ -514,7 +533,7 @@ const logoutAll = async (req, res) => {
     logger.sessionEvent('logout_all', {
       userId,
       revokedCount,
-      ip: req.ip
+      ip: req.ip,
     });
 
     // Clear httpOnly cookies
@@ -522,7 +541,7 @@ const logoutAll = async (req, res) => {
     res.clearCookie('refreshToken', { path: '/api/auth' });
 
     res.json({
-      message: `Logged out from ${revokedCount} devices successfully`
+      message: `Logged out from ${revokedCount} devices successfully`,
     });
   } catch (error) {
     logger.error('Logout all error:', { error: error.message });
@@ -535,7 +554,7 @@ const getActiveSessions = async (req, res) => {
   try {
     const userId = req.user._id;
     const sessions = await sessionService.getUserSessions(userId);
-    
+
     res.json(sessions);
   } catch (error) {
     logger.error('Get sessions error:', { error: error.message });
@@ -565,7 +584,7 @@ const changePassword = async (req, res) => {
       logger.securityEvent('INVALID_PASSWORD_CHANGE_ATTEMPT', {
         userId,
         ip: req.ip,
-        userAgent: req.get('User-Agent')
+        userAgent: req.get('User-Agent'),
       });
       return res.status(400).json({ message: 'Current password is incorrect' });
     }
@@ -581,11 +600,12 @@ const changePassword = async (req, res) => {
     logger.securityEvent('PASSWORD_CHANGED', {
       userId,
       ip: req.ip,
-      userAgent: req.get('User-Agent')
+      userAgent: req.get('User-Agent'),
     });
 
-    res.json({ 
-      message: 'Password changed successfully. All existing sessions have been revoked. Please log in again.' 
+    res.json({
+      message:
+        'Password changed successfully. All existing sessions have been revoked. Please log in again.',
     });
   } catch (error) {
     logger.error('Change password error:', { error: error.message });
@@ -606,5 +626,5 @@ module.exports = {
   getCurrentUser,
   requestPasswordReset,
   verifyPasswordResetToken,
-  resetPassword
-}; 
+  resetPassword,
+};

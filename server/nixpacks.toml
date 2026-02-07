@@ -7,10 +7,10 @@ cmds = [
   "mkdir -p uploads logs"
 ]
 
-# Explicitly disable build phase - backend has no build step
+# Explicitly disable build phase - backend runs TypeScript directly with tsx
 [phases.build]
 cmds = []
 
 [start]
-cmd = "npm start"
+cmd = "npm run start:tsx"
 
