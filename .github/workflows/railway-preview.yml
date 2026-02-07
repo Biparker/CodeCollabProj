@@ -28,8 +28,9 @@ jobs:
               ref: context.sha,
             });
 
+            const checkRuns = check_runs || [];
             const pendingChecks = requiredChecks.filter(name => {
-              const check = check_runs.check_runs.find(c => c.name === name);
+              const check = checkRuns.find(c => c.name === name);
               return !check || check.status !== 'completed' || check.conclusion !== 'success';
             });
 
@@ -127,10 +128,10 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: `🚀 **Preview Deployed!**
-              
+
               Environment: \`${envName}\`
               URL: ${previewUrl}
-              
+
               This environment will be automatically destroyed when the PR is closed.`
             });
 
