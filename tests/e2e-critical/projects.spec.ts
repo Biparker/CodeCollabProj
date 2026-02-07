@@ -13,7 +13,7 @@ test.describe('Projects', () => {
 
   test('should list all projects at /projects', async ({ page }) => {
     // Navigate to projects page
-    await page.goto('http://localhost:3000/projects');
+    await page.goto('/projects');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');
@@ -30,7 +30,7 @@ test.describe('Projects', () => {
 
   test('should search projects using the search input', async ({ page }) => {
     // Navigate to projects page
-    await page.goto('http://localhost:3000/projects');
+    await page.goto('/projects');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');
@@ -58,7 +58,7 @@ test.describe('Projects', () => {
 
   test('should view project details when clicking View Details', async ({ page }) => {
     // Navigate to projects page
-    await page.goto('http://localhost:3000/projects');
+    await page.goto('/projects');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');
@@ -90,7 +90,7 @@ test.describe('Projects', () => {
 
   test('should navigate to create project page and fill the form', async ({ page }) => {
     // Navigate directly to the create project page
-    await page.goto('http://localhost:3000/projects/create');
+    await page.goto('/projects/create');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');
@@ -129,7 +129,7 @@ test.describe('Projects', () => {
 
   test('should show Create Project button on projects list page', async ({ page }) => {
     // Navigate to projects page
-    await page.goto('http://localhost:3000/projects');
+    await page.goto('/projects');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');

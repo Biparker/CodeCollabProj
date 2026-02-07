@@ -36,7 +36,7 @@ export type TestUserRole = keyof typeof TEST_USERS;
  */
 export async function loginAs(page: Page, email: string, password: string): Promise<void> {
   // Navigate to login page and wait for it to be fully loaded
-  await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' });
+  await page.goto('/login', { waitUntil: 'networkidle' });
 
   // Wait for the login form to be visible
   await page.waitForSelector('input[name="email"]', { state: 'visible', timeout: 10000 });
