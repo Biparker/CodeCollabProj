@@ -30,26 +30,68 @@ jobs:
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Login to Railway
         run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Create Preview Environment
         id: deploy
+        working-directory: ${{ github.workspace }}
         run: |
+          set -euo pipefail
+
+          retry_cmd() {
+            local n=0 max=5 delay=5
+            until "$@"; do
+              n=$((n+1))
+              if [ "$n" -ge "$max" ]; then
+                return 1
+              fi
+              sleep "$delay"
+              delay=$((delay*2))
+            done
+          }
+
+          retry_out() {
+            local n=0 max=5 delay=5 out
+            while true; do
+              if out="$($@)"; then
+                echo "$out"
+                return 0
+              fi
+              n=$((n+1))
+              if [ "$n" -ge "$max" ]; then
+                return 1
+              fi
+              sleep "$delay"
+              delay=$((delay*2))
+            done
+          }
+
           # Generate unique environment name
-          ENV_NAME="pr-${{ github.event.number }}"
-          echo "environment=$ENV_NAME" >> $GITHUB_OUTPUT
-          
+          ENV_NAME="pr-${{ github.run_id }}-${{ github.event.number }}"
+          echo "environment=$ENV_NAME" >> "$GITHUB_OUTPUT"
+
           # Link to service (assumes project is already linked)
-          railway link --service codecollabproj2
-          
-          # Deploy to specific environment
-          railway up --environment $ENV_NAME --detached
-          
-          # Get preview URL (may need adjustment based on Railway project setup)
-          PREVIEW_URL="https://$ENV_NAME-codecollabproj2.up.railway.app"
-          echo "preview_url=$PREVIEW_URL" >> $GITHUB_OUTPUT
-          
+          retry_cmd railway link --service codecollabproj2
+
+          # Deploy to specific environment (with retries)
+          retry_cmd railway up --environment "$ENV_NAME" --detached
+
+          # Fetch preview domain from Railway
+          PREVIEW_DOMAIN=$(retry_out railway domain --json --environment "$ENV_NAME" | jq -r '.[0].domain // .[0].name // .[0].url // empty')
+          if [ -z "$PREVIEW_DOMAIN" ]; then
+            echo "Failed to resolve preview domain from Railway."
+            exit 1
+          fi
+          PREVIEW_URL="https://$PREVIEW_DOMAIN"
+
+          # Health check (retry for app readiness)
+          retry_cmd curl -fsS --max-time 10 "$PREVIEW_URL" > /dev/null
+
+          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
           echo "Deployed preview to: $PREVIEW_URL"
 
       - name: Comment PR with Preview URL
@@ -58,7 +100,7 @@ jobs:
           script: |
             const previewUrl = '${{ steps.deploy.outputs.preview_url }}';
             const envName = '${{ steps.deploy.outputs.environment }}';
-            
+
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
@@ -124,13 +166,28 @@ jobs:
         run: railway login --token ${{ secrets.RAILWAY_TOKEN }}
 
       - name: Destroy Preview Environment
+        working-directory: ${{ github.workspace }}
         run: |
-          ENV_NAME="pr-${{ github.event.number }}"
-          
+          set -euo pipefail
+
+          retry_cmd() {
+            local n=0 max=5 delay=5
+            until "$@"; do
+              n=$((n+1))
+              if [ "$n" -ge "$max" ]; then
+                return 1
+              fi
+              sleep "$delay"
+              delay=$((delay*2))
+            done
+          }
+
+          ENV_NAME="pr-${{ github.run_id }}-${{ github.event.number }}"
+
           # Link to service
-          railway link --service codecollabproj2
-          
+          retry_cmd railway link --service codecollabproj2
+
           # Destroy the environment
-          railway down --environment $ENV_NAME
-          
+          retry_cmd railway down --environment "$ENV_NAME"
+
           echo "Destroyed preview environment: $ENV_NAME"
