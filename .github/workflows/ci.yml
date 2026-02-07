@@ -194,7 +194,12 @@ jobs:
       - name: Seed test database
         run: cd server && npx tsx seed.js
 
-      - name: Run E2E tests
+      - name: Run Critical E2E tests (PRs)
+        if: github.ref != 'refs/heads/main'
+        run: npx playwright test --config=playwright.critical.config.ts
+
+      - name: Run Full E2E tests (main branch only)
+        if: github.ref == 'refs/heads/main'
         run: npm run test:e2e
 
       - name: Upload Playwright report
