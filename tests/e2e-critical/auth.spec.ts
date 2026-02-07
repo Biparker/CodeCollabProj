@@ -17,7 +17,7 @@ test.describe('Authentication', () => {
 
   test('login with invalid credentials', async ({ page }) => {
     // Navigate to login page
-    await page.goto('http://localhost:3000/login');
+    await page.goto('/login');
 
     // Fill the login form with invalid credentials
     await page.fill('input[name="email"]', TEST_USERS.user1.email);
@@ -57,7 +57,7 @@ test.describe('Authentication', () => {
     };
 
     // Navigate to register page
-    await page.goto('http://localhost:3000/register');
+    await page.goto('/register');
 
     // Fill the registration form
     await page.fill('input[name="username"]', testUser.username);
