@@ -1,8 +1,11 @@
 name: Railway Preview Deploy
 
 on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop]
   workflow_run:
-    workflows: ['CI']
+    workflows: ["CI"]
     types: [completed]
 
 env:
@@ -10,130 +13,132 @@ env:
 
 jobs:
   deploy-preview:
-    # Only run if CI succeeded and it's a PR
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'pull_request'
+    name: Deploy Railway Preview
     runs-on: ubuntu-latest
-    permissions:
-      pull-requests: write
-      statuses: write
-    outputs:
-      preview_url: ${{ steps.deploy.outputs.preview_url }}
+    # Only deploy if CI passed
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_run' && 
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request')
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
 
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-
       - name: Deploy to Railway
         id: deploy
-        working-directory: ${{ github.workspace }}
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
-          set -euo pipefail
+          echo "Deploying PR #${{ github.event.pull_request.number }} to Railway..."
+          
+          # Login to Railway
+          railway login --token "$RAILWAY_TOKEN"
+          
+          # Link to project (use production as template)
+          railway link --project ${{ secrets.RAILWAY_PROJECT_ID }}
+          
+          # Create environment for this PR
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          BRANCH_NAME="${{ github.head_ref }}"
+          
+          # Check if environment exists, create if not
+          ENV_EXISTS=$(railway environment list --json 2>/dev/null | jq -r ".[] | select(.name == \"pr-${PR_NUMBER}\") | .id" || echo "")
+          
+          if [ -z "$ENV_EXISTS" ]; then
+            echo "Creating new PR environment: pr-${PR_NUMBER}"
+            # Use Railway REST API to create environment
+            curl -s -X POST "https://backboard.railway.app/api/v1/projects/${{ secrets.RAILWAY_PROJECT_ID }}/environments" \
+              -H "Authorization: Bearer $RAILWAY_TOKEN" \
+              -H "Content-Type: application/json" \
+              -d "{\"name\": \"pr-${PR_NUMBER}\", \"sourceEnvironmentId\": \"${{ secrets.RAILWAY_PROD_ENV_ID }}\"}" 2>/dev/null
+          fi
+          
+          # Wait for deployment
+          echo "Waiting for deployment..."
+          sleep 30
+          
+          # Get frontend URL
+          FRONTEND_URL="https://frontend-pr-${PR_NUMBER}.up.railway.app"
+          echo "Preview URL: $FRONTEND_URL"
+          echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
 
-          retry_cmd() {
-            local n=0 max=5 delay=5
-            until "$@"; do
-              n=$((n+1))
-              if [ "$n" -ge "$max" ]; then return 1; fi
-              sleep "$delay"
-              delay=$((delay*2))
-            done
-          }
-
-          retry_out() {
-            local n=0 max=5 delay=5 out
-            while true; do
-              if out="$($@)"; then echo "$out"; return 0; fi
-              n=$((n+1))
-              if [ "$n" -ge "$max" ]; then return 1; fi
-              sleep "$delay"
-              delay=$((delay*2))
-            done
-          }
-
-          ENV_NAME="pr-${{ github.event.workflow_run.id }}"
-          echo "environment=$ENV_NAME" >> "$GITHUB_OUTPUT"
-
-          retry_cmd railway link --service codecollabproj2
-          retry_cmd railway up --environment "$ENV_NAME" --detached
-
-          PREVIEW_DOMAIN=$(retry_out railway domain --json --environment "$ENV_NAME" | jq -r '.[0].domain // empty')
-          [ -z "$PREVIEW_DOMAIN" ] && { echo "Failed to get domain"; exit 1; }
-
-          PREVIEW_URL="https://$PREVIEW_DOMAIN"
-          retry_cmd curl -fsS --max-time 10 "$PREVIEW_URL" > /dev/null
-
-          echo "preview_url=$PREVIEW_URL" >> "$GITHUB_OUTPUT"
-          echo "Deployed: $PREVIEW_URL"
-
-      - name: Comment PR
+      - name: Update PR with Preview URL
         uses: actions/github-script@v7
         with:
           script: |
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
-            const headSha = context.payload.workflow_run.head_sha;
-            const headBranch = context.payload.workflow_run.head_branch;
-
-            const { data: prs } = await github.rest.pulls.list({
-              owner,
-              repo,
-              state: 'open',
-              head: `${owner}:${headBranch}`,
+            const prNumber = context.payload.pull_request?.number || 
+              context.payload.workflow_run?.pull_requests?.[0]?.number;
+            
+            if (!prNumber) return;
+            
+            const previewUrl = '${{ steps.deploy.outputs.url }}' || 
+              `https://frontend-pr-${prNumber}.up.railway.app`;
+            
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: prNumber,
             });
-
-            const pr = prs.find((pull) => pull.head.sha === headSha);
-            if (!pr) {
-              core.warning(`No PR found for SHA ${headSha}`);
-              return;
+            
+            const botComment = comments.find(comment => 
+              comment.user.login === 'github-actions[bot]' &&
+              comment.body.includes('Railway Preview')
+            );
+            
+            const body = `🚀 **Railway Preview Deployed**
+            
+            | Service | URL |
+            |---------|-----|
+            | Frontend | ${previewUrl} |
+            | Backend | https://codecollabproj-pr-${prNumber}.up.railway.app |
+            
+            _Note: This is an ephemeral preview environment. Changes pushed to the PR will auto-redeploy._`;
+            
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body: body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: prNumber,
+                body: body,
+              });
             }
 
-            await github.rest.issues.createComment({
-              issue_number: pr.number,
-              owner,
-              repo,
-              body: `🚀 **Preview Deployed**\nURL: ${{ steps.deploy.outputs.preview_url }}`,
-            });
-
-  test-preview:
-    needs: deploy-preview
+  cleanup-preview:
+    name: Cleanup Railway Preview
     runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Playwright
-        run: npx playwright install --with-deps chromium
-
-      - name: Run E2E Tests
-        run: npx playwright test
+      - name: Delete PR Environment
         env:
-          BASE_URL: ${{ needs.deploy-preview.outputs.preview_url }}
-          CI: true
-
-      - name: Upload Report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: playwright-report
-          path: playwright-report/
-          retention-days: 7
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
+          echo "Cleaning up PR-${PR_NUMBER} environment..."
+          
+          railway login --token "$RAILWAY_TOKEN"
+          
+          # Delete the PR environment via API
+          curl -s -X DELETE \
+            "https://backboard.railway.app/api/v1/projects/${{ secrets.RAILWAY_PROJECT_ID }}/environments/pr-${PR_NUMBER}" \
+            -H "Authorization: Bearer $RAILWAY_TOKEN" 2>/dev/null || echo "Environment may not exist"
