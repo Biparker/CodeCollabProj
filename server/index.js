@@ -350,10 +350,13 @@ const gracefulShutdown = (signal) => {
 
   server.close(() => {
     logger.info('Server closed');
-    mongoose.connection.close(false, () => {
+    mongoose.connection.close(false).then(() => {
       logger.info('MongoDB connection closed');
       logger.info('Server shutdown completed', { signal });
       process.exit(0);
+    }).catch((err) => {
+      logger.error('Error closing MongoDB connection:', { error: err.message });
+      process.exit(1);
     });
   });
 

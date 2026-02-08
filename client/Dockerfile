@@ -7,14 +7,16 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (including devDependencies needed for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
-# Set environment variable for Railway backend
-ENV REACT_APP_API_URL=https://api.codecollabproj.com/api
+# Railway will inject REACT_APP_API_URL at build time from shared variables
+# Default to production if not set
+ARG REACT_APP_API_URL=https://api.codecollabproj.com/api
+ENV REACT_APP_API_URL=$REACT_APP_API_URL
 
 # SECURITY: Disable source maps in production to prevent exposing source code
 ENV GENERATE_SOURCEMAP=false

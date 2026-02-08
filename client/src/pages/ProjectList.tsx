@@ -155,7 +155,7 @@ const ProjectList: React.FC = () => {
           sx={{ mb: 4 }}
         />
 
-        <Grid container spacing={3}>
+        <Grid container spacing={3} data-testid="project-list">
           {filteredProjects.map((project) => (
             <Grid
               item
@@ -167,7 +167,7 @@ const ProjectList: React.FC = () => {
                 projectRefs.current[project._id] = el;
               }}
             >
-              <Card>
+              <Card data-testid="project-card">
                 {project.image && (
                   <CardMedia
                     component="img"
