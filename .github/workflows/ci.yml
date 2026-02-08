@@ -145,72 +145,11 @@ jobs:
           path: client/dist/
           retention-days: 7
 
-  # Job 5: E2E Tests against Railway PR Preview (for PRs)
-  test-e2e-railway:
-    name: E2E Tests (Railway Preview)
+  # Job 5: E2E Tests (Local with MongoDB - Works Reliably)
+  test-e2e:
+    name: E2E Tests
     runs-on: ubuntu-latest
     needs: [test-server, test-client, build]
-    # Only run on PRs (Railway creates preview envs for PRs)
-    if: github.event_name == 'pull_request'
-
-    env:
-      CI: true
-      # BASE_URL tells Playwright to test against Railway instead of localhost
-      BASE_URL: https://codecollab-pr-${{ github.event.pull_request.number }}.up.railway.app
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
-
-      - name: Install dependencies (for Playwright only)
-        run: npm ci
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps chromium
-
-      - name: Wait for Railway PR Deployment
-        run: |
-          echo "Waiting for Railway PR preview deployment..."
-          echo "Target URL: $BASE_URL"
-          
-          # Wait up to 5 minutes for Railway deploy
-          for i in {1..30}; do
-            STATUS=$(curl -s -o /dev/null -w "%{http_code}" "$BASE_URL/health" 2>/dev/null || echo "000")
-            if [ "$STATUS" = "200" ]; then
-              echo "✅ Railway deploy is ready!"
-              exit 0
-            fi
-            echo "⏳ Waiting for deploy... ($i/30) - Status: $STATUS"
-            sleep 10
-          done
-          
-          echo "❌ Railway deploy timed out"
-          exit 1
-
-      - name: Run E2E Tests against Railway Preview
-        run: npx playwright test --config=playwright.critical.config.ts
-
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-report-railway
-          path: playwright-report/
-          retention-days: 7
-
-  # Job 6: E2E Tests Local (for main branch - full test suite)
-  test-e2e-local:
-    name: E2E Tests (Local)
-    runs-on: ubuntu-latest
-    needs: [test-server, test-client, build]
-    # Only run on main branch pushes (not PRs)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     env:
       CI: true
@@ -250,13 +189,28 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
-      - name: Run Full E2E Test Suite
+      - name: Seed test database
+        run: cd server && npx tsx seed.js
+
+      - name: Run Critical E2E tests
+        run: npx playwright test --config=playwright.critical.config.ts
+
+      - name: Run Full E2E tests (main branch only)
+        if: github.ref == 'refs/heads/main'
         run: npm run test:e2e
 
       - name: Upload Playwright report
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report-local
+          name: playwright-report
           path: playwright-report/
+          retention-days: 7
+
+      - name: Upload Playwright screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-screenshots
+          path: test-results/
           retention-days: 7
