@@ -38,15 +38,15 @@ test.describe('Authentication Flow E2E', () => {
       // Submit form
       await page.click('button[type="submit"]');
 
-      // Should show success message or redirect to login
-      await page.waitForURL(/\/(login|verify-email)/, { timeout: 5000 }).catch(() => {});
+      // Should show success message or redirect to login/dashboard (dev mode auto-login)
+      await page.waitForTimeout(1500); // Give time for auto-redirect
 
-      // Check for success indicators
-      const successMessage = page.locator(
-        'text=/successfully?|check your email|verification|Registration Successful/i'
-      );
-      const isVisible = await successMessage.isVisible().catch(() => false);
-      expect(isVisible).toBeTruthy();
+      const isOnDashboard = page.url().includes('dashboard');
+      if (!isOnDashboard) {
+        // If not redirected, check for success message
+        const successAlert = page.locator('.MuiAlertTitle-root, .MuiAlert-message').filter({ hasText: /Registration Successful/i }).first();
+        await expect(successAlert).toBeVisible({ timeout: 5000 });
+      }
     });
 
     test('should prevent registration with duplicate email', async ({ page }: { page: Page }) => {
@@ -76,7 +76,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show password validation error
-      const errorMessage = page.locator('text=/password/i');
+      const errorMessage = page.locator('[data-testid="password-error"]');
       await expect(errorMessage).toBeVisible({ timeout: 5000 });
     });
   });
@@ -204,11 +204,14 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
       await page.waitForLoadState('networkidle');
 
-      // Find and click logout button
-      const logoutButton = page.locator(
-        'button:has-text("Logout"), [aria-label="Logout"], text=/log out/i'
-      );
-      await logoutButton.first().click();
+      // Open account menu and click logout
+      const accountButton = page.locator('[aria-label*="Account menu"], [aria-haspopup="true"]').first();
+      await expect(accountButton).toBeVisible({ timeout: 5000 });
+      await accountButton.click();
+      
+      const logoutButton = page.locator('[data-testid="logout-button"]');
+      await expect(logoutButton).toBeVisible({ timeout: 5000 });
+      await logoutButton.click();
 
       // Should redirect to login or home
       await page.waitForURL(/\/(login|home|$)/, { timeout: 5000 }).catch(() => {});
@@ -251,7 +254,8 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show generic success message (security best practice - no user enumeration)
-      const message = page.locator('text=/email|sent|check/i');
+      // Look for the Alert with specific text about password reset
+      const message = page.locator('text=Password Reset Link Generated');
       await expect(message).toBeVisible({ timeout: 5000 });
     });
   });
