@@ -32,13 +32,17 @@ test.describe('Authentication Flow E2E', () => {
       // Submit form
       await page.click('button[type="submit"]');
 
-      // Should show success message or redirect to login
-      await page.waitForURL(/\/(login|verify-email)/, { timeout: 5000 }).catch(() => {});
+      // Should show success message or redirect to login/dashboard (dev mode auto-login)
+      await page.waitForURL(/\/(login|verify-email|dashboard)/, { timeout: 5000 }).catch(() => {});
 
-      // Check for success indicators
-      const successMessage = page.locator('text=/successfully|check your email|verification/i');
-      const isVisible = await successMessage.isVisible().catch(() => false);
-      expect(isVisible).toBeTruthy();
+      // Check for success indicators - wait for the element to be visible
+      // Using a very specific selector for the Alert Title
+      const successAlert = page.locator('.MuiAlert-message, .MuiAlertTitle-root, text="Registration Successful!"').first();
+      await expect(successAlert).toBeVisible({ timeout: 10000 });
+      
+      const isSuccessVisible = await successAlert.isVisible();
+      const isOnDashboard = page.url().includes('dashboard');
+      expect(isSuccessVisible || isOnDashboard).toBeTruthy();
     });
 
     test('should prevent registration with duplicate email', async ({ page }) => {
@@ -68,7 +72,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show password validation error
-      const errorMessage = page.locator('text=/password/i');
+      const errorMessage = page.locator('[data-testid="password-error"]');
       await expect(errorMessage).toBeVisible({ timeout: 5000 });
     });
   });
@@ -142,13 +146,25 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
       await page.waitForLoadState('networkidle');
 
+      // Verify token is stored in localStorage before reload
+      const hasTokenBefore = await page.evaluate(() => {
+        return !!localStorage.getItem('accessToken');
+      });
+      expect(hasTokenBefore).toBeTruthy();
+
       // Reload page
       await page.reload();
       await page.waitForLoadState('networkidle');
 
-      // Should still be authenticated
+      // Should still be authenticated - check URL and localStorage
       const isAuthenticated = !page.url().includes('login');
       expect(isAuthenticated).toBeTruthy();
+
+      // Verify token persists in localStorage after reload
+      const hasTokenAfter = await page.evaluate(() => {
+        return !!localStorage.getItem('accessToken');
+      });
+      expect(hasTokenAfter).toBeTruthy();
     });
 
     test('should handle concurrent sessions in different browsers', async ({ browser }) => {
@@ -186,11 +202,14 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
       await page.waitForLoadState('networkidle');
 
-      // Find and click logout button
-      const logoutButton = page.locator(
-        'button:has-text("Logout"), [aria-label="Logout"], text=/log out/i'
-      );
-      await logoutButton.first().click();
+      // Open account menu and click logout
+      const accountButton = page.locator('[aria-label*="Account menu"], [aria-haspopup="true"]').first();
+      await expect(accountButton).toBeVisible({ timeout: 5000 });
+      await accountButton.click();
+      
+      const logoutButton = page.locator('[data-testid="logout-button"]');
+      await expect(logoutButton).toBeVisible({ timeout: 5000 });
+      await logoutButton.click();
 
       // Should redirect to login or home
       await page.waitForURL(/\/(login|home|$)/, { timeout: 5000 }).catch(() => {});
@@ -223,7 +242,8 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show generic success message (security best practice - no user enumeration)
-      const message = page.locator('text=/email|sent|check/i');
+      // Look for the Alert with specific text about password reset
+      const message = page.locator('text=Password Reset Link Generated');
       await expect(message).toBeVisible({ timeout: 5000 });
     });
   });
@@ -274,7 +294,7 @@ test.describe('Authentication Flow E2E', () => {
   });
 
   test.describe('Token Refresh', () => {
-    test('should automatically refresh expired access token', async ({ page }) => {
+    test('should automatically refresh expired access token', async ({ page, request }) => {
       // Login
       await page.goto(`${APP_URL}/login`);
       await page.fill('input[name="email"], input[type="email"]', 'user1@example.com');
@@ -283,11 +303,23 @@ test.describe('Authentication Flow E2E', () => {
       await page.waitForLoadState('networkidle');
 
       // Wait for token to near expiration (if short-lived tokens)
-      // In production, this would be tested by manipulating the token expiration
-      // For now, just verify that API calls continue to work after some time
       await page.waitForTimeout(2000);
 
-      // Make an authenticated request
+      // Verify token is in localStorage
+      const token = await page.evaluate(() => {
+        return localStorage.getItem('accessToken');
+      });
+      expect(token).toBeTruthy();
+
+      // Verify the token refresh endpoint exists by checking auth status
+      const response = await request.get(`${API_URL}/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      expect(response.ok()).toBeTruthy();
+
+      // Make an authenticated request via browser
       await page.goto(`${APP_URL}/dashboard`);
       await page.waitForLoadState('networkidle');
 

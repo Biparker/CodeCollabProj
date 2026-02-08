@@ -215,6 +215,9 @@ const Register: React.FC = () => {
               helperText={formErrors.password}
               margin="normal"
               required
+              inputProps={{ 'data-testid': 'password-input' }}
+              // @ts-ignore - data-testid is valid DOM attribute but missing from MUI types
+              FormHelperTextProps={{ 'data-testid': formErrors.password ? 'password-error' : undefined } as any}
             />
 
             <TextField

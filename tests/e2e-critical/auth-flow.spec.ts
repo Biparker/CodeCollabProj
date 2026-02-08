@@ -42,7 +42,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.waitForURL(/\/(login|verify-email)/, { timeout: 5000 }).catch(() => {});
 
       // Check for success indicators
-      const successMessage = page.locator('text=/successfully|check your email|verification/i');
+      const successMessage = page.locator('text=/successfully?|check your email|verification|Registration Successful/i');
       const isVisible = await successMessage.isVisible().catch(() => false);
       expect(isVisible).toBeTruthy();
     });
