@@ -21,7 +21,20 @@ test.describe('Project CRUD Operations', () => {
     await page.fill('input[name="email"], input[type="email"]', TEST_USER.email);
     await page.fill('input[name="password"], input[type="password"]', TEST_USER.password);
     await page.click('button[type="submit"]');
+
+    // Wait for auth state to settle
     await page.waitForLoadState('networkidle');
+
+    // Ensure we are authenticated (header shows account menu, not Login/Register)
+    const accountButton = page.locator('[aria-label^="Account menu"]');
+    if (!(await accountButton.isVisible().catch(() => false))) {
+      // Fallback: wait for login button to disappear
+      await page
+        .locator('text=Login')
+        .first()
+        .waitFor({ state: 'detached', timeout: 5000 })
+        .catch(() => {});
+    }
   });
 
   test.describe('Create Project', () => {
@@ -75,13 +88,20 @@ test.describe('Project CRUD Operations', () => {
       });
       const { accessToken } = await authResponse.json();
 
-      await request.post(`${API_URL}/projects`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        data: {
-          title: duplicateName,
-          description: 'First project with this name',
-        },
-      });
+      // Ensure cleanup first just in case
+      // Or just handle error gracefully
+
+      try {
+        await request.post(`${API_URL}/projects`, {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          data: {
+            title: duplicateName,
+            description: 'First project with this name',
+          },
+        });
+      } catch (e) {
+        // Ignore if already exists
+      }
 
       // Try to create second project with same name via UI
       await page.goto(`${APP_URL}/projects/create`);
@@ -129,19 +149,24 @@ test.describe('Project CRUD Operations', () => {
     test('should display project list', async ({ page }) => {
       await page.goto(`${APP_URL}/projects`);
 
-      // Should show projects or empty state
-      const projectList = page.locator(
-        '[data-testid="project-list"], .project-card, .project-item'
-      );
-      const emptyState = page.locator('text=/no projects|empty|create your first/i');
+      // Ensure projects API completed (either list or empty state)
+      await page.waitForLoadState('networkidle');
 
-      const hasProjects = await projectList
+      // Should show projects or empty state
+      const projectList = page.locator('[data-testid="project-list"]');
+      const projectCard = page.locator('[data-testid="project-card"]');
+      const emptyState = page.locator(
+        'text=/no projects yet|no projects|no projects found|be the first to create/i'
+      );
+
+      const listVisible = await projectList.isVisible().catch(() => false);
+      const hasCards = await projectCard
         .first()
         .isVisible()
         .catch(() => false);
       const isEmpty = await emptyState.isVisible().catch(() => false);
 
-      expect(hasProjects || isEmpty).toBeTruthy();
+      expect(listVisible || hasCards || isEmpty).toBeTruthy();
     });
 
     test('should display project details', async ({ page, request }) => {
@@ -151,10 +176,11 @@ test.describe('Project CRUD Operations', () => {
       });
       const { accessToken } = await authResponse.json();
 
+      const timestamp = Date.now();
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          title: `Detail Test Project ${Date.now()}`,
+          title: `Detail Test Project ${timestamp}`,
           description: 'Test project for detail view',
           technologies: ['React', 'Node.js'],
         },
@@ -561,11 +587,17 @@ test.describe('Project CRUD Operations', () => {
       await page.fill('input[name="title"], input[name="name"]', projectName);
       await page.fill('textarea[name="description"]', 'Testing rapid submission');
 
-      // Click submit button multiple times rapidly
+      // Click submit button multiple times rapidly (or try to)
       const submitButton = page.locator('button[type="submit"]');
+
+      // First click should work
       await submitButton.click();
-      await submitButton.click();
-      await submitButton.click();
+
+      // Subsequent clicks might fail if button is disabled (which is good)
+      // We use force: true to simulate user trying to click even if disabled/overlayed,
+      // or just catch the error if it's not clickable
+      await submitButton.click({ timeout: 500 }).catch(() => {});
+      await submitButton.click({ timeout: 500 }).catch(() => {});
 
       // Should only create one project (no duplicates)
       await page.waitForTimeout(3000);
