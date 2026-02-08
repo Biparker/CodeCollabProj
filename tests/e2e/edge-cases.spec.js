@@ -3,6 +3,11 @@ const { test, expect } = require('@playwright/test');
 
 const API_URL = process.env.API_URL || 'http://localhost:5001/api';
 const APP_URL = process.env.APP_URL || 'http://localhost:3000';
+const PROJECTS_CREATE_PATH = '/projects/create';
+const PROJECT_NAME_SELECTOR = 'input[name="title"], input[name="name"]';
+const PROJECT_DESC_SELECTOR = 'textarea[name="description"]';
+const SUBMIT_SELECTOR = 'button[type="submit"]';
+const PAGE_HAS_TOUCH = Boolean(process.env.PLAYWRIGHT_HAS_TOUCH || process.env.CI);
 
 const TEST_USER = {
   email: 'user1@example.com',
@@ -20,19 +25,19 @@ test.describe('Edge Cases', () => {
     await page.goto(`${APP_URL}/login`);
     await page.fill('input[name="email"], input[type="email"]', TEST_USER.email);
     await page.fill('input[name="password"], input[type="password"]', TEST_USER.password);
-    await page.click('button[type="submit"]');
+    await page.click(SUBMIT_SELECTOR);
     await page.waitForLoadState('networkidle');
   });
 
   test.describe('Input Validation', () => {
     test('should handle extremely long input strings', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       const longString = 'A'.repeat(10000);
 
-      await page.fill('input[name="name"]', longString);
-      await page.fill('textarea[name="description"]', longString);
-      await page.click('button[type="submit"]');
+      await page.fill(PROJECT_NAME_SELECTOR, longString);
+      await page.fill(PROJECT_DESC_SELECTOR, longString);
+      await page.click(SUBMIT_SELECTOR);
 
       // Should either truncate, show error, or handle gracefully
       await page.waitForTimeout(2000);
@@ -44,14 +49,14 @@ test.describe('Edge Cases', () => {
     });
 
     test('should handle Unicode and emoji in input fields', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       const unicodeName = 'Test 🚀 Project 你好 世界 🎉';
       const unicodeDescription = 'Testing Unicode support: ñ, é, ü, ø, 漢字, العربية, Русский';
 
-      await page.fill('input[name="name"]', unicodeName);
-      await page.fill('textarea[name="description"]', unicodeDescription);
-      await page.click('button[type="submit"]');
+      await page.fill(PROJECT_NAME_SELECTOR, unicodeName);
+      await page.fill(PROJECT_DESC_SELECTOR, unicodeDescription);
+      await page.click(SUBMIT_SELECTOR);
 
       await page.waitForLoadState('networkidle');
 
@@ -63,14 +68,14 @@ test.describe('Edge Cases', () => {
     });
 
     test('should sanitize HTML in input fields', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       const htmlInput =
         '<b>Bold</b> <script>alert("xss")</script> <img src=x onerror=alert("xss")>';
 
-      await page.fill('input[name="name"]', htmlInput);
-      await page.fill('textarea[name="description"]', htmlInput);
-      await page.click('button[type="submit"]');
+      await page.fill(PROJECT_NAME_SELECTOR, htmlInput);
+      await page.fill(PROJECT_DESC_SELECTOR, htmlInput);
+      await page.click(SUBMIT_SELECTOR);
 
       await page.waitForTimeout(2000);
 
@@ -104,13 +109,13 @@ test.describe('Edge Cases', () => {
     });
 
     test('should handle NULL bytes in input', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       const nullByteInput = 'Test\x00Project';
 
-      await page.fill('input[name="name"]', nullByteInput);
-      await page.fill('textarea[name="description"]', 'Description with\x00null byte');
-      await page.click('button[type="submit"]');
+      await page.fill(PROJECT_NAME_SELECTOR, nullByteInput);
+      await page.fill(PROJECT_DESC_SELECTOR, 'Description with\x00null byte');
+      await page.click(SUBMIT_SELECTOR);
 
       await page.waitForTimeout(2000);
       expect(page.url()).toBeTruthy();
@@ -127,7 +132,7 @@ test.describe('Edge Cases', () => {
       const response = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: '',
+          title: '',
           description: '',
           technologies: [],
         },
@@ -230,7 +235,7 @@ test.describe('Edge Cases', () => {
           await page.goto(`${APP_URL}/login`);
           await page.fill('input[name="email"], input[type="email"]', TEST_USER.email);
           await page.fill('input[name="password"], input[type="password"]', TEST_USER.password);
-          await page.click('button[type="submit"]');
+          await page.click(SUBMIT_SELECTOR);
           await page.waitForLoadState('networkidle');
         })
       );
@@ -245,13 +250,13 @@ test.describe('Edge Cases', () => {
     });
 
     test('should handle rapid successive form submissions', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
-      await page.fill('input[name="name"]', `Rapid Test ${Date.now()}`);
-      await page.fill('textarea[name="description"]', 'Testing rapid submission');
+      await page.fill(PROJECT_NAME_SELECTOR, `Rapid Test ${Date.now()}`);
+      await page.fill(PROJECT_DESC_SELECTOR, 'Testing rapid submission');
 
       // Click submit multiple times rapidly
-      const submitButton = page.locator('button[type="submit"]');
+      const submitButton = page.locator(SUBMIT_SELECTOR);
       await Promise.all([submitButton.click(), submitButton.click(), submitButton.click()]).catch(
         () => {}
       );
@@ -264,10 +269,10 @@ test.describe('Edge Cases', () => {
 
     test('should handle editing same resource from multiple windows', async ({ page, browser }) => {
       // Create a project
-      await page.goto(`${APP_URL}/projects/new`);
-      await page.fill('input[name="name"]', `Concurrent Edit ${Date.now()}`);
-      await page.fill('textarea[name="description"]', 'Original description');
-      await page.click('button[type="submit"]');
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
+      await page.fill(PROJECT_NAME_SELECTOR, `Concurrent Edit ${Date.now()}`);
+      await page.fill(PROJECT_DESC_SELECTOR, 'Original description');
+      await page.click(SUBMIT_SELECTOR);
       await page.waitForLoadState('networkidle');
 
       const projectUrl = page.url();
@@ -280,19 +285,19 @@ test.describe('Edge Cases', () => {
       await page2.goto(`${APP_URL}/login`);
       await page2.fill('input[name="email"], input[type="email"]', TEST_USER.email);
       await page2.fill('input[name="password"], input[type="password"]', TEST_USER.password);
-      await page2.click('button[type="submit"]');
+      await page2.click(SUBMIT_SELECTOR);
       await page2.waitForLoadState('networkidle');
 
       // Both edit simultaneously
       await page.goto(`${projectUrl}/edit`.replace('/projects/', '/projects/'));
       await page2.goto(`${projectUrl}/edit`.replace('/projects/', '/projects/'));
 
-      await page.fill('textarea[name="description"]', 'Update from window 1');
-      await page2.fill('textarea[name="description"]', 'Update from window 2');
+      await page.fill(PROJECT_DESC_SELECTOR, 'Update from window 1');
+      await page2.fill(PROJECT_DESC_SELECTOR, 'Update from window 2');
 
       // Submit both
-      await page.click('button[type="submit"]');
-      await page2.click('button[type="submit"]');
+      await page.click(SUBMIT_SELECTOR);
+      await page2.click(SUBMIT_SELECTOR);
 
       await page.waitForLoadState('networkidle');
       await page2.waitForLoadState('networkidle');
@@ -324,14 +329,14 @@ test.describe('Edge Cases', () => {
     });
 
     test('should handle intermittent network failures', async ({ page, context }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
-      await page.fill('input[name="name"]', `Network Test ${Date.now()}`);
-      await page.fill('textarea[name="description"]', 'Testing network failure');
+      await page.fill(PROJECT_NAME_SELECTOR, `Network Test ${Date.now()}`);
+      await page.fill(PROJECT_DESC_SELECTOR, 'Testing network failure');
 
       // Go offline mid-operation
       await context.setOffline(true);
-      await page.click('button[type="submit"]');
+      await page.click(SUBMIT_SELECTOR);
 
       await page.waitForTimeout(2000);
 
@@ -378,7 +383,7 @@ test.describe('Edge Cases', () => {
       await page.context().clearCookies();
 
       // Try to navigate to protected page
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       // Should redirect to login
       await page.waitForURL('**/login**', { timeout: 5000 }).catch(() => {});
@@ -396,7 +401,7 @@ test.describe('Edge Cases', () => {
         await p.goto(`${APP_URL}/login`);
         await p.fill('input[name="email"], input[type="email"]', TEST_USER.email);
         await p.fill('input[name="password"], input[type="password"]', TEST_USER.password);
-        await p.click('button[type="submit"]');
+        await p.click(SUBMIT_SELECTOR);
         await p.waitForLoadState('networkidle');
       }
 
@@ -417,11 +422,11 @@ test.describe('Edge Cases', () => {
     });
 
     test('should persist form data on navigation', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       const testName = `Persist Test ${Date.now()}`;
-      await page.fill('input[name="name"]', testName);
-      await page.fill('textarea[name="description"]', 'Testing persistence');
+      await page.fill(PROJECT_NAME_SELECTOR, testName);
+      await page.fill(PROJECT_DESC_SELECTOR, 'Testing persistence');
 
       // Navigate away
       await page.goto(`${APP_URL}/dashboard`);
@@ -436,13 +441,13 @@ test.describe('Edge Cases', () => {
     });
 
     test('should handle browser refresh during form submission', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
-      await page.fill('input[name="name"]', `Refresh Test ${Date.now()}`);
-      await page.fill('textarea[name="description"]', 'Testing refresh');
+      await page.fill(PROJECT_NAME_SELECTOR, `Refresh Test ${Date.now()}`);
+      await page.fill(PROJECT_DESC_SELECTOR, 'Testing refresh');
 
       // Click submit and immediately refresh
-      const submitButton = page.locator('button[type="submit"]');
+      const submitButton = page.locator(SUBMIT_SELECTOR);
       await submitButton.click();
 
       // Refresh page mid-submission
@@ -483,7 +488,7 @@ test.describe('Edge Cases', () => {
       await page.goto(`${APP_URL}/projects/nonexistent123`);
 
       // Should show friendly error page
-      const errorMessage = page.locator("text=/not found|404|doesn't exist/i");
+      const errorMessage = page.locator("text=/not found|404|doesn't exist|Page Not Found/i");
       await expect(errorMessage).toBeVisible({ timeout: 5000 });
     });
 
@@ -508,7 +513,7 @@ test.describe('Edge Cases', () => {
 
   test.describe('Accessibility Edge Cases', () => {
     test('should handle keyboard-only navigation', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
 
       // Navigate using Tab key
       await page.keyboard.press('Tab');
@@ -548,15 +553,15 @@ test.describe('Edge Cases', () => {
 
   test.describe('Mobile & Responsive', () => {
     test('should handle device rotation', async ({ page, context }) => {
-      await context.setViewportSize({ width: 375, height: 667 });
+      await page.setViewportSize({ width: 375, height: 667 });
       await page.goto(`${APP_URL}/projects`);
 
       // Rotate to landscape
-      await context.setViewportSize({ width: 667, height: 375 });
+      await page.setViewportSize({ width: 667, height: 375 });
       await page.waitForTimeout(1000);
 
       // Rotate back to portrait
-      await context.setViewportSize({ width: 375, height: 667 });
+      await page.setViewportSize({ width: 375, height: 667 });
       await page.waitForTimeout(1000);
 
       // Should adapt layout without crashing
@@ -565,7 +570,7 @@ test.describe('Edge Cases', () => {
 
     test('should handle very small screens', async ({ page, context }) => {
       // Test on very small viewport (smartwatch size)
-      await context.setViewportSize({ width: 272, height: 340 });
+      await page.setViewportSize({ width: 272, height: 340 });
       await page.goto(`${APP_URL}/projects`);
 
       // Should still be usable
@@ -575,7 +580,7 @@ test.describe('Edge Cases', () => {
 
     test('should handle very large screens', async ({ page, context }) => {
       // Test on 4K display
-      await context.setViewportSize({ width: 3840, height: 2160 });
+      await page.setViewportSize({ width: 3840, height: 2160 });
       await page.goto(`${APP_URL}/projects`);
 
       // Should scale properly without excessive whitespace
@@ -588,7 +593,9 @@ test.describe('Edge Cases', () => {
       await page.goto(`${APP_URL}/projects`);
 
       // Test swipe/scroll gestures
-      await page.touchscreen.tap(100, 100);
+      if (PAGE_HAS_TOUCH && page.touchscreen) {
+        await page.touchscreen.tap(100, 100);
+      }
       await page.mouse.wheel(0, 500);
 
       await page.waitForTimeout(1000);

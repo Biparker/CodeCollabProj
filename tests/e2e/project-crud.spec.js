@@ -26,13 +26,13 @@ test.describe('Project CRUD Operations', () => {
 
   test.describe('Create Project', () => {
     test('should successfully create a new project', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}/projects/create`);
 
       const projectName = `Test Project ${Date.now()}`;
       const projectDescription = 'This is a test project created by E2E tests';
 
       // Fill project form
-      await page.fill('input[name="name"], input[name="title"]', projectName);
+      await page.fill('input[name="title"], input[name="name"]', projectName);
       await page.fill('textarea[name="description"]', projectDescription);
 
       // Select technology tags if available
@@ -48,7 +48,7 @@ test.describe('Project CRUD Operations', () => {
       await page.click('button[type="submit"]');
 
       // Should redirect to project detail page or show success
-      await page.waitForURL(/\/project/, { timeout: 5000 }).catch(() => {});
+      await page.waitForURL(/\/projects/, { timeout: 5000 }).catch(() => {});
 
       // Verify project was created
       const projectTitle = page.locator(`text=${projectName}`);
@@ -56,7 +56,7 @@ test.describe('Project CRUD Operations', () => {
     });
 
     test('should validate required fields', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}/projects/create`);
 
       // Try to submit without filling required fields
       await page.click('button[type="submit"]');
@@ -78,14 +78,14 @@ test.describe('Project CRUD Operations', () => {
       await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: duplicateName,
+          title: duplicateName,
           description: 'First project with this name',
         },
       });
 
       // Try to create second project with same name via UI
-      await page.goto(`${APP_URL}/projects/new`);
-      await page.fill('input[name="name"], input[name="title"]', duplicateName);
+      await page.goto(`${APP_URL}/projects/create`);
+      await page.fill('input[name="title"], input[name="name"]', duplicateName);
       await page.fill('textarea[name="description"]', 'Second project with duplicate name');
       await page.click('button[type="submit"]');
 
@@ -98,17 +98,17 @@ test.describe('Project CRUD Operations', () => {
         .locator('text=/already exists|duplicate/i')
         .isVisible()
         .catch(() => false);
-      const hasSuccess = page.url().includes('project');
+      const hasSuccess = page.url().includes('projects');
 
       expect(hasError || hasSuccess).toBeTruthy();
     });
 
     test('should handle very long project descriptions', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}/projects/create`);
 
       const longDescription = 'A'.repeat(5000); // 5000 character description
 
-      await page.fill('input[name="name"], input[name="title"]', `Long Desc Project ${Date.now()}`);
+      await page.fill('input[name="title"], input[name="name"]', `Long Desc Project ${Date.now()}`);
       await page.fill('textarea[name="description"]', longDescription);
       await page.click('button[type="submit"]');
 
@@ -119,7 +119,7 @@ test.describe('Project CRUD Operations', () => {
         .locator('text=/too long|maximum|limit/i')
         .isVisible()
         .catch(() => false);
-      const hasSuccess = page.url().includes('project');
+      const hasSuccess = page.url().includes('projects');
 
       expect(hasError || hasSuccess).toBeTruthy();
     });
@@ -154,19 +154,20 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Detail Test Project ${Date.now()}`,
+          title: `Detail Test Project ${Date.now()}`,
           description: 'Test project for detail view',
           technologies: ['React', 'Node.js'],
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Navigate to project detail
-      await page.goto(`${APP_URL}/projects/${project._id}`);
+      await page.goto(`${APP_URL}/projects/${projectId}`);
 
       // Should display project information
-      await expect(page.locator(`text=${project.name}`)).toBeVisible();
+      await expect(page.locator(`text=${project.title}`)).toBeVisible();
       await expect(page.locator(`text=/Test project for detail view/i`)).toBeVisible();
     });
 
@@ -230,21 +231,22 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Update Test Project ${Date.now()}`,
+          title: `Update Test Project ${Date.now()}`,
           description: 'Original description',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Navigate to project edit page
-      await page.goto(`${APP_URL}/projects/${project._id}/edit`);
+      await page.goto(`${APP_URL}/projects/${projectId}/edit`);
 
       const updatedName = `Updated Project ${Date.now()}`;
       const updatedDescription = 'Updated description after edit';
 
       // Update project details
-      await page.fill('input[name="name"], input[name="title"]', updatedName);
+      await page.fill('input[name="title"], input[name="name"]', updatedName);
       await page.fill('textarea[name="description"]', updatedDescription);
       await page.click('button[type="submit"]');
 
@@ -266,12 +268,13 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${user1Token}` },
         data: {
-          name: `Protected Project ${Date.now()}`,
+          title: `Protected Project ${Date.now()}`,
           description: 'Only owner can edit',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Create new context for different user
       const context2 = await browser.newContext();
@@ -285,7 +288,7 @@ test.describe('Project CRUD Operations', () => {
       await page2.waitForLoadState('networkidle');
 
       // Try to access edit page
-      await page2.goto(`${APP_URL}/projects/${project._id}/edit`);
+      await page2.goto(`${APP_URL}/projects/${projectId}/edit`);
 
       // Should show error or hide edit button
       const hasError = await page2
@@ -310,16 +313,17 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Status Test Project ${Date.now()}`,
+          title: `Status Test Project ${Date.now()}`,
           description: 'Project for status update test',
           status: 'planning',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Navigate to project edit page
-      await page.goto(`${APP_URL}/projects/${project._id}/edit`);
+      await page.goto(`${APP_URL}/projects/${projectId}/edit`);
 
       // Update status if status dropdown exists
       const statusDropdown = page.locator('select[name="status"]');
@@ -345,15 +349,16 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Delete Test Project ${Date.now()}`,
+          title: `Delete Test Project ${Date.now()}`,
           description: 'Project to be deleted',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Navigate to project detail
-      await page.goto(`${APP_URL}/projects/${project._id}`);
+      await page.goto(`${APP_URL}/projects/${projectId}`);
 
       // Find and click delete button
       const deleteButton = page.locator('button:has-text("Delete"), [aria-label="Delete"]');
@@ -373,7 +378,7 @@ test.describe('Project CRUD Operations', () => {
         await page.waitForURL(/\/projects($|\?)/, { timeout: 5000 }).catch(() => {});
 
         // Verify project is deleted
-        const projectName = page.locator(`text=${project.name}`);
+        const projectName = page.locator(`text=${project.title}`);
         const isVisible = await projectName.isVisible().catch(() => false);
         expect(isVisible).toBeFalsy();
       }
@@ -389,14 +394,15 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Confirm Delete Project ${Date.now()}`,
+          title: `Confirm Delete Project ${Date.now()}`,
           description: 'Testing delete confirmation',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
-      await page.goto(`${APP_URL}/projects/${project._id}`);
+      await page.goto(`${APP_URL}/projects/${projectId}`);
 
       const deleteButton = page.locator('button:has-text("Delete"), [aria-label="Delete"]');
 
@@ -419,12 +425,13 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${user1Token}` },
         data: {
-          name: `Protected Delete Project ${Date.now()}`,
+          title: `Protected Delete Project ${Date.now()}`,
           description: 'Only owner can delete',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Create new context for different user
       const context2 = await browser.newContext();
@@ -438,7 +445,7 @@ test.describe('Project CRUD Operations', () => {
       await page2.waitForLoadState('networkidle');
 
       // Navigate to project
-      await page2.goto(`${APP_URL}/projects/${project._id}`);
+      await page2.goto(`${APP_URL}/projects/${projectId}`);
 
       // Should not show delete button
       const deleteButton = page2.locator('button:has-text("Delete"), [aria-label="Delete"]');
@@ -461,15 +468,16 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Collab Test Project ${Date.now()}`,
+          title: `Collab Test Project ${Date.now()}`,
           description: 'Testing collaborator feature',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Navigate to project
-      await page.goto(`${APP_URL}/projects/${project._id}`);
+      await page.goto(`${APP_URL}/projects/${projectId}`);
 
       // Find add collaborator button
       const addCollabButton = page.locator(
@@ -502,23 +510,24 @@ test.describe('Project CRUD Operations', () => {
       const projectResponse = await request.post(`${API_URL}/projects`, {
         headers: { Authorization: `Bearer ${accessToken}` },
         data: {
-          name: `Remove Collab Project ${Date.now()}`,
+          title: `Remove Collab Project ${Date.now()}`,
           description: 'Testing collaborator removal',
         },
       });
 
       const project = await projectResponse.json();
+      const projectId = project._id || project.id;
 
       // Add collaborator
       await request
-        .post(`${API_URL}/projects/${project._id}/collaborators`, {
+        .post(`${API_URL}/projects/${projectId}/collaborators`, {
           headers: { Authorization: `Bearer ${accessToken}` },
           data: { email: 'user2@example.com' },
         })
         .catch(() => {});
 
       // Navigate to project
-      await page.goto(`${APP_URL}/projects/${project._id}`);
+      await page.goto(`${APP_URL}/projects/${projectId}`);
 
       // Find remove collaborator button
       const removeButton = page.locator('button:has-text("Remove"), [aria-label*="Remove"]');
@@ -545,11 +554,11 @@ test.describe('Project CRUD Operations', () => {
 
   test.describe('Edge Cases', () => {
     test('should handle rapid successive project creation', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}/projects/create`);
 
       const projectName = `Rapid Test ${Date.now()}`;
 
-      await page.fill('input[name="name"], input[name="title"]', projectName);
+      await page.fill('input[name="title"], input[name="name"]', projectName);
       await page.fill('textarea[name="description"]', 'Testing rapid submission');
 
       // Click submit button multiple times rapidly
@@ -564,11 +573,11 @@ test.describe('Project CRUD Operations', () => {
     });
 
     test('should handle special characters in project name', async ({ page }) => {
-      await page.goto(`${APP_URL}/projects/new`);
+      await page.goto(`${APP_URL}/projects/create`);
 
       const specialName = `Test <script>alert('xss')</script> Project ${Date.now()}`;
 
-      await page.fill('input[name="name"], input[name="title"]', specialName);
+      await page.fill('input[name="title"], input[name="name"]', specialName);
       await page.fill('textarea[name="description"]', 'Testing XSS prevention');
       await page.click('button[type="submit"]');
 
@@ -585,7 +594,7 @@ test.describe('Project CRUD Operations', () => {
       // Simulate offline mode
       await context.setOffline(true);
 
-      await page.goto(`${APP_URL}/projects/new`).catch(() => {});
+      await page.goto(`${APP_URL}/projects/create`).catch(() => {});
 
       // Should show offline message or cached content
       await page.waitForTimeout(2000);

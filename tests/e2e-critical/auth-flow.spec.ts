@@ -42,7 +42,9 @@ test.describe('Authentication Flow E2E', () => {
       await page.waitForURL(/\/(login|verify-email)/, { timeout: 5000 }).catch(() => {});
 
       // Check for success indicators
-      const successMessage = page.locator('text=/successfully?|check your email|verification|Registration Successful/i');
+      const successMessage = page.locator(
+        'text=/successfully?|check your email|verification|Registration Successful/i'
+      );
       const isVisible = await successMessage.isVisible().catch(() => false);
       expect(isVisible).toBeTruthy();
     });
@@ -234,7 +236,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show success message
-      const successMessage = page.locator('text=/email sent|check your email|reset link/i');
+      const successMessage = page.locator('text=/Password Reset Link Generated/i');
       await expect(successMessage).toBeVisible({ timeout: 5000 });
     });
 
@@ -261,7 +263,7 @@ test.describe('Authentication Flow E2E', () => {
       page: Page;
     }) => {
       // Use an expired/invalid token
-      await page.goto(`${APP_URL}/verify-email?token=expired_token_123`);
+      await page.goto(`${APP_URL}/verify-email/expired_token_123`);
 
       // Should show error message
       const errorMessage = page.locator('text=/expired|invalid|error/i');
@@ -275,7 +277,7 @@ test.describe('Authentication Flow E2E', () => {
     }: {
       page: Page;
     }) => {
-      const protectedRoutes = ['/dashboard', '/profile', '/projects/new'];
+      const protectedRoutes = ['/dashboard', '/profile', '/projects/create'];
 
       for (const route of protectedRoutes) {
         await page.goto(`${APP_URL}${route}`);
@@ -324,6 +326,8 @@ test.describe('Authentication Flow E2E', () => {
       // In production, this would be tested by manipulating the token expiration
       // For now, just verify that API calls continue to work after some time
       await page.waitForTimeout(2000);
+
+      await expect(page.locator('[aria-label*="Account"]').first()).toBeVisible();
 
       // Make an authenticated request
       await page.goto(`${APP_URL}/dashboard`);

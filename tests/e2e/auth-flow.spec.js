@@ -38,11 +38,14 @@ test.describe('Authentication Flow E2E', () => {
       // Check for success indicators - API returns "Account created successfully"
       // In dev mode, auto-login redirects to dashboard immediately
       await page.waitForTimeout(1500); // Give time for auto-redirect
-      
+
       const isOnDashboard = page.url().includes('dashboard');
       if (!isOnDashboard) {
         // If not redirected, check for success message
-        const successAlert = page.locator('.MuiAlertTitle-root, .MuiAlert-message').filter({ hasText: /Registration Successful/i }).first();
+        const successAlert = page
+          .locator('.MuiAlertTitle-root, .MuiAlert-message')
+          .filter({ hasText: /Registration Successful/i })
+          .first();
         await expect(successAlert).toBeVisible({ timeout: 5000 });
       }
     });
@@ -74,7 +77,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show password validation error
-      const errorMessage = page.locator('[data-testid="password-error"]');
+      const errorMessage = page.locator('[data-testid=\"password-error\"]');
       await expect(errorMessage).toBeVisible({ timeout: 5000 });
     });
   });
@@ -199,10 +202,12 @@ test.describe('Authentication Flow E2E', () => {
       await page.waitForLoadState('networkidle');
 
       // Open account menu and click logout
-      const accountButton = page.locator('[aria-label*="Account menu"], [aria-haspopup="true"]').first();
+      const accountButton = page
+        .locator('[aria-label*="Account menu"], [aria-haspopup="true"]')
+        .first();
       await expect(accountButton).toBeVisible({ timeout: 5000 });
       await accountButton.click();
-      
+
       const logoutButton = page.locator('[data-testid="logout-button"]');
       await expect(logoutButton).toBeVisible({ timeout: 5000 });
       await logoutButton.click();
@@ -227,7 +232,7 @@ test.describe('Authentication Flow E2E', () => {
       await page.click('button[type="submit"]');
 
       // Should show success message
-      const successMessage = page.locator('text=/email sent|check your email|reset link/i');
+      const successMessage = page.locator('text=/Password Reset Link Generated/i');
       await expect(successMessage).toBeVisible({ timeout: 5000 });
     });
 
@@ -239,7 +244,7 @@ test.describe('Authentication Flow E2E', () => {
 
       // Should show generic success message (security best practice - no user enumeration)
       // Look for the Alert with specific text about password reset
-      const message = page.locator('text=Password Reset Link Generated');
+      const message = page.locator('text=/Password Reset Link Generated|reset link/i');
       await expect(message).toBeVisible({ timeout: 5000 });
     });
   });
@@ -247,7 +252,7 @@ test.describe('Authentication Flow E2E', () => {
   test.describe('Email Verification', () => {
     test('should show appropriate message for expired verification token', async ({ page }) => {
       // Use an expired/invalid token
-      await page.goto(`${APP_URL}/verify-email?token=expired_token_123`);
+      await page.goto(`${APP_URL}/verify-email/expired_token_123`);
 
       // Should show error message
       const errorMessage = page.locator('text=/expired|invalid|error/i');
@@ -257,7 +262,7 @@ test.describe('Authentication Flow E2E', () => {
 
   test.describe('Protected Routes', () => {
     test('should redirect unauthenticated users from protected routes', async ({ page }) => {
-      const protectedRoutes = ['/dashboard', '/profile', '/projects/new'];
+      const protectedRoutes = ['/dashboard', '/profile', '/projects/create'];
 
       for (const route of protectedRoutes) {
         await page.goto(`${APP_URL}${route}`);
