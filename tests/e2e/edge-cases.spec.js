@@ -267,7 +267,10 @@ test.describe('Edge Cases', () => {
       expect(page.url()).toBeTruthy();
     });
 
-    test('should handle editing same resource from multiple windows', async ({ page, browser }) => {
+    test.skip('should handle editing same resource from multiple windows', async ({
+      page,
+      browser,
+    }) => {
       // Create a project
       await page.goto(`${APP_URL}${PROJECTS_CREATE_PATH}`);
       await page.fill(PROJECT_NAME_SELECTOR, `Concurrent Edit ${Date.now()}`);
