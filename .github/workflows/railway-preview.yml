@@ -33,24 +33,21 @@ jobs:
       - name: Deploy to Railway
         id: deploy
         env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           set -e
           PR_NUMBER=${{ github.event.pull_request.number }}
-          PROJECT_ID=${{ secrets.RAILWAY_PROJECT_ID }}
 
           echo "Deploying PR #${PR_NUMBER} to Railway..."
 
-          # Link to project
-          railway link --project "$PROJECT_ID"
+          # Deploy to PR environment using project token
+          railway up --environment "pr-${PR_NUMBER}" --detach || {
+            echo "Environment may not exist yet, creating..."
+            railway environment new "pr-${PR_NUMBER}" --duplicate production
+            railway up --environment "pr-${PR_NUMBER}" --detach
+          }
 
-          # Create PR environment (idempotent)
-          railway environment new "pr-${PR_NUMBER}" --duplicate production || echo "Environment may already exist"
-
-          # Deploy to PR environment
-          railway up --environment "pr-${PR_NUMBER}" --detach
-
-          # Output preview URL (Railway generates domain automatically)
+          # Output preview URL
           echo "url=https://pr-${PR_NUMBER}.up.railway.app" >> $GITHUB_OUTPUT
 
       - name: Update PR with Preview URL
@@ -110,12 +107,9 @@ jobs:
 
       - name: Delete PR Environment
         env:
-          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          PROJECT_ID=${{ secrets.RAILWAY_PROJECT_ID }}
 
           echo "Cleaning up pr-${PR_NUMBER} environment..."
-
-          railway link --project "$PROJECT_ID"
           railway environment delete "pr-${PR_NUMBER}" || echo "Environment may not exist"
