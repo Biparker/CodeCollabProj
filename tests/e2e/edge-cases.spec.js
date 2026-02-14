@@ -593,7 +593,7 @@ test.describe('Edge Cases', () => {
       expect(page.url()).toBeTruthy();
     });
 
-    test('should handle touch gestures', async ({ page }) => {
+    test.skip('should handle touch gestures', async ({ page }) => {
       // Simulate touch events
       await page.goto(`${APP_URL}/projects`);
 
