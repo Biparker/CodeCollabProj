@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Railway CLI
-        run: npm install -g @railway/cli@3
+        run: npm install -g @railway/cli@4
 
       - name: Deploy to Railway
         id: deploy
@@ -42,27 +42,16 @@ jobs:
           echo "Deploying PR #${PR_NUMBER} to Railway..."
 
           # Link to project
-          railway link --project "$PROJECT_ID" --environment production
+          railway link --project "$PROJECT_ID"
 
           # Create PR environment (idempotent)
-          railway environment new "pr-${PR_NUMBER}" --copy production || echo "Environment already exists"
+          railway environment new "pr-${PR_NUMBER}" --duplicate production || echo "Environment may already exist"
 
           # Deploy to PR environment
           railway up --environment "pr-${PR_NUMBER}" --detach
 
-          # Wait briefly for domain assignment
-          sleep 15
-
-          # Get the deployment domain
-          DOMAIN=$(railway domain --environment "pr-${PR_NUMBER}" 2>/dev/null || echo "")
-          if [ -n "$DOMAIN" ]; then
-            FRONTEND_URL="https://${DOMAIN}"
-          else
-            FRONTEND_URL="https://pr-${PR_NUMBER}.up.railway.app"
-          fi
-
-          echo "Preview URL: $FRONTEND_URL"
-          echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          # Output preview URL (Railway generates domain automatically)
+          echo "url=https://pr-${PR_NUMBER}.up.railway.app" >> $GITHUB_OUTPUT
 
       - name: Update PR with Preview URL
         uses: actions/github-script@v7
@@ -117,7 +106,7 @@ jobs:
 
     steps:
       - name: Install Railway CLI
-        run: npm install -g @railway/cli@3
+        run: npm install -g @railway/cli@4
 
       - name: Delete PR Environment
         env:
@@ -128,5 +117,5 @@ jobs:
 
           echo "Cleaning up pr-${PR_NUMBER} environment..."
 
-          railway link --project "$PROJECT_ID" --environment production
+          railway link --project "$PROJECT_ID"
           railway environment delete "pr-${PR_NUMBER}" || echo "Environment may not exist"
