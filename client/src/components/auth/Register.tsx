@@ -110,7 +110,7 @@ const Register: React.FC = () => {
   const handleSubmit = async (e: FormEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
     if (validateForm()) {
-      const { confirmPassword: _confirmPassword, ...registerData } = formData;
+      const { confirmPassword: _, ...registerData } = formData;
       registerMutation.mutate(registerData, {
         onSuccess: (data: RegisterResponse) => {
           setRegistrationSuccess(true);
@@ -217,7 +217,9 @@ const Register: React.FC = () => {
               required
               inputProps={{ 'data-testid': 'password-input' }}
               // @ts-ignore - data-testid is valid DOM attribute but missing from MUI types
-              FormHelperTextProps={{ 'data-testid': formErrors.password ? 'password-error' : undefined } as any}
+              FormHelperTextProps={
+                { 'data-testid': formErrors.password ? 'password-error' : undefined } as any
+              }
             />
 
             <TextField
