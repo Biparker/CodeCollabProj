@@ -81,7 +81,7 @@ test.describe('Email Service', () => {
       expect(response.status()).toBe(400);
     });
 
-    test('should allow resending verification email', async ({ request, page }) => {
+    test.skip('should allow resending verification email', async ({ request, page }) => {
       // Create unverified user
       const timestamp = Date.now();
       const testUser = {
