@@ -2,11 +2,17 @@ name: Railway Preview Deploy
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened]
+    types: [opened, synchronize, reopened, closed]
     branches: [main, develop]
-  workflow_run:
-    workflows: ["CI"]
-    types: [completed]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 env:
   NODE_VERSION: '20'
@@ -15,60 +21,46 @@ jobs:
   deploy-preview:
     name: Deploy Railway Preview
     runs-on: ubuntu-latest
-    # Only deploy if CI passed
-    if: >
-      github.event_name == 'pull_request' ||
-      (github.event_name == 'workflow_run' && 
-       github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'pull_request')
+    if: github.event.action != 'closed'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@3
 
       - name: Deploy to Railway
         id: deploy
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
-          echo "Deploying PR #${{ github.event.pull_request.number }} to Railway..."
-          
-          # Login to Railway
-          railway login --token "$RAILWAY_TOKEN"
-          
-          # Link to project (use production as template)
-          railway link --project ${{ secrets.RAILWAY_PROJECT_ID }}
-          
-          # Create environment for this PR
+          set -e
           PR_NUMBER=${{ github.event.pull_request.number }}
-          BRANCH_NAME="${{ github.head_ref }}"
-          
-          # Check if environment exists, create if not
-          ENV_EXISTS=$(railway environment list --json 2>/dev/null | jq -r ".[] | select(.name == \"pr-${PR_NUMBER}\") | .id" || echo "")
-          
-          if [ -z "$ENV_EXISTS" ]; then
-            echo "Creating new PR environment: pr-${PR_NUMBER}"
-            # Use Railway REST API to create environment
-            curl -s -X POST "https://backboard.railway.app/api/v1/projects/${{ secrets.RAILWAY_PROJECT_ID }}/environments" \
-              -H "Authorization: Bearer $RAILWAY_TOKEN" \
-              -H "Content-Type: application/json" \
-              -d "{\"name\": \"pr-${PR_NUMBER}\", \"sourceEnvironmentId\": \"${{ secrets.RAILWAY_PROD_ENV_ID }}\"}" 2>/dev/null
+          PROJECT_ID=${{ secrets.RAILWAY_PROJECT_ID }}
+
+          echo "Deploying PR #${PR_NUMBER} to Railway..."
+
+          # Link to project
+          railway link --project "$PROJECT_ID" --environment production
+
+          # Create PR environment (idempotent)
+          railway environment new "pr-${PR_NUMBER}" --copy production || echo "Environment already exists"
+
+          # Deploy to PR environment
+          railway up --environment "pr-${PR_NUMBER}" --detach
+
+          # Wait briefly for domain assignment
+          sleep 15
+
+          # Get the deployment domain
+          DOMAIN=$(railway domain --environment "pr-${PR_NUMBER}" 2>/dev/null || echo "")
+          if [ -n "$DOMAIN" ]; then
+            FRONTEND_URL="https://${DOMAIN}"
+          else
+            FRONTEND_URL="https://pr-${PR_NUMBER}.up.railway.app"
           fi
-          
-          # Wait for deployment
-          echo "Waiting for deployment..."
-          sleep 30
-          
-          # Get frontend URL
-          FRONTEND_URL="https://frontend-pr-${PR_NUMBER}.up.railway.app"
+
           echo "Preview URL: $FRONTEND_URL"
           echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
 
@@ -76,34 +68,32 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const prNumber = context.payload.pull_request?.number || 
-              context.payload.workflow_run?.pull_requests?.[0]?.number;
-            
+            const prNumber = context.payload.pull_request?.number;
             if (!prNumber) return;
-            
-            const previewUrl = '${{ steps.deploy.outputs.url }}' || 
-              `https://frontend-pr-${prNumber}.up.railway.app`;
-            
+
+            const previewUrl = '${{ steps.deploy.outputs.url }}';
+            const marker = '<!-- railway-preview -->';
+
             const { data: comments } = await github.rest.issues.listComments({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
             });
-            
-            const botComment = comments.find(comment => 
+
+            const botComment = comments.find(comment =>
               comment.user.login === 'github-actions[bot]' &&
-              comment.body.includes('Railway Preview')
+              comment.body.includes(marker)
             );
-            
-            const body = `🚀 **Railway Preview Deployed**
-            
+
+            const body = `${marker}
+            🚀 **Railway Preview Deployed**
+
             | Service | URL |
             |---------|-----|
-            | Frontend | ${previewUrl} |
-            | Backend | https://codecollabproj-pr-${prNumber}.up.railway.app |
-            
-            _Note: This is an ephemeral preview environment. Changes pushed to the PR will auto-redeploy._`;
-            
+            | Preview | ${previewUrl} |
+
+            _Deployed from commit \`${{ github.event.pull_request.head.sha }}\`. Changes pushed to the PR will auto-redeploy._`;
+
             if (botComment) {
               await github.rest.issues.updateComment({
                 owner: context.repo.owner,
@@ -123,22 +113,20 @@ jobs:
   cleanup-preview:
     name: Cleanup Railway Preview
     runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request' && github.event.action == 'closed'
-    
+    if: github.event.action == 'closed'
+
     steps:
       - name: Install Railway CLI
-        run: npm install -g @railway/cli
+        run: npm install -g @railway/cli@3
 
       - name: Delete PR Environment
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          echo "Cleaning up PR-${PR_NUMBER} environment..."
-          
-          railway login --token "$RAILWAY_TOKEN"
-          
-          # Delete the PR environment via API
-          curl -s -X DELETE \
-            "https://backboard.railway.app/api/v1/projects/${{ secrets.RAILWAY_PROJECT_ID }}/environments/pr-${PR_NUMBER}" \
-            -H "Authorization: Bearer $RAILWAY_TOKEN" 2>/dev/null || echo "Environment may not exist"
+          PROJECT_ID=${{ secrets.RAILWAY_PROJECT_ID }}
+
+          echo "Cleaning up pr-${PR_NUMBER} environment..."
+
+          railway link --project "$PROJECT_ID" --environment production
+          railway environment delete "pr-${PR_NUMBER}" || echo "Environment may not exist"

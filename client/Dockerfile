@@ -1,34 +1,31 @@
-# Frontend Dockerfile for Railway
-FROM node:18-alpine
-
-# Set working directory
+# Stage 1: Build
+FROM node:18-alpine AS builder
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
-
-# Install dependencies (including devDependencies needed for build)
 RUN npm ci
 
-# Copy source code
 COPY . .
 
-# Railway will inject REACT_APP_API_URL at build time from shared variables
-# Default to production if not set
 ARG REACT_APP_API_URL=https://api.codecollabproj.com/api
 ENV REACT_APP_API_URL=$REACT_APP_API_URL
-
-# SECURITY: Disable source maps in production to prevent exposing source code
 ENV GENERATE_SOURCEMAP=false
 
-# Build the React app
 RUN npm run build
 
-# Install serve to serve static files
-RUN npm install -g serve
+# Stage 2: Production (no devDependencies, minimal attack surface)
+FROM node:18-alpine
+WORKDIR /app
 
-# Expose port
+RUN npm install -g serve@14.2.4
+
+# Run as non-root user
+RUN addgroup -g 1001 -S appuser && adduser -S appuser -u 1001
+COPY --from=builder --chown=appuser:appuser /app/build ./build
+USER appuser
+
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
+
 EXPOSE 3000
-
-# Serve the built React app
 CMD ["serve", "-s", "build", "-l", "3000"]
