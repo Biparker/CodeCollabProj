@@ -7,8 +7,8 @@ RUN npm install
 
 COPY . .
 
-ARG REACT_APP_API_URL=https://api.codecollabproj.com/api
-ENV REACT_APP_API_URL=$REACT_APP_API_URL
+ARG VITE_API_URL=https://api.codecollabproj.com/api
+ENV VITE_API_URL=$VITE_API_URL
 ENV GENERATE_SOURCEMAP=false
 
 RUN npm run build
