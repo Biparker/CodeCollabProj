@@ -33,7 +33,7 @@ jobs:
       - name: Deploy to Railway
         id: deploy
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
           set -e
           PR_NUMBER=${{ github.event.pull_request.number }}
@@ -110,7 +110,7 @@ jobs:
 
       - name: Delete PR Environment
         env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
+          RAILWAY_API_TOKEN: ${{ secrets.RAILWAY_API_TOKEN }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           PROJECT_ID=${{ secrets.RAILWAY_PROJECT_ID }}
